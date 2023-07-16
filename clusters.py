@@ -228,9 +228,9 @@ def HLPlot(df: pd.DataFrame, title = None):
   plt.show()
 
 def RenameDuplicateColumns(row_list: List,
-                             column_name: str) -> List:
+                           column_name: str) -> List:
   """
-  Function to rename duplicate column names.
+  Function to rename a duplicate column name.
 
   Args:
     - row_list: A list containing each row_list of the spreadsheet
