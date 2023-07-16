@@ -256,7 +256,7 @@ def ConvertSpaces(column_names: List) -> List:
   Returns:
     - A list containing no _ in columns names
   """
-  column_names = [s.replace(' ', '_') for s in rows[0]]
+  column_names = [s.replace(' ', '_') for s in column_names]
   return column_names
 
 def ConvertToNumerical(sd: List[dataclasses.dataclass],
