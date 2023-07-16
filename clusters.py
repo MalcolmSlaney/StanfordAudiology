@@ -292,7 +292,7 @@ def ConvertToNumerical(sd: List[dataclasses.dataclass],
   return data
 
 def MakeDataClass(column_names: List,
-                    rows: List, features: List) -> List:
+                  rows: List, features: List) -> List:
   """
   This function creates a new dataclass (StanfordData) object for each row of
   data, and then returns a list of these objects.
@@ -315,7 +315,8 @@ def MakeDataClass(column_names: List,
   age_data =  ConvertToNumerical(all_stanford_data, ['AgeAtTestDate'])
 
   good_age_rows,_ = np.where((age_data >=0) & (age_data <=100))
-  data = ConvertToNumerical(all_stanford_data[good_age_rows], features)
+  good_rows = [all_stanford_data[i] for i in good_age_rows]
+  data = ConvertToNumerical(good_rows, features)
 
   return data
 
