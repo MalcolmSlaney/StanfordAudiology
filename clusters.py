@@ -315,7 +315,7 @@ def MakeDataClass(column_names: List,
   age_data =  ConvertToNumerical(all_stanford_data, ['AgeAtTestDate'])
 
   good_age_rows,_ = np.where((age_data >=0) & (age_data <=100))
-  data = ConvertToNumerical(all_stanford_datai[good_age_rows], features)
+  data = ConvertToNumerical(all_stanford_data[good_age_rows], features)
 
   return data
 
