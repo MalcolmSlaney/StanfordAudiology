@@ -462,9 +462,11 @@ def AssignClusterLabels(data: pd.DataFrame,
   Returns:
     The data with the cluster labels assigned.
   """
+  data['cluster_labels'] = float('nan')  
   for i in list(cluster_label.keys()):
-    data.loc[data['predictions'] == i, 'cluster_labels'] = cluster_labels[i]
+    data.loc[data['predictions'] == i, 'cluster_labels'] = cluster_label[i]
   return data
+
 
 def SaveAsJson(cluster_labels: dict,
                kmeans: sklearn.cluster._kmeans.KMeans,
