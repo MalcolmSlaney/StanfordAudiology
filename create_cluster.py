@@ -18,7 +18,7 @@ import datetime
 from google.colab import auth
 import gspread
 from google.auth import default  #authenticatiing to google
-from clusters.py import all
+from clusters import all
 
 def CreateClusterV1(filename: str,
                     features: List[str],
