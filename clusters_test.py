@@ -15,6 +15,9 @@ data = MakeDataClass(rows[0], rows, features)
 
 df = ConvertToPanda(data, features)
 
+#Either run the above three commands or only the command below to do the data import and cleaning
+# df = CleanData()
+
 #With acutal data
 df = HLossClassifier(df)
 HLPlot(df)
