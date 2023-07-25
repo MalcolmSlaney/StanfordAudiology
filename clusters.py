@@ -14,7 +14,7 @@ features_before = [ "AgeAtTestDate", "R250", "R500", "R1000", "R2000", "R3000", 
               "RBone1000", "RBone2000", "RBone4000", "LBone500", "LBone1000", "LBone2000", "LBone4000",
               "MonSNR_Score_R", "Word_Rec_Score_R", "MonSNR_Score_L", "Word_Rec_Score_L" ]
 
-duplicate_column_name_1: str = 'LBone200'
+duplicate_column_name_1: str = 'LBone2000'
 
 import numpy as np
 import dataclasses
@@ -325,6 +325,23 @@ def MakeDataClass(column_names: List,
   good_rows = [all_stanford_data[i] for i in good_age_rows]
   data = ConvertToNumerical(good_rows, features)
 
+  return data
+
+def CheckBCandAC(data: pd.DataFrame, threshold: int = 10) -> pd.DataFrame:
+  """
+  A function to drop the rows where Bone Conduction is greater than Air 
+  Conduction by atleast 10dB
+
+  Args:
+  - data: A pandas dataframe on which HLossClassifier() function is run.
+  - threshold: The minimum difference between air conduction and bone conduction
+              loss.
+  Return:
+  - data: A pandas dataframe where the rows with bone conduction loss > air conduction 
+  loss are dropped
+  """
+
+  data = data.drop(data.loc[data['R_PTA_BC_All'] - data['R_PTA_All'] >= threshold].index)
   return data
 
 def CreateKMeans(n: int,
