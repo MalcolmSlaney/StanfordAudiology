@@ -9,12 +9,21 @@ and copy the link from the address bar. The gid code in the url is unique for ea
 of the user.
 """
 spreadsheet_v1_path = 'https://docs.google.com/spreadsheets/d/119_-qrfzGXwV1YBUJdBzvtAQTZnl-xwN7hD9FK5SWfU/edit#gid=84023254'
-features_before = [ "AgeAtTestDate", "R250", "R500", "R1000", "R2000", "R3000", "R4000", "R6000", "R8000",
-              "L250", "L500", "L1000", "L2000", "L3000", "L4000", "L6000", "L8000", "RBone500",
-              "RBone1000", "RBone2000", "RBone4000", "LBone500", "LBone1000", "LBone2000", "LBone4000",
-              "MonSNR_Score_R", "Word_Rec_Score_R", "MonSNR_Score_L", "Word_Rec_Score_L" ]
+# features_before = [ "AgeAtTestDate", "R250", "R500", "R1000", "R2000", "R3000", "R4000", "R6000", "R8000",
+#               "L250", "L500", "L1000", "L2000", "L3000", "L4000", "L6000", "L8000", "RBone500",
+#               "RBone1000", "RBone2000", "RBone4000", "LBone500", "LBone1000", "LBone2000", "LBone4000",
+#               "MonSNR_Score_R", "Word_Rec_Score_R", "MonSNR_Score_L", "Word_Rec_Score_L" ]
 
 duplicate_column_name_1: str = 'LBone2000'
+
+#Golden cluster can be computed by calling CreateKMeans() with random_seed = 0
+
+golden_cluster = {(69.764465, 17.85707): 'High flat',
+ (22.426544, 19.861082): 'Low slope',
+ (42.734375, 5.0265923): 'Mid flat',
+ (35.734127, 46.22456): 'Mid slope',
+ (9.56347, 2.5132303): 'Low flat',
+ (52.65366, 47.10048): 'High slope'}
 
 import numpy as np
 import dataclasses
@@ -327,7 +336,7 @@ def MakeDataClass(column_names: List,
 
   return data
 
-def CheckBCandAC(data: pd.DataFrame, threshold: int = 10) -> pd.DataFrame:
+def CheckBCandAC(data: pd.DataFrame, threshold: int = 100) -> pd.DataFrame:
   """
   A function to drop the rows where Bone Conduction is greater than Air 
   Conduction by atleast 10dB
@@ -593,9 +602,9 @@ def LoadFromJson(
 
   return kmeans, features_before, cluster_labels, features_after
 
-def CleanData(features: List[str] = features_before,
+def ReadPreprocessData(features: List[str] = features_before,
               duplicate_column_name: str = duplicate_column_name_1,
-              spreadsheet_path: str = spreadsheet_v1_path) -> pd.DataFrame:
+              spreadsheet_path: str = spreadsheet_v1_path) -> List:
   
   """
     Clean and transform data from a spreadsheet into a pandas DataFrame.
@@ -627,12 +636,80 @@ def CleanData(features: List[str] = features_before,
   rows = ImportSpreadsheet(spreadsheet_path)
   rows = RenameDuplicateColumns(rows, duplicate_column_name)
   data = MakeDataClass(rows[0], rows, features)
-  df = ConvertToPanda(data, features)
+  
 
-  return df
+  return data
+
+def euclidean_distance(centroid1, centroid2) -> float:
+  """
+    Calculate the Euclidean distance between two cluster centroids represented as mean and slope.
+
+    Parameters:
+    centroid1 : The first centroid
+    centroid2 : The second centroid
+
+    Returns:
+    float: The Euclidean distance between the two centroids.
+
+  """
+  return np.linalg.norm(np.array(centroid1) - np.array(centroid2))
+
+def SlopeandMean(kmeans: sklearn.cluster._kmeans.KMeans):
+
+  """
+  Calculate the slopes and means of the cluster centers obtained from a k-means clustering algorithm.
+
+  Parameters:
+  kmeans : sklearn.cluster._kmeans.KMeans
+      The result of a k-means clustering algorithm containing cluster centers.
+
+  Returns:
+  list of tuples
+      A list of tuples, where each tuple contains the mean and slope corresponding to a cluster center.
+  """
+
+  slopes = kmeans.cluster_centers_.T[7,:] - kmeans.cluster_centers_.T[0,:]
+  means = np.mean(kmeans.cluster_centers_, axis = 1)
+  slope_mean = [(m, s) for m, s in zip(means, slopes)]
+  return slope_mean
+
+def AssignClusterLabels(kmeans, ref_cluster: dict = golden_cluster ):
+
+  """
+    Assign cluster labels to centroids based on their proximity to the centroids in the `golden_cluster` dictionary.
+
+    Parameters:
+    kmeans : object
+        The result of a k-means clustering algorithm containing centroids and cluster assignments.
+
+    ref_cluster : dict, optional
+        A dictionary representing the `golden_cluster` centroids. It should have centroids as keys and cluster labels as values.
+        The default value is `golden_cluster`, which may represent some pre-defined "golden" cluster centroids.
+        
+    Returns:
+        A dictionary containing the updated cluster labels for each centroid in `kmeans`. The keys represent the index of the centroid in `kmeans`,
+        and the values are the corresponding cluster labels from the `golden_cluster` dictionary.
+  """
+  
+  clusters_slope_mean = SlopeandMean(kmeans)
+  new_labels = {}
+  golden_cluster_centroids = list(golden_cluster.keys())
+  golden_cluster_centroids
+
+  for mean_slope, i in zip(clusters_slope_mean, range(len(clusters_slope_mean))):
+        distance_mean = [euclidean_distance(mean_slope[0], centroid[0]) for centroid in golden_cluster_centroids]
+        distance_slope = [euclidean_distance(mean_slope[1], centroid[1]) for centroid in golden_cluster_centroids]
+        index_mean = np.argmin(distance_mean)
+        index_slope = np.argmin(distance_slope)
+
+        if index_mean == index_slope:
+          index = index_mean
+          new_labels[i] = golden_cluster[golden_cluster_centroids[index]]
+
+  return new_labels
+
 
 def CreateClusterV1(filename: str,
-                    features: List[str] = features_before,
                     duplicate_column_name: str = duplicate_column_name_1,
                     labels: List[str] = ['R250',	'R500',	'R1000',	'R2000',	'R3000',	'R4000',	'R6000',	'R8000'],
                     spreadsheet_path: str = spreadsheet_v1_path,
