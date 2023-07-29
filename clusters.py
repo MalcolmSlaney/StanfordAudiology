@@ -483,7 +483,7 @@ def CountPredictions(data: pd.DataFrame,
     count[cluster_label[i]] = count_temp
   return count
 
-def AssignClusterLabels(data: pd.DataFrame,
+def AssignClusterLabelsToDF(data: pd.DataFrame,
                           cluster_label: dict) -> pd.DataFrame:
 
   """Assigns cluster labels to the data.
@@ -495,7 +495,7 @@ def AssignClusterLabels(data: pd.DataFrame,
   Returns:
     The data with the cluster labels assigned.
   """
-  data['cluster_labels'] = float('nan')  
+  data['cluster_labels'] = float('nan')
   for i in list(cluster_label.keys()):
     data.loc[data['predictions'] == i, 'cluster_labels'] = cluster_label[i]
   return data
@@ -602,10 +602,9 @@ def LoadFromJson(
 
   return kmeans, features_before, cluster_labels, features_after
 
-def ReadPreprocessData(features: List[str] = features_before,
-              duplicate_column_name: str = duplicate_column_name_1,
-              spreadsheet_path: str = spreadsheet_v1_path) -> List:
-  
+def ReadPreprocessData(duplicate_column_name: str = duplicate_column_name_1,
+              spreadsheet_path: str = spreadsheet_v1_path) -> np.ndarray:
+
   """
     Clean and transform data from a spreadsheet into a pandas DataFrame.
 
@@ -618,27 +617,18 @@ def ReadPreprocessData(features: List[str] = features_before,
                                           Defaults to the value of `spreadsheet_v1_path`.
 
     Returns:
-        pd.DataFrame: A pandas DataFrame containing the cleaned and transformed data.
-
-    Example:
-        
-        cleaned_df = CleanData()
-
-        # Clean and transform data from the spreadsheet with custom parameters.
-        custom_features = ['feature1', 'feature2', 'feature3']
-        custom_duplicate_column = 'duplicate_col'
-        custom_spreadsheet_path = 'path/to/custom_spreadsheet.xlsx'
-        cleaned_custom_df = CleanData(features=custom_features,
-                                      duplicate_column_name=custom_duplicate_column,
-                                      spreadsheet_path=custom_spreadsheet_path)
-    """
+        data: A numpy array containing the cleaned and transformed data.
+        features: A list of column names 
+  """
   
   rows = ImportSpreadsheet(spreadsheet_path)
   rows = RenameDuplicateColumns(rows, duplicate_column_name)
-  data = MakeDataClass(rows[0], rows, features)
-  
+  features = ConvertSpaces(rows[0])
 
-  return data
+  data = MakeDataClass(features, rows)
+
+
+  return (data, features)
 
 def euclidean_distance(centroid1, centroid2) -> float:
   """
