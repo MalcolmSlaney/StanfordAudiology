@@ -1,4 +1,4 @@
-from functions import *
+from clusters import *
 
 # CreateClusterV1("cluster_info_v4", features, 'LBone2000')
 
@@ -11,9 +11,15 @@ cluster_labels
 
 rows = RenameDuplicateColumns(rows, 'LBone2000')
 
-data = MakeDataClass(rows[0], rows, features)
+features = ConvertSpaces(rows[0])
+
+data = MakeDataClass(features, rows)
 
 df = ConvertToPanda(data, features)
+
+# Either run the above three commands or only the command below to do the data import and cleaning
+# data = ReadPreprocessData()
+# df = ConvertToPanda(data, features)
 
 #With acutal data
 df = HLossClassifier(df)
@@ -41,7 +47,7 @@ df['predictions'] = hl_right['predictions']
 
 count = CountPredictions(hl_right, cluster_labels)
 
-df = AssignClusterLabels(df, cluster_labels)
+df = AssignClusterLabelsToDF(df, cluster_labels)
 
 SaveAsJson(cluster_labels,
            kmeans_1,
