@@ -17,10 +17,6 @@ and copy the link from the address bar. The gid code in the url is unique for ea
 of the user.
 """
 spreadsheet_path_v1 = 'https://docs.google.com/spreadsheets/d/119_-qrfzGXwV1YBUJdBzvtAQTZnl-xwN7hD9FK5SWfU/edit#gid=84023254'
-# features_before = [ "AgeAtTestDate", "R250", "R500", "R1000", "R2000", "R3000", "R4000", "R6000", "R8000",
-#               "L250", "L500", "L1000", "L2000", "L3000", "L4000", "L6000", "L8000", "RBone500",
-#               "RBone1000", "RBone2000", "RBone4000", "LBone500", "LBone1000", "LBone2000", "LBone4000",
-#               "MonSNR_Score_R", "Word_Rec_Score_R", "MonSNR_Score_L", "Word_Rec_Score_L" ]
 
 duplicate_column_name_v1: str = 'LBone2000'
 
@@ -39,6 +35,7 @@ cluster_labels_v1 = {4: 'Low flat',
                     1: 'Low slope',
                     3: 'Mid slope',
                     5: 'High slope'}
+labels_v1 = ['R250',	'R500',	'R1000',	'R2000',	'R3000',	'R4000',	'R6000',	'R8000']
 
 import numpy as np
 import dataclasses
@@ -530,8 +527,8 @@ def SaveAsJson(
     - path: The path of the google directory where the JSON file will be saved.
     - cluster_labels: A dictionary mapping cluster labels to the corresponding data points (default is cluster_labels_v1)
     - kmeans: The KMeans model that was used to cluster the data.
-    - features_before: The list of features that were used to cluster the data.
-    - features_after: The list of features that were obtained after performing HL classification.
+    - features_initial: The list of features that were used to cluster the data.
+    - features_final: Additional features computed when performing the HL classifcation.
     - filename: Name of the file
     - nClusterPoints: A dictionary mapping cluster labels to the number of data points in each cluster
     - clusters: A dictionary that maps the mean and slope of cluster centroids to the labels
@@ -664,7 +661,7 @@ def SlopeandMean(kmeans: sklearn.cluster._kmeans.KMeans):
 
   slopes = kmeans.cluster_centers_.T[7,:] - kmeans.cluster_centers_.T[0,:]
   means = np.mean(kmeans.cluster_centers_, axis = 1)
-  slope_mean = [(m, s) for m, s in zip(means, slopes)]
+  slope_mean = list(zip(means, slopes))
   return slope_mean
 
 def euclidean_distance(centroid1, centroid2) -> float:
@@ -703,9 +700,7 @@ def CreateClusterLabels(kmeans: sklearn.cluster._kmeans.KMeans,
   clusters_slope_mean = SlopeandMean(kmeans)
   new_labels = {}
   golden_cluster_centroids = list(ref_cluster.keys())
-  # golden_cluster_centroids = [ast.literal_eval(i) for i in golden_cluster_centroids]
-
-  # for mean_slope, i in zip(clusters_slope_mean, range(len(clusters_slope_mean))):
+  
   for i, (mean, slope) in enumerate(clusters_slope_mean):
         distance_mean = [euclidean_distance(mean, centroid[0]) for centroid in golden_cluster_centroids]
         distance_slope = [euclidean_distance(slope, centroid[1]) for centroid in golden_cluster_centroids]
@@ -720,7 +715,7 @@ def CreateClusterLabels(kmeans: sklearn.cluster._kmeans.KMeans,
 
 def CreateClusterV1(filename: str,
                     duplicate_column_name: str = duplicate_column_name_v1,
-                    labels: List[str] = ['R250',	'R500',	'R1000',	'R2000',	'R3000',	'R4000',	'R6000',	'R8000'],
+                    labels: List[str] = labels_v1,
                     spreadsheet_path: str = spreadsheet_path_v1,
                     save_path: str = default_cluster_dir,
                     ref_cluster: dict = golden_cluster_v1,
@@ -761,7 +756,7 @@ def CreateClusterV1(filename: str,
       HLossClassifier, CreateKMeans, KMeansPredictions, AssignClusterLabels, CountPredictions, and SaveAsJson.
     - Make sure to import the required modules and define the necessary functions before using this function.
     """
-  data, features = ReadPreprocessData()
+  data, features = ReadPreprocessData(duplicate_column_name,spreadsheet_path)
 
   df = ConvertToPanda(data, features)
   df = HLossClassifier(df)
@@ -770,7 +765,7 @@ def CreateClusterV1(filename: str,
   hl = hl[labels]
 
   kmeans = CreateKMeans(n,hl,random_state,max_iter,n_init)
-  cluster_labels = CreateClusterLabels(kmeans )
+  cluster_labels = CreateClusterLabels(kmeans, ref_cluster)
   hl = KMeansPredictions(kmeans, hl, cluster_labels)
   df['predictions'] = hl['predictions']
 
