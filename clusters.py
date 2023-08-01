@@ -638,9 +638,9 @@ def ReadPreprocessData(duplicate_column_name: str = duplicate_column_name_v1,
 
   rows = ImportSpreadsheet(spreadsheet_path)
   rows = RenameDuplicateColumns(rows, duplicate_column_name)
-  features = ConvertSpaces(rows[0])
+  feature_names = ConvertSpaces(rows[0])
 
-  data = MakeDataClass(features, rows)
+  data = MakeDataClass(feature_names, rows)
 
 
   return (data, features)
