@@ -321,7 +321,7 @@ def ConvertToNumerical(sd: List[dataclasses.dataclass],
   return data
 
 def MakeDataClass(column_names: List,
-                  rows: List) -> List:
+                  rows_of_data: List) -> np.ndarray:
   """
   This function creates a new dataclass (StanfordData) object for each row of
   data, and then returns a list of these objects.
@@ -329,15 +329,14 @@ def MakeDataClass(column_names: List,
   Args:
     - column_names: A list of strings that represents the names of the columns
       in the data.
-    - rows: A list of lists of strings that represents the rows of data.
+    - rows_of_data: A list of lists of strings that represents the rows of data.
 
   Returns:
-    - A list of StanfordData objects, where each object represents a row of data,
-    and no column names are present.
+    - A numpy array containing all the numerical data (and no feature/column names).
   """
   # column_names = ConvertSpaces(column_names) #To convert spaces in column names to _
   StanfordData = dataclasses.make_dataclass('stanford_data', column_names)
-  all_stanford_data = [StanfordData(*rows[i]) for i in range(1, len(rows))]
+  all_stanford_data = [StanfordData(*rows_of_data[i]) for i in range(1, len(rows_of_data))]
 
   #To find the datapoints with apropriate age limit
   age_data =  ConvertToNumerical(all_stanford_data, ['AgeAtTestDate'])
