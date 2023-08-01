@@ -46,7 +46,7 @@ import pandas as pd
 import warnings
 import joblib
 import sklearn
-from typing import List
+from typing import List, Tuple
 from sklearn.cluster import KMeans
 from sklearn.datasets import make_blobs
 import json
@@ -618,7 +618,7 @@ def LoadFromJson(
   return kmeans, features_before, cluster_labels, features_after
 
 def ReadPreprocessData(duplicate_column_name: str = duplicate_column_name_v1,
-              spreadsheet_path: str = spreadsheet_path_v1) -> np.ndarray:
+              spreadsheet_path: str = spreadsheet_path_v1) -> Tuple[np.ndarray, List[str]]:
 
   """
     Clean and transform data from a spreadsheet into a numpy array.
@@ -633,7 +633,7 @@ def ReadPreprocessData(duplicate_column_name: str = duplicate_column_name_v1,
 
     Returns:
         data: A numpy array containing the cleaned and transformed data.
-        features: A list of column names
+        feature_names: A list of column names
   """
 
   rows = ImportSpreadsheet(spreadsheet_path)
