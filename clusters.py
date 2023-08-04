@@ -603,7 +603,7 @@ def LoadFromJson(
   features_before = info['features_before']
   features_after = info['features_after']
   date_time = info['date_time']
-  clusters_dict = info['clusters']
+  # clusters_dict = info['clusters']  # What is this for?
 
   #Initialise a kmeans object
   kmeans = KMeans()
