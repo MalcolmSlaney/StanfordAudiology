@@ -642,7 +642,7 @@ def ReadPreprocessData(duplicate_column_name: str = duplicate_column_name_v1,
   data = MakeDataClass(feature_names, rows)
 
 
-  return (data, features)
+  return (data, feature_names)
 
 def SlopeandMean(kmeans: sklearn.cluster._kmeans.KMeans):
 
