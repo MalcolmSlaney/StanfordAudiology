@@ -600,8 +600,8 @@ def LoadFromJson(
   n_init = info["n_init"]
   n_cluster = info['n_cluster']
   max_iter = info['max_iter']
-  features_before = info['features_initial']
-  features_after = info['features_final']
+  features_before = info['features_before']
+  features_after = info['features_after']
   date_time = info['date_time']
   clusters_dict = info['clusters']
 
