@@ -87,8 +87,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   Returns:
     - df: dataframe with HL classes as a new column
   """
-  # with warnings.catch_warnings():
-  #   warnings.simplefilter("ignore", category=RuntimeWarning)
+
   #HFPTA
   hfpta_R  = df[['R1000', 'R2000', 'R4000']].to_numpy()
   hfpta_L  = df[['L1000', 'L2000', 'L4000']].to_numpy()
@@ -263,7 +262,7 @@ def ConvertSpaces(column_names: List) -> List:
   column_names = [s.replace(' ', '_') for s in column_names]
   return column_names
 
-def ConvertToNumerical_temp(rows_of_data: List, 
+def ConvertToNumerical(rows_of_data: List, 
                        field_list: List[str], 
                        type = np.float32) -> np.ndarray:
   """
@@ -296,21 +295,23 @@ def ConvertToNumerical_temp(rows_of_data: List,
 
   return data
 
-def MakePandas(rows_of_data: List,
-               column_names: List[str],) -> pd.DataFrame:
+def MakePandas(rows_of_data: List) -> pd.DataFrame:
   """
   Creates a Pandas DataFrame from a list of rows containing data.
 
   Args:
       rows_of_data (List): A list of rows, where each row is an iterable containing data values.
-      column_names (List[str]): A list of column names for the DataFrame.
+                          Rows of data obtained after calling RenameDuplicateColumns() on `rows_of_data`
 
   Returns:
       pd.DataFrame: A Pandas DataFrame containing the converted data.
   """
+
+  features = ConvertSpaces(rows_of_data[0])
+
+  data = ConvertToNumerical(rows_of_data, features)
   
-  data = ConvertToNumerical_temp(rows_of_data, column_names)
-  data_df = pd.DataFrame(data, columns = column_names)
+  data_df = pd.DataFrame(data, columns = features)
 
 
   return data_df
@@ -344,7 +345,15 @@ def RemoveRowsWithBCWorseAC(data: pd.DataFrame, threshold: int = 100) -> pd.Data
   loss are dropped
   """
 
+  initial_row_count = data.shape[0]
+
   data = data.drop(data.loc[data['R_PTA_BC_All'] - data['R_PTA_All'] >= threshold].index)
+  data = data.drop(data.loc[data['L_PTA_BC_All'] - data['L_PTA_All'] >= threshold].index)
+  
+  final_row_count = data.shape[0]
+
+  print("Number of rows that have been dropped: ", (initial_row_count - final_row_count))
+
   return data
 
 def CreateKMeans(n: int,
@@ -597,7 +606,7 @@ def LoadFromJson(
   kmeans.max_iter = max_iter
   kmeans._n_threads = _openmp_effective_n_threads()
 
-  return kmeans, features_before, cluster_labels, features_after
+  return kmeans, cluster_labels, features_before, features_after
 
 def ReadData(duplicate_column_name: str = duplicate_column_name_v1,
               spreadsheet_path: str = spreadsheet_path_v1):
