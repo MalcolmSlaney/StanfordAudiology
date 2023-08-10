@@ -302,7 +302,7 @@ def MakePandas(rows_of_data: List) -> pd.DataFrame:
   Args:
       rows_of_data (List): A list of rows, where each row is an iterable containing data values.
                           Rows of data obtained after calling RenameDuplicateColumns() on `rows_of_data`
-
+                          Column_names are first list element of `rows_of_data`
   Returns:
       pd.DataFrame: A Pandas DataFrame containing the converted data.
   """
@@ -311,7 +311,7 @@ def MakePandas(rows_of_data: List) -> pd.DataFrame:
 
   data = ConvertToNumerical(rows_of_data, features)
   
-  data_df = pd.DataFrame(data, columns = features)
+  data_df = pd.DataFrame(data[1:], columns = features)
 
 
   return data_df
@@ -717,7 +717,7 @@ def CreateClusterV1(filename: str,
   
   # Read data and create DataFrame
   data, features = ReadData(duplicate_column_name,spreadsheet_path)
-  df = MakePandas(data,features)
+  df = MakePandas(data)
 
   # Remove rows with invalid ages
   df_good_age = RemoveRowsWithBadAges(df)
