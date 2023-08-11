@@ -307,7 +307,7 @@ def MakePandas(rows_of_data: List) -> pd.DataFrame:
 
   features = ConvertSpaces(rows_of_data[0])
 
-  data = ConvertToNumerical(rows_of_data[1:)
+  data = ConvertToNumerical(rows_of_data[1:])
   
   data_df = pd.DataFrame(data[1:], columns = features)
 
