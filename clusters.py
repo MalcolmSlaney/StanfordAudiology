@@ -263,21 +263,19 @@ def ConvertSpaces(column_names: List) -> List:
   return column_names
 
 def ConvertToNumerical(rows_of_data: List, 
-                       field_list: List[str], 
                        type = np.float32) -> np.ndarray:
   """
   Converts a list of rows containing data into a numerical NumPy array.
   
   Args:
       rows_of_data (List): A list of rows, where each row is an iterable containing data values.
-      field_list (List[str]): A list of field names or labels.
       type (data type, optional): The data type to use for the NumPy array. Default is np.float32.
 
   Returns:
       np.ndarray: A numerical NumPy array containing the converted data.
   """
 
-  data = np.zeros((len(rows_of_data), len(field_list)), dtype=type)
+  data = np.zeros((len(rows_of_data), len(rows_of_data[0])), dtype=type)
 
   for i, r in enumerate(rows_of_data):
     for j, d in enumerate(r):
@@ -309,7 +307,7 @@ def MakePandas(rows_of_data: List) -> pd.DataFrame:
 
   features = ConvertSpaces(rows_of_data[0])
 
-  data = ConvertToNumerical(rows_of_data, features)
+  data = ConvertToNumerical(rows_of_data[1:)
   
   data_df = pd.DataFrame(data[1:], columns = features)
 
@@ -623,18 +621,13 @@ def ReadData(duplicate_column_name: str = duplicate_column_name_v1,
                                           Defaults to the value of `spreadsheet_v1_path`.
 
     Returns:
-        data: A numpy array containing the cleaned and transformed data.
-        feature_names: A list of column names
+        data: A list of lists.  The first list has the column names.  Succeeding lists
+           contain the actual data
   """
 
   rows = ImportSpreadsheet(spreadsheet_path)
   rows = RenameDuplicateColumns(rows, duplicate_column_name)
-  feature_names = ConvertSpaces(rows[0])
-
-  data = rows[1:]
-
-
-  return data, feature_names
+  return rows
 
 def SlopeandMean(kmeans: sklearn.cluster._kmeans.KMeans):
 
