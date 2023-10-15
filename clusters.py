@@ -724,7 +724,7 @@ def CreateClusterV1(filename: str,
   # Create and apply K-means clustering
   kmeans = CreateKMeans(n,hl,random_state,max_iter,n_init)
   cluster_labels = CreateClusterLabels(kmeans, ref_cluster)
-  hl = KMeansPredictions(kmeans, hl, cluster_labels)
+  hl = KMeansPredictions(kmeans, hl) # , cluster_labels)
   df['predictions'] = hl['predictions']
 
   # Assign cluster labels and calculate cluster counts
