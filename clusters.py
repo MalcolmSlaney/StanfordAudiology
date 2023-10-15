@@ -566,7 +566,7 @@ def change_key_values_to_integer(dictionary):
 
 def LoadFromJson(
                 path: str = default_cluster_dir,
-                ) -> tuple[KMeans, List[str]]:
+                ) -> tuple[KMeans, List[str], List[str], List[str]]:
 
   """
   Load the KMeans clustering results from a JSON file.
