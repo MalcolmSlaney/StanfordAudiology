@@ -707,7 +707,7 @@ def CreateClusterV1(filename: str,
                     n_init: int = 10):
   
   # Read data and create DataFrame
-  data, features = ReadData(duplicate_column_name,spreadsheet_path)
+  data = ReadData(duplicate_column_name,spreadsheet_path)
   df = MakePandas(data)
 
   # Remove rows with invalid ages
