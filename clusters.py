@@ -6,7 +6,7 @@ import pandas as pd
 import warnings
 import joblib
 import sklearn
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from sklearn.cluster import KMeans
 from sklearn.datasets import make_blobs
 import json
@@ -664,7 +664,7 @@ def euclidean_distance(centroid1, centroid2) -> float:
   return np.linalg.norm(np.array(centroid1) - np.array(centroid2))
 
 def CreateClusterLabels(kmeans: sklearn.cluster._kmeans.KMeans,
-                        ref_cluster: dict = golden_cluster_v1 ):
+                        ref_cluster: dict = golden_cluster_v1) -> Dict[i, str]:
 
   """
     Assign cluster labels to centroids based on their proximity to the centroids in the `golden_cluster` dictionary.
