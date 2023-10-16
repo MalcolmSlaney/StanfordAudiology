@@ -469,7 +469,7 @@ def CountPredictions(data: pd.DataFrame,
 
   Args:
       data: The DataFrame containing the HL classified data.
-      cluster_label: A dictionary that maps cluster labels to their names.
+      cluster_label: An optional dictionary that maps cluster labels to their names.
 
   Returns:
       A dictionary that maps cluster labels to the number of patients in each cluster.
@@ -479,7 +479,10 @@ def CountPredictions(data: pd.DataFrame,
   count = {}
   for i in labels:
     count_temp = len(data[data['predictions'] == i])
-    count[cluster_label[i]] = count_temp
+    if cluster_label:
+     count[cluster_label[i]] = count_temp
+    else:
+     count[f'Cluster {i}'] = count_temp
   return count
 
 def AssignClusterLabels(data: pd.DataFrame,
