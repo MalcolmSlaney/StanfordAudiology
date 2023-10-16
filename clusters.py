@@ -6,7 +6,7 @@ import pandas as pd
 import warnings
 import joblib
 import sklearn
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from sklearn.cluster import KMeans
 from sklearn.datasets import make_blobs
 import json
@@ -371,7 +371,7 @@ def CreateKMeans(n: int,
 
 def PlotClusterCenters(labels: List[str],
                        kmeans: sklearn.cluster._kmeans.KMeans,
-                       cluster_label: dict = cluster_labels_v1,
+                       cluster_label: Optional[dict] = cluster_labels_v1,
                        n: int = 6):
   """
   This function plots the clusters created using create_k_means
@@ -395,6 +395,8 @@ def PlotClusterCenters(labels: List[str],
   if kmeans.cluster_centers_.ndim == 0:
     raise ValueError("The cluster centers array must be at least 1-dimensional")
 
+  if cluster_label == None:
+    cluster_label = [f'Cluster {i}' for i in range(n)]
   #Plot
   for i, c in zip(range(n), color):
     plt.semilogx(conv_labels, kmeans.cluster_centers_.T[:,i], label = cluster_label[i])
