@@ -350,7 +350,8 @@ def RemoveRowsWithBCWorseAC(data: pd.DataFrame, threshold: int = 100) -> pd.Data
   
   final_row_count = data.shape[0]
 
-  print("Number of rows that have been dropped: ", (initial_row_count - final_row_count))
+  print("Number of rows that have been dropped due to AC/BC differences: ", 
+        initial_row_count - final_row_count)
 
   return data
 
