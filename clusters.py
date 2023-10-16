@@ -450,16 +450,21 @@ def TestKMeansClusters():
   print("Clusters Verification (x in {0, 1, 2, 3}):", list(sorted(df['Cluster'].unique())) == [0,1,2,3])
 
 def KMeansPredictions(kmeans: sklearn.cluster._kmeans.KMeans,
-                      data: pd.DataFrame):
+                      data: pd.DataFrame,
+                      new_column_name: str = 'prediction') -> pd.DataFrame:
   """
   Predicts the cluster labels for the given data using the given KMeans model.
 
   Args:
     - kmeans: The KMeans model to be used for predicting the cluster labels.
     - data: The data to be clustered
+    - new_column_name: The name of the new column containing the cluster assignments.
+
+  Returns:
+    A new data frame enhanced with a new column containing the cluster assignment.
   """
   p = kmeans.predict(data)
-  data['predictions'] = p
+  data[new_column_name] = p
   return data
 
 def CountPredictions(data: pd.DataFrame,
