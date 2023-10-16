@@ -670,7 +670,7 @@ def euclidean_distance(centroid1, centroid2) -> float:
   return np.linalg.norm(np.array(centroid1) - np.array(centroid2))
 
 def CreateClusterLabels(kmeans: sklearn.cluster._kmeans.KMeans,
-                        ref_cluster: dict = golden_cluster_v1) -> Dict[i, str]:
+                        ref_cluster: dict = golden_cluster_v1) -> Dict[int, str]:
 
   """
     Assign cluster labels to centroids based on their proximity to the centroids in the `golden_cluster` dictionary.
