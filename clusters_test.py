@@ -58,7 +58,7 @@ class ClusterTests(absltest.TestCase):
 
     # Test save and restore
     filepath = clusters.SaveAsJson(kmeans, test_data[0], test_data[0], 2, 'clusters', '/tmp/')
-    new_kmeans, new_cluster_labels, new_features_before, new_feature_after = clusters.LoadFromJson(filepath)
+    new_kmeans, new_features_before, new_feature_after = clusters.LoadFromJson(filepath)
     np.testing.assert_allclose(new_kmeans.cluster_centers_, [[0.95, 1.05], [1.95, 2.05]], atol=0.02)
 
   def test_classification(self):

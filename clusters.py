@@ -566,8 +566,8 @@ def change_key_values_to_integer(dictionary):
 
   return new_dictionary
 
-def LoadFromJson(
-                path: str = default_cluster_dir,
+
+def LoadFromJson(path: str = default_cluster_dir,
                 ) -> Tuple[KMeans, List[str], List[str], List[str]]:
 
   """
@@ -586,7 +586,6 @@ def LoadFromJson(
 
   cluster_centers = np.array(info["cluster_centers"])
   random_state = info["random_state"]
-  cluster_labels = change_key_values_to_integer(info["cluster_labels"])
   n_init = info["n_init"]
   n_cluster = info['n_cluster']
   max_iter = info['max_iter']
@@ -604,7 +603,8 @@ def LoadFromJson(
   kmeans.max_iter = max_iter
   kmeans._n_threads = _openmp_effective_n_threads()
 
-  return kmeans, cluster_labels, features_before, features_after
+  return kmeans, features_before, features_after
+
 
 def ReadData(duplicate_column_name: str = duplicate_column_name_v1,
               spreadsheet_path: str = spreadsheet_path_v1):
