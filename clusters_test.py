@@ -46,13 +46,15 @@ class ClusterTests(absltest.TestCase):
     kmeans = clusters.CreateKMeans(num_clusters, df)
     self.assertEqual(kmeans.n_clusters, num_clusters)
 
-    df_with_clusters = clusters.KMeansPredictions(kmeans, df, new_column_name='predictions')
+    cluster_ids = clusters.KMeansPredictions(kmeans, df, new_column_name='predictions')
+    self.assertIsInstance(cluster_ids, np.ndarray)
     # Note, clusters could be permuted, so counting classes might be better.
-    self.assertListEqual(list(df_with_clusters['predictions']), [0, 0, 1, 1])
+    self.assertListEqual(list(cluster_ids), [0, 0, 1, 1])
+    df['predictions'] = cluster_ids
 
     # Make sure the labels are right by counting the results.
-    counts = clusters.CountPredictions(df_with_clusters, cluster_label=None)
-    self.assertDictEqual(counts, {'Cluster 0': 2, 'Cluster 1': 2})
+    counts = clusters.CountPredictions(df, cluster_label=None)
+    self.assertDictEqual(counts, {0: 2, 1: 2})
 
     # Test save and restore
     filepath = clusters.SaveAsJson(kmeans, test_data[0], test_data[0], 2, 'clusters', '/tmp/')

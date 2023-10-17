@@ -1,3 +1,4 @@
+from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -6,7 +7,7 @@ import pandas as pd
 import warnings
 import joblib
 import sklearn
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from sklearn.cluster import KMeans
 from sklearn.datasets import make_blobs
 import json
@@ -448,6 +449,7 @@ def TestKMeansClusters():
   print("Cluster Centers Verification (|y| < 0.1):", any(valid_centers))
   print("Clusters Verification (x in {0, 1, 2, 3}):", list(sorted(df['Cluster'].unique())) == [0,1,2,3])
 
+
 def KMeansPredictions(kmeans: sklearn.cluster._kmeans.KMeans,
                       data: pd.DataFrame,
                       new_column_name: str = 'prediction') -> pd.DataFrame:
@@ -463,11 +465,12 @@ def KMeansPredictions(kmeans: sklearn.cluster._kmeans.KMeans,
     A new data frame enhanced with a new column containing the cluster assignment.
   """
   p = kmeans.predict(data)
-  data[new_column_name] = p
-  return data
+  return p
+
 
 def CountPredictions(data: pd.DataFrame,
-                      cluster_label: dict) -> int :
+                     cluster_label: Optional[dict] = None,
+                     cluster_field='predictions') -> Dict[int, int]:
   """
   Counts the number of patients in each cluster.
 
@@ -478,16 +481,8 @@ def CountPredictions(data: pd.DataFrame,
   Returns:
       A dictionary that maps cluster labels to the number of patients in each cluster.
   """
-  predictions = data['predictions']
-  labels = np.unique(predictions)
-  count = {}
-  for i in labels:
-    count_temp = len(data[data['predictions'] == i])
-    if cluster_label:
-     count[cluster_label[i]] = count_temp
-    else:
-     count[f'Cluster {i}'] = count_temp
-  return count
+  return Counter(data[cluster_field])
+
 
 def AssignClusterLabels(data: pd.DataFrame,
                           cluster_label: dict = cluster_labels_v1) -> pd.DataFrame:
@@ -702,19 +697,22 @@ def CreateClusterLabels(kmeans: sklearn.cluster._kmeans.KMeans,
 
   return new_labels
 
-def CreateClusterV1(filename: str,
-                    duplicate_column_name: str = duplicate_column_name_v1,
-                    labels: List[str] = labels_v1,
-                    spreadsheet_path: str = spreadsheet_path_v1,
-                    save_path: str = default_cluster_dir,
-                    ref_cluster: dict = golden_cluster_v1,
-                    random_state: int = 0,
-                    n: int = 6,
-                    max_iter: int = 1000,
-                    n_init: int = 10):
-  
+def ImportHearingSpreadsheet(spreadsheet_path: str = spreadsheet_path_v1,
+                             duplicate_column_name: str = duplicate_column_name_v1,
+                             labels: List[str] = labels_v1) -> pd.DataFrame:
+  """Read and clean Stanford hearing data from spreadsheet.
+
+  Args:
+    spreadsheet_path: Where to find the spreadsheet with teh golden data
+    duplicate_column_names: Which columns are duplicated in the spreadsheet and
+      should be removed
+    labels: Which column names should be used for clustering
+
+  Returns:
+    A panda dataframe with all the data.
+  """
   # Read data and create DataFrame
-  data = ReadData(duplicate_column_name,spreadsheet_path)
+  data = ReadData(duplicate_column_name, spreadsheet_path)
   df = MakePandas(data)
 
   # Remove rows with invalid ages
@@ -725,27 +723,53 @@ def CreateClusterV1(filename: str,
   df = RemoveRowsWithBCWorseAC(df)
 
   # Prepare data for clustering
-  hl = df.dropna(subset = labels)
-  hl = hl[labels]
+  hl_data = df.dropna(subset=labels)
+  # hl_data = hl_data[labels]
 
+  return hl_data
+
+
+def CreateClusterV1(filename: str,
+                    duplicate_column_name: str = duplicate_column_name_v1,
+                    cluster_features: List[str] = labels_v1,
+                    spreadsheet_path: Union[str, pd.DataFrame] = spreadsheet_path_v1,
+                    save_path: str = default_cluster_dir,
+                    ref_cluster: dict = golden_cluster_v1,
+                    random_state: int = 0,
+                    n: int = 6,
+                    max_iter: int = 1000,
+                    n_init: int = 10):
+  if isinstance(spreadsheet_path, str):
+    all_data = ImportHearingSpreadsheet(spreadsheet_path,
+                                        duplicate_column_name,
+                                        cluster_features)
+  elif isinstance(spreadsheet_path, pd.DataFrame):
+    all_data = spreadsheet_path
+  else:
+    raise TypeError('Argument must be a str or DataFrame')
+  print(f'all_data has {len(all_data.columns)} columns')
   # Create and apply K-means clustering
-  kmeans = CreateKMeans(n,hl,random_state,max_iter,n_init)
+  kmeans = CreateKMeans(n, all_data[cluster_features], random_state, max_iter, n_init)
   cluster_labels = CreateClusterLabels(kmeans, ref_cluster)
-  hl = KMeansPredictions(kmeans, hl) # , cluster_labels)
-  df['predictions'] = hl['predictions']
+  prediction_col_name = 'predictions'
+  # Do KMeans clustering over a subset of the original data
+  cluster_ids = KMeansPredictions(kmeans, all_data[cluster_features], prediction_col_name)
+  assert len(all_data) == len(cluster_ids)
+  all_data[prediction_col_name] = cluster_ids  # hl_data[prediction_col_name]
 
   # Assign cluster labels and calculate cluster counts
-  data = AssignClusterLabels(df, cluster_labels)
-  count = CountPredictions(hl, cluster_labels)
+  count = CountPredictions(all_data, None)
 
   # Save clustering results to JSON file
-  SaveAsJson(
-           kmeans,
-           features,
-           df.columns.tolist(),
-           count,
-           filename,
-           save_path,
-           cluster_labels)
-
-  return save_path+filename
+  if filename is not None:
+    filepath = SaveAsJson(
+            kmeans,
+            cluster_features,
+            all_data.columns.tolist(),
+            count,
+            filename,
+            save_path,
+            cluster_features)
+  else:
+    filepath = None
+  return filepath, all_data
