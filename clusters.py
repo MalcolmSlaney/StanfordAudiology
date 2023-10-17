@@ -304,13 +304,9 @@ def MakePandas(rows_of_data: List) -> pd.DataFrame:
   Returns:
       pd.DataFrame: A Pandas DataFrame containing the converted data.
   """
-
   features = ConvertSpaces(rows_of_data[0])
-
   data = ConvertToNumerical(rows_of_data[1:])
-  
-  data_df = pd.DataFrame(data[1:], columns = features)
-
+  data_df = pd.DataFrame(data, columns = features)
 
   return data_df
 
@@ -577,7 +573,7 @@ def change_key_values_to_integer(dictionary):
 
 def LoadFromJson(
                 path: str = default_cluster_dir,
-                ) -> tuple[KMeans, List[str], List[str], List[str]]:
+                ) -> Tuple[KMeans, List[str], List[str], List[str]]:
 
   """
   Load the KMeans clustering results from a JSON file.

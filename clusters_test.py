@@ -1,58 +1,32 @@
-from clusters import *
+import sys
 
-# CreateClusterV1("cluster_info_v4", features, 'LBone2000')
+from absl.testing import absltest
+import numpy as np
+import pandas as pd
+import traitlets
 
-
-rows = ImportSpreadsheet(spreadsheet_v1_path)
-
-kmeans_1, features, cluster_labels, _ = LoadFromJson('/content/drive/MyDrive/Stanford Audiology Models/Colab Notebooks/Cluster_info_.json')
-
-cluster_labels
-
-rows = RenameDuplicateColumns(rows, 'LBone2000')
-
-features = ConvertSpaces(rows[0])
-
-data = MakeDataClass(features, rows)
-
-df = ConvertToPanda(data, features)
-
-# Either run the above three commands or only the command below to do the data import and cleaning
-# data = ReadPreprocessData()
-# df = ConvertToPanda(data, features)
-
-#With acutal data
-df = HLossClassifier(df)
-HLPlot(df)
+import clusters
 
 
+class ClusterTests(absltest.TestCase):
+  def test_euclidean_distance(self):
+    a = np.array([0, 0])
+    b = np.array([3, 4])
+    c = clusters.euclidean_distance(a, b)
+    self.assertAlmostEqual(c, 5, delta=1e-5)
 
-"""
-Reading the right ear HL measurements of the following frequencies:
-250, 500, 1000, 2000, 3000, 4000, 6000, 8000
-"""
-hl_right_labels = ['R250',	'R500',	'R1000',	'R2000',	'R3000',	'R4000',	'R6000',	'R8000']
-hl_right = df.dropna(subset = hl_right_labels)
-hl_right = hl_right[hl_right_labels]
+  def test_convert_spaces(self):
+    res = clusters.ConvertSpaces(['foo ', ' bar'])
+    self.assertEqual(res, ['foo_', '_bar'])
 
-PlotClusterCenters(hl_right_labels,kmeans_1, cluster_labels,kmeans_1.n_clusters)
+  def test_make_pandas(self):
+    test_data = [['foo ', ' bar'],
+                 ['1', '2'],
+                 ['3', '4']]
 
-# #6 clusters
-# n = 6
-# kmeans_6 = CreateKMeans(n, hl_right)
-# columns = df.columns.tolist()
+    df = clusters.MakePandas(test_data)
+    self.assertListEqual(list(df.columns), ['foo_', '_bar'])
+    np.testing.assert_equal(df.values, np.array([[1, 2], [3, 4]]))
 
-hl_right = KMeansPredictions(kmeans_1, hl_right, cluster_labels)
-df['predictions'] = hl_right['predictions']
-
-count = CountPredictions(hl_right, cluster_labels)
-
-df = AssignClusterLabelsToDF(df, cluster_labels)
-
-SaveAsJson(cluster_labels,
-           kmeans_1,
-           features,
-           df.columns.tolist(),
-           count,
-           "cluster_info_v2",
-           '/content/drive/MyDrive/Stanford Audiology Models/Colab Notebooks/')
+if __name__=="__main__": 
+  absltest.main()
