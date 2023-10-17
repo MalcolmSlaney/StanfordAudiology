@@ -23,10 +23,15 @@ class ClusterTests(absltest.TestCase):
     test_data = [['foo ', ' bar'],
                  ['1', '2'],
                  ['3', '4']]
-
     df = clusters.MakePandas(test_data)
     self.assertListEqual(list(df.columns), ['foo_', '_bar'])
     np.testing.assert_equal(df.values, np.array([[1, 2], [3, 4]]))
+
+  def test_rename_duplicates(self):
+    input = ['foo', 'bar', 'baz', 'bar']
+    res = clusters.RenameDuplicateColumns(input, 'bar')
+    self.assertListEqual(res, ['foo', 'bar', 'baz', 'barDupe'])
+
 
 if __name__=="__main__": 
   absltest.main()

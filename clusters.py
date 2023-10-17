@@ -242,9 +242,10 @@ def RenameDuplicateColumns(row_list: List,
   Returns:
    - A list containing no duplicate for the specified column_name
   """
-  indices = [i for i in range(len(row_list[0])) if row_list[0][i] == column_name]
+  indices = [i for i in range(len(row_list)) if row_list[i] == column_name]
+  print('Found indices are', indices)
   if len(indices) > 1:
-    row_list[0][indices[1]] = column_name+'Dupe'
+    row_list[indices[1]] = column_name+'Dupe'
 
   return row_list
 
