@@ -1,4 +1,5 @@
 import sys
+from collections import Counter
 
 from absl.testing import absltest
 import numpy as np
@@ -21,8 +22,8 @@ class ClusterTests(absltest.TestCase):
 
   def test_make_pandas(self):
     test_data = [['foo ', ' bar'],
-                 ['1', '2'],
-                 ['3', '4']]
+                 ['1',    '2'],
+                 ['3',    '4']]
     df = clusters.MakePandas(test_data)
     self.assertListEqual(list(df.columns), ['foo_', '_bar'])
     np.testing.assert_equal(df.values, np.array([[1, 2], [3, 4]]))
@@ -32,6 +33,55 @@ class ClusterTests(absltest.TestCase):
     res = clusters.RenameDuplicateColumns(input, 'bar')
     self.assertListEqual(res, ['foo', 'bar', 'baz', 'barDupe'])
 
+  def test_clustering(self):
+    test_data = [['foo ', ' bar'],
+                 [1.0,    1.0],
+                 [0.9,    1.1],
+                 [2.0,    2.0],
+                 [1.9,    2.1],
+                 ]
+    num_clusters = 2
+    df = clusters.MakePandas(test_data)
+    np.random.seed(0)
+    kmeans = clusters.CreateKMeans(num_clusters, df)
+    self.assertEqual(kmeans.n_clusters, num_clusters)
+
+    df_with_clusters = clusters.KMeansPredictions(kmeans, df, new_column_name='predictions')
+    # Note, clusters could be permuted, so counting classes might be better.
+    self.assertListEqual(list(df_with_clusters['predictions']), [0, 0, 1, 1])
+
+    # Make sure the labels are right by counting the results.
+    counts = clusters.CountPredictions(df_with_clusters, cluster_label=None)
+    self.assertDictEqual(counts, {'Cluster 0': 2, 'Cluster 1': 2})
+
+    # Test save and restore
+    filepath = clusters.SaveAsJson(kmeans, test_data[0], test_data[0], 2, 'clusters', '/tmp/')
+    new_kmeans, new_cluster_labels, new_features_before, new_feature_after = clusters.LoadFromJson(filepath)
+    np.testing.assert_allclose(new_kmeans.cluster_centers_, [[0.95, 1.05], [1.95, 2.05]], atol=0.02)
+
+  def test_classification(self):
+    column_names = ['R250', 'R500', 'R1000', 'R2000', 'R3000', 'R4000', 'R6000', 
+        'R8000','L250', 'L500', 'L1000', 'L2000', 'L3000', 'L4000',
+        'L6000', 'L8000', 'RBone500','RBone1000','RBone2000', 'RBone4000',
+        'LBone500', 'LBone1000', 'LBone2000', 'LBone4000']
+    
+    # Make some random data and make sure we get the same resuits as before.
+    np.random.seed(0)
+    fake_data = np.random.uniform(0, 100, size=(20, len(column_names)))
+    df = pd.DataFrame(fake_data, columns=column_names)
+    df_with_classes = clusters.HLossClassifier(df)
+    type_counts = Counter(df_with_classes['R_Type_HL_All'].to_list())
+    self.assertDictEqual(type_counts, {'SNHL': 15, 'Mixed': 2, 'Normal': 2, 'Conductive': 1})
+
+    # Test bone vs. air conduction comparison
+    df_clean = clusters.RemoveRowsWithBCWorseAC(df_with_classes, 10)
+    # Started with 20 rows, now down to 8
+    self.assertEqual(df_clean.shape[0], 8)
+
+  def test_age(self):
+    df = pd.DataFrame([-10, 10, 50, 110], columns=['AgeAtTestDate'])
+    df_clean = clusters.RemoveRowsWithBadAges(df)
+    self.assertEqual(df_clean.shape[0], 2)
 
 if __name__=="__main__": 
   absltest.main()
