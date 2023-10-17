@@ -1,0 +1,15 @@
+absl-py
+numpy  
+matplotlib 
+seaborn
+pip
+scipy  
+sklearn
+scikit-learn
+gspread
+google-colab¨
+pip
+pandas 
+google-auth
+traitlets
+# google-auth-oauthlib==0.4.6
