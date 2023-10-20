@@ -2,12 +2,10 @@ absl-py
 numpy  
 matplotlib 
 seaborn
-pip
 scipy  
 scikit-learn
 gspread
 google-colab
-pip
 pytz >= 2011k  # https://stackoverflow.com/questions/18230956/could-not-find-a-version-that-satisfies-the-requirement-pytz
 pandas 
 google-auth
