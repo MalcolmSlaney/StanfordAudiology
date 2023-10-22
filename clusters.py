@@ -18,7 +18,7 @@ import ast #To convert the string tuple of golden clusters to numerical tuple
 # Gives error: https://stackoverflow.com/questions/76035919/resolving-the-error-in-pandas-setup-command-error
 # from google.colab import auth  # Not needed.  
 import gspread
-from google.auth import default  #authenticatiing to google
+import google.auth # import default  #authenticatiing to google
 
 #Global variables/parameters
 
@@ -60,7 +60,7 @@ def ImportSpreadsheet(path) -> List:
     - list contains feature names.
   """
   auth.authenticate_user()
-  creds, _ = default()
+  creds, _ = auth.default()
   gc = gspread.authorize(creds)
   worksheet = gc.open_by_url(path).sheet1 #get_all_values gives a list of rows
   rows = worksheet.get_all_values()
