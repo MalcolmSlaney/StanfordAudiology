@@ -49,7 +49,7 @@ class ClusterTests(absltest.TestCase):
     cluster_ids = clusters.KMeansPredictions(kmeans, df, new_column_name='predictions')
     self.assertIsInstance(cluster_ids, np.ndarray)
     # Note, clusters could be permuted, so counting classes might be better.
-    self.assertListEqual(list(cluster_ids), [0, 0, 1, 1])
+    # self.assertListEqual(list(cluster_ids), [0, 0, 1, 1])
     df['predictions'] = cluster_ids
 
     # Make sure the labels are right by counting the results.

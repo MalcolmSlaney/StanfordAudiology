@@ -1,7 +1,6 @@
 from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 import scipy.stats as stats
 import pandas as pd
 import warnings
@@ -16,7 +15,8 @@ import os
 import datetime
 import ast #To convert the string tuple of golden clusters to numerical tuple
 
-from google.colab import auth
+# Gives error: https://stackoverflow.com/questions/76035919/resolving-the-error-in-pandas-setup-command-error
+# from google.colab import auth  # Not needed.  
 import gspread
 from google.auth import default  #authenticatiing to google
 
