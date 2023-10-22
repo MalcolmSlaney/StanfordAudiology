@@ -5,7 +5,6 @@ scipy
 scikit-learn
 gspread
 google-auth
-# google-colab
 pandas
 pytz >= 2010.1
 traitlets
