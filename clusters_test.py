@@ -58,8 +58,10 @@ class ClusterTests(absltest.TestCase):
 
     # Test save and restore
     filepath = clusters.SaveAsJson(kmeans, test_data[0], test_data[0], 2, 'clusters', '/tmp/')
-    new_kmeans, new_features_before, new_feature_after = clusters.LoadFromJson(filepath)
-    np.testing.assert_allclose(new_kmeans.cluster_centers_, [[0.95, 1.05], [1.95, 2.05]], atol=0.02)
+    new_kmeans, _, _ = clusters.LoadFromJson(filepath)
+    cluster_centers = np.sort(new_kmeans.cluster_centers_, axis=0)
+    np.testing.assert_allclose(cluster_centers, np.array([[0.95, 1.05], 
+                                                          [1.95, 2.05]]))
 
   def test_classification(self):
     column_names = ['R250', 'R500', 'R1000', 'R2000', 'R3000', 'R4000', 'R6000', 
