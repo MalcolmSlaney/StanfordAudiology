@@ -18,7 +18,7 @@ import ast #To convert the string tuple of golden clusters to numerical tuple
 # Gives error: https://stackoverflow.com/questions/76035919/resolving-the-error-in-pandas-setup-command-error
 # from google.colab import auth  # Not needed.  
 import gspread
-import google.auth # import default  #authenticatiing to google
+import google.auth as auth # import default  #authenticatiing to google
 
 #Global variables/parameters
 
