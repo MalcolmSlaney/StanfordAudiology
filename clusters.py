@@ -11,10 +11,11 @@ from sklearn.utils._openmp_helpers import _openmp_effective_n_threads
 import os
 import datetime
 
-# Gives error: https://stackoverflow.com/questions/76035919/resolving-the-error-in-pandas-setup-command-error
-# from google.colab import auth  # Not needed.  
+# Do not do this next import here, but do it in the colab.  Otherwise 
+# requirements are incompatible.
+# import google.colab as colab 
 import gspread
-import google.auth as auth # import default  #authenticatiing to google
+import google.auth as auth # authenticatiing to google
 
 #Global variables/parameters
 
@@ -55,7 +56,7 @@ def ImportSpreadsheet(path) -> List:
     - rows - Each row of the spreadsheet is stored as a list. First row of the
     - list contains feature names.
   """
-  auth.authenticate_user()
+  colab.auth.authenticate_user()
   creds, _ = auth.default()
   gc = gspread.authorize(creds)
   worksheet = gc.open_by_url(path).sheet1 #get_all_values gives a list of rows
