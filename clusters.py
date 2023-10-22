@@ -11,10 +11,6 @@ from sklearn.utils._openmp_helpers import _openmp_effective_n_threads
 import os
 import datetime
 
-# Do not do this next import here, but do it in the colab.  Otherwise 
-# requirements are incompatible.
-# import google.colab as colab 
-
 import gspread
 import google.auth as auth # authenticatiing to google
 
@@ -51,13 +47,17 @@ labels_v1 = ['R250',	'R500',	'R1000',	'R2000',	'R3000',	'R4000',	'R6000',	'R8000
 def ImportSpreadsheet(path) -> List:
   """
   Function that imports the spreadsheet from the specified `path`
+
+  Before calling this function do this:
+    import google.colab as colab 
+    colab.auth.authenticate_user() 
+
   Args:
     - path - Filepath to the spreadsheet [GCloud URL]
   Return:
     - rows - Each row of the spreadsheet is stored as a list. First row of the
     - list contains feature names.
   """
-  # colab.auth.authenticate_user()    # noqa: F821  Import only when in colab
   creds, _ = auth.default()
   gc = gspread.authorize(creds)
   worksheet = gc.open_by_url(path).sheet1 #get_all_values gives a list of rows
