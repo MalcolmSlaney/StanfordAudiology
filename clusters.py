@@ -14,6 +14,7 @@ import datetime
 # Do not do this next import here, but do it in the colab.  Otherwise 
 # requirements are incompatible.
 # import google.colab as colab 
+
 import gspread
 import google.auth as auth # authenticatiing to google
 
@@ -56,7 +57,7 @@ def ImportSpreadsheet(path) -> List:
     - rows - Each row of the spreadsheet is stored as a list. First row of the
     - list contains feature names.
   """
-  colab.auth.authenticate_user()
+  colab.auth.authenticate_user()    # noqa: F821  Import only when in colab
   creds, _ = auth.default()
   gc = gspread.authorize(creds)
   worksheet = gc.open_by_url(path).sheet1 #get_all_values gives a list of rows
