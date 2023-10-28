@@ -317,7 +317,7 @@ def ConvertToNumerical(rows_of_data: List,
   for i, r in enumerate(rows_of_data):
     for j, d in enumerate(r):
 
-      if type==np.float32 or type==np.float64:
+      if desired_type==np.float32 or type==np.float64:
         if d == '' or d == 'NR':
           d = np.nan
         else:
