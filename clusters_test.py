@@ -13,7 +13,7 @@ class ClusterTests(absltest.TestCase):
   def test_euclidean_distance(self):
     a = np.array([0, 0])
     b = np.array([3, 4])
-    c = clusters.euclidean_distance(a, b)
+    c = clusters.EuclideanDistance(a, b)
     self.assertAlmostEqual(c, 5, delta=1e-5)
 
   def test_convert_spaces(self):
@@ -46,14 +46,14 @@ class ClusterTests(absltest.TestCase):
     kmeans = clusters.CreateKMeans(num_clusters, df)
     self.assertEqual(kmeans.n_clusters, num_clusters)
 
-    cluster_ids = clusters.KMeansPredictions(kmeans, df, new_column_name='predictions')
+    cluster_ids = clusters.KMeansPredictions(kmeans, df) #, new_column_name='predictions')
     self.assertIsInstance(cluster_ids, np.ndarray)
     # Note, clusters could be permuted, so counting classes might be better.
     # self.assertListEqual(list(cluster_ids), [0, 0, 1, 1])
     df['predictions'] = cluster_ids
 
     # Make sure the labels are right by counting the results.
-    counts = clusters.CountPredictions(df, cluster_label=None)
+    counts = clusters.CountPredictions(df) # , cluster_label=None)
     self.assertDictEqual(counts, {0: 2, 1: 2})
 
     # Test save and restore
