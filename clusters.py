@@ -88,95 +88,73 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   'L6000', 'L8000', 'RBone500','RBone1000','RBone2000', 'RBone4000',
   'LBone500', 'LBone1000', 'LBone2000', 'LBone4000'
 
+  Here is logic in plain English which should be easier to understand.
+
+  Normal Hearing:
+    AC < 25 dB HL
+    BC < 25 dB HL
+    Air-bone gap <10 dB
+  Conductive:
+     AC > 25 dB HL
+     BC < 25 dB HL
+     Air-bone gap > 10 dB
+     (i.e. BC is normal but there is a hearing loss when listening via AC due to 
+      the pathology in the  outer and/or middle ear)
+  Sensorineural:
+     AC > 25 dB HL
+     BC > 25 dB HL
+     Air-bone gap <10 dB
+     (i.e. there is a hearing loss present whether listening via AC or BC and 
+      there is not a significant air-bone gap)
+  Mixed:
+     AC > 25 dB HL
+     BC > 25 dB HL
+     Air-bone gap > 10 dB
+     (i.e. hearing loss present but is made much worse when listening via AC 
+      because of the conductive component {{ e.g. BC thresholds are ~40 dB but 
+      the AC thresholds are 70 dB}})
+
   Args:
-    - df:  dataframe with HL measurements at audiometric frequencies
+    df:  dataframe with HL measurements at audiometric frequencies
 
   Returns:
-    - df: dataframe with HL classes as a new column
+    df: dataframe with HL classes as a new column, with several new working
+      columna added.
   """
 
   #HFPTA
-  hfpta_r  = df[['R1000', 'R2000', 'R4000']].to_numpy()
-  hfpta_l  = df[['L1000', 'L2000', 'L4000']].to_numpy()
-  hfpta_r = np.array([np.nanmean(row) if not np.isnan(row).all()
-                      else np.nan for row in hfpta_r])
-  hfpta_l = np.array([np.nanmean(row) if not np.isnan(row).all()
-                      else np.nan for row in hfpta_l])
-  df['R_HFPTA'] = hfpta_r
-  df['L_HFPTA'] = hfpta_l
-
+  df['R_HFPTA'] = df[['R1000', 'R2000', 'R4000']].mean(axis=1)
+  df['L_HFPTA'] = df[['L1000', 'L2000', 'L4000']].mean(axis=1)
 
   # PTA - 500, 1000, 2000
-  pta_r = df[['R500', 'R1000', 'R2000']].to_numpy()
-  pta_l = df[['L500', 'L1000', 'L2000']].to_numpy()
-  pta_r = np.array([np.nanmean(row) if not np.isnan(row).all()
-                    else np.nan for row in pta_r])
-  pta_l = np.array([np.nanmean(row) if not np.isnan(row).all()
-                    else np.nan for row in pta_l])
-  df['R_PTA'] = pta_r
-  df['L_PTA'] = pta_l
+  df['R_PTA'] = df[['R500', 'R1000', 'R2000']].mean(axis=1)
+  df['L_PTA'] = df[['L500', 'L1000', 'L2000']].mean(axis=1)
 
   #PTA all -  500,1000,2000,4000
-  pta_all_r = df[['R500', 'R1000', 'R2000', 'R4000']].to_numpy()
-  pta_all_l = df[['L500', 'L1000', 'L2000', 'L4000']].to_numpy()
-  pta_all_r = np.array([np.nanmean(row) if not np.isnan(row).all()
-                        else np.nan for row in pta_all_r])
-  pta_all_l = np.array([np.nanmean(row) if not np.isnan(row).all()
-                        else np.nan for row in pta_all_l])
-  df['R_PTA_All'] = pta_all_r
-  df['L_PTA_All'] = pta_all_l
-
+  df['R_PTA_All'] = df[['R500', 'R1000', 'R2000', 'R4000']].mean(axis=1)
+  df['L_PTA_All'] = df[['L500', 'L1000', 'L2000', 'L4000']].mean(axis=1)
+ 
   #LFPTA -  250, 500,1000
-  lfpta_r = df[['R500', 'R1000']].to_numpy()
-  lfpta_l = df[['L500', 'L1000']].to_numpy()
-  lfpta_r = np.array([np.nanmean(row) if not np.isnan(row).all()
-                      else np.nan for row in lfpta_r])
-  lfpta_l = np.array([np.nanmean(row) if not np.isnan(row).all()
-                      else np.nan for row in lfpta_l])
-  df['R_LFPTA'] = lfpta_r
-  df['L_LFPTA'] = lfpta_l
+  df['R_LFPTA'] = df[['R500', 'R1000']].mean(axis=1)
+  df['L_LFPTA'] = df[['L500', 'L1000']].mean(axis=1)
 
   #UHFPTA - 2000, 4000, 80000
-  uhfpta_r = df[['R2000', 'R4000', 'R8000']].to_numpy()
-  uhfpta_l = df[['L2000', 'L4000', 'L8000']].to_numpy()
-  uhfpta_r = np.array([np.nanmean(row) if not np.isnan(row).all()
-                       else np.nan for row in uhfpta_r])
-  uhfpta_l = np.array([np.nanmean(row) if not np.isnan(row).all()
-                       else np.nan for row in uhfpta_l])
-  df['R_UHFPTA'] = uhfpta_r
-  df['L_UHFPTA'] = uhfpta_l
-
+  df['R_UHFPTA'] = df[['R2000', 'R4000', 'R8000']].mean(axis=1)
+  df['L_UHFPTA'] = df[['L2000', 'L4000', 'L8000']].mean(axis=1)
+ 
   #PT Bone conduction modeled
-  pta_bc_mod_r = df[['RBone500', 'RBone1000', 'RBone2000']].to_numpy()
-  pta_bc_mod_l = df[['LBone500', 'LBone1000', 'LBone2000']].to_numpy()
-  pta_bc_mod_r = np.array([np.nanmean(row) if not np.isnan(row).all()
-                           else np.nan for row in pta_bc_mod_r])
-  pta_bc_mod_l = np.array([np.nanmean(row) if not np.isnan(row).all()
-                           else np.nan for row in pta_bc_mod_l])
-  df['R_PTA_BC_Mod'] = pta_bc_mod_r
-  df['L_PTA_BC_Mod'] = pta_bc_mod_l
+  df['R_PTA_BC_Mod'] = df[['RBone500', 'RBone1000', 'RBone2000']].mean(axis=1)
+  df['L_PTA_BC_Mod'] = df[['LBone500', 'LBone1000', 'LBone2000']].mean(axis=1)
 
   #HFPTA Bone conduction modeled
-  hfpta_bc_mod_r = df[['RBone1000', 'RBone2000','RBone4000']].to_numpy()
-  hfpta_bc_mod_l = df[['LBone1000', 'LBone2000','LBone4000']].to_numpy()
-  hfpta_bc_mod_r = np.array([np.nanmean(row) if not np.isnan(row).all()
-                             else np.nan for row in hfpta_bc_mod_r])
-  hfpta_bc_mod_l = np.array([np.nanmean(row) if not np.isnan(row).all()
-                             else np.nan for row in hfpta_bc_mod_l])
-  df['R_HFPTA_BC_Mod'] = hfpta_bc_mod_r
-  df['L_HFPTA_BC_Mod'] = hfpta_bc_mod_l
+  df['R_HFPTA_BC_Mod'] = df[['RBone1000', 'RBone2000','RBone4000']].mean(axis=1)
+  df['L_HFPTA_BC_Mod'] = df[['LBone1000', 'LBone2000','LBone4000']].mean(axis=1)
 
-  #BC average of 500, 1, 2, 4
-  hfpta_bc_avg_r = df[['RBone500','RBone1000',
-                       'RBone2000','RBone4000']].to_numpy()
-  hfpta_bc_avg_l = df[['LBone500','LBone1000',
-                       'LBone2000','LBone4000']].to_numpy()
-  hfpta_bc_agv_r = np.array([np.nanmean(row) if not np.isnan(row).all()
-                             else np.nan for row in hfpta_bc_avg_r])
-  hfpta_bc_avg_l = np.array([np.nanmean(row) if not np.isnan(row).all()
-                             else np.nan for row in hfpta_bc_avg_l])
-  df['R_PTA_BC_All'] = hfpta_bc_agv_r
-  df['L_PTA_BC_All'] = hfpta_bc_avg_l
+  #BC average of 500, 1, 2, 4kHz
+  df['R_PTA_BC_All'] = df[['RBone500', 'RBone1000',
+                           'RBone2000', 'RBone4000']].mean(axis=1)
+  df['L_PTA_BC_All'] = df[['LBone500', 'LBone1000',
+                           'LBone2000', 'LBone4000']].mean(axis=1)
 
   # new ABGap
   df['R_PTA_ABGap'] = df['R_PTA'] - df['R_PTA_BC_Mod']
@@ -198,8 +176,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       (df['R_PTA'] > 25)
                   ]
   values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_Mod']= np.select(conditions_1, values)
-  df.loc[df['R_Type_HL_Mod'] == '0' , 'R_Type_HL_Mod'] = 'Normal'
+  df['R_Type_HL_Mod']= np.select(conditions_1, values, 'Normal')
 
   # HFPTA of 1
   conditions_2 = [
@@ -211,8 +188,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
                   ]
 
   values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_HF'] = np.select(conditions_2, values)
-  df.loc[df['R_Type_HL_HF'] == '0' , 'R_Type_HL_HF'] = 'Normal'
+  df['R_Type_HL_HF'] = np.select(conditions_2, values, 'Normal')
 
   # # PTA of 500 1 2 4
   conditions_3 = [
@@ -223,9 +199,9 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       (df['R_PTA_All'] > 25)
                   ]
   values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_All'] = np.select(conditions_3, values)
-  df.loc[df['R_Type_HL_All'] == '0' , 'R_Type_HL_All'] = 'Normal'
+  df['R_Type_HL_All'] = np.select(conditions_3, values, 'Normal')
   return df
+
 
 def HLPlot(df: pd.DataFrame, title = None):
   """
