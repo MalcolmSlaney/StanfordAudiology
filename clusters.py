@@ -903,3 +903,20 @@ def CreateClusterV1(
   else:
     filepath = None
   return filepath, all_data
+
+
+#######################  CLUSTER PROCESSING  ############################
+# Calculate the entropy of discrete (categorical) and continuous data.
+
+def ComputeContinuousEntropy(data, min, step):
+  """Compute the entropy of a floating point distribution.  Bin the data, with
+  the given step size, and then compute the discrete entropy."""
+  idata = ((np.asarray(data)-min)/step).astype(int)
+  return ComputeDiscreteEntropy(idata)
+
+
+def ComputeDiscreteEntropy(idata):
+  # https://stackoverflow.com/questions/4746812/count-the-multiple-occurrences-in-a-set
+  d = Counter(idata)  
+  p = np.asarray(list(d.values())).astype(float) / len(idata)
+  return -np.sum(p * np.log2(p))

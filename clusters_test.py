@@ -87,5 +87,15 @@ class ClusterTests(absltest.TestCase):
     df_clean = clusters.RemoveRowsWithBadAges(df)
     self.assertEqual(df_clean.shape[0], 2)
 
+  def test_entropy(self):
+    self.assertAlmostEqual(clusters.ComputeDiscreteEntropy([0, 0, 1, 1]), 1.0)
+    self.assertAlmostEqual(clusters.ComputeDiscreteEntropy([0, 0]),       0.0)
+    self.assertAlmostEqual(clusters.ComputeDiscreteEntropy([0, 1, 2, 3]), 2.0)
+
+    self.assertAlmostEqual(
+      clusters.ComputeContinuousEntropy(np.arange(0, 1, .001), 0, 0.125), 3.0)
+    self.assertAlmostEqual(
+      clusters.ComputeContinuousEntropy(np.arange(0, 1, .001), 0, 0.25),  2.0)
+
 if __name__=="__main__": 
   absltest.main()
