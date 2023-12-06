@@ -609,7 +609,7 @@ def AssignClusterLabels(
     data.loc[data['predictions'] == i, 'cluster_labels'] = cluster_label[i]
   return data
 
-def compute_centroids(
+def ComputeCentroids(
     data: pd.DataFrame,
     num_clusters: int,
     label_names: List[str] = labels_v1):
@@ -633,7 +633,7 @@ def compute_centroids(
     stds[i, :] = np.std(these_hls, axis=0)
   return centroids, stds
 
-def compute_distances(
+def ComputeDistances(
     data: pd.DataFrame,
     num_clusters: int,
     label_names: List[str] = labels_v1) -> pd.DataFrame:
