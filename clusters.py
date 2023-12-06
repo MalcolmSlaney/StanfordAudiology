@@ -52,6 +52,8 @@ cluster_labels_v1 = {4: 'Low flat',
 labels_v1 = ['R250',	'R500',	'R1000',	'R2000',
              'R3000',	'R4000',	'R6000',	'R8000']
 
+######################  DATA IMPORT  ############################
+
 def ImportSpreadsheet(path) -> List:
   """
   Function that imports the spreadsheet from the specified `path`
@@ -72,6 +74,90 @@ def ImportSpreadsheet(path) -> List:
   rows = worksheet.get_all_values()
 
   return rows
+
+
+def ReadData(duplicate_column_name: str = duplicate_column_name_v1,
+              spreadsheet_path: str = spreadsheet_path_v1):
+
+  """
+  Clean and transform data from a spreadsheet into a numpy array.
+
+  Parameters:
+      features (List[str], optional):
+          A list of strings representing the names of the features to include
+          in the DataFrame. Defaults to the value of `features_before`.
+      duplicate_column_name (str, optional):
+          The name of the duplicate column to handle in the data.
+          Defaults to the value of `duplicate_column_name_1`.
+      spreadsheet_path (str, optional): The file path of the spreadsheet
+          containing the data to process. Defaults to the value of
+          `spreadsheet_v1_path`.
+
+  Returns:
+      data: A list of lists.  The first list has the column names.  Succeeding
+      lists contain the actual data
+  """
+
+  rows = ImportSpreadsheet(spreadsheet_path)
+  rows = RenameDuplicateColumns(rows, duplicate_column_name)
+  return rows
+
+
+def MakePandas(rows_of_data: List) -> pd.DataFrame:
+  """
+  Creates a Pandas DataFrame from a list of rows containing data.
+
+  Args:
+      rows_of_data (List): A list of rows, where each row is an iterable
+                          containing data values.
+                          Rows of data obtained after calling
+                          RenameDuplicateColumns() on `rows_of_data`
+                          Column_names are first list element of `rows_of_data`
+  Returns:
+      pd.DataFrame: A Pandas DataFrame containing the converted data.
+  """
+  features = ConvertSpaces(rows_of_data[0])
+  data = ConvertToNumerical(rows_of_data[1:])
+  data_df = pd.DataFrame(data, columns = features)
+
+  return data_df
+
+def ImportHearingSpreadsheet(
+    spreadsheet_path: str = spreadsheet_path_v1,
+    duplicate_column_name: str = duplicate_column_name_v1,
+    labels: Union[List[str], str] = 'default_v1') -> pd.DataFrame:
+  """Read and clean Stanford hearing data from spreadsheet.
+
+  Args:
+    spreadsheet_path: Where to find the spreadsheet with teh golden data
+    duplicate_column_names: Which columns are duplicated in the spreadsheet and
+      should be removed
+    labels: Which column names should be used for clustering
+
+  Returns:
+    A panda dataframe with all the data.
+  """
+  if labels == 'default_v1':
+    labels = labels_v1
+
+  # Read data and create DataFrame
+  data = ReadData(duplicate_column_name, spreadsheet_path)
+  df = MakePandas(data)
+
+  # Remove rows with invalid ages
+  df_good_age = RemoveRowsWithBadAges(df)
+
+  # Apply HLossClassifier and further data processing
+  df = HLossClassifier(df_good_age)
+  df = RemoveRowsWithBCWorseAC(df)
+
+  # Prepare data for clustering
+  hl_data = df.dropna(subset=labels)
+  # hl_data = hl_data[labels]
+
+  return hl_data
+
+######################  HL CLASSIFICATION  ############################
 
 def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   """
@@ -113,6 +199,9 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
      (i.e. hearing loss present but is made much worse when listening via AC 
       because of the conductive component {{ e.g. BC thresholds are ~40 dB but 
       the AC thresholds are 70 dB}})
+
+  This code requires data with bone-conduction data, as the default
+  type is normal.
 
   Args:
     df:  dataframe with HL measurements at audiometric frequencies
@@ -241,6 +330,8 @@ def HLPlot(df: pd.DataFrame, title = None):
   plt.legend()
   plt.show()
 
+######################  DATA CLEANSING  ############################
+
 def RenameDuplicateColumns(row_list: List,
                            column_name: str) -> List:
   """
@@ -306,25 +397,6 @@ def ConvertToNumerical(rows_of_data: List,
 
   return data
 
-def MakePandas(rows_of_data: List) -> pd.DataFrame:
-  """
-  Creates a Pandas DataFrame from a list of rows containing data.
-
-  Args:
-      rows_of_data (List): A list of rows, where each row is an iterable
-                          containing data values.
-                          Rows of data obtained after calling
-                          RenameDuplicateColumns() on `rows_of_data`
-                          Column_names are first list element of `rows_of_data`
-  Returns:
-      pd.DataFrame: A Pandas DataFrame containing the converted data.
-  """
-  features = ConvertSpaces(rows_of_data[0])
-  data = ConvertToNumerical(rows_of_data[1:])
-  data_df = pd.DataFrame(data, columns = features)
-
-  return data_df
-
 def RemoveRowsWithBadAges(df: pd.DataFrame) -> pd.DataFrame:
 
   """
@@ -370,6 +442,8 @@ def RemoveRowsWithBCWorseAC(data: pd.DataFrame,
         initial_row_count - final_row_count)
 
   return data
+
+##################  CLUSTERING via KMeans  ############################
 
 def CreateKMeans(n: int,
                  data: pd.DataFrame,
@@ -425,7 +499,7 @@ def PlotClusterCenters(
 
   plt.xlabel('Frequency (Hz)')
   plt.ylabel('Mean Hearing Loss (dB)')
-  plt.title('6 Clusters formed with respect to the standard frequencies')
+  plt.title(f'{n} Clusters formed with respect to the standard frequencies')
   plt.show()
 
 def TestKMeansClusters():
@@ -534,6 +608,56 @@ def AssignClusterLabels(
   for i in list(cluster_label.keys()):
     data.loc[data['predictions'] == i, 'cluster_labels'] = cluster_label[i]
   return data
+
+def compute_centroids(
+    data: pd.DataFrame,
+    num_clusters: int,
+    label_names: List[str] = labels_v1):
+  """Go through the pre-computed clusters and recompute the centroid centers.
+  Use the cluster label for each patient from the dataframe.
+  Also compute the standard deviations of each cluster.
+  This is also a way to make sure the data is consistent.
+  Args:
+    data: The dataframe containing all the HL data
+    num_clusters: Which precomputed cluster count to analyze
+    label_names: The column names (freqs) used to compute the clusters
+
+  """
+  cluster_column = f'Cluster{num_clusters:02d}Way'
+  centroids = np.zeros((num_clusters, len(label_names)))
+  stds = np.zeros((num_clusters, len(label_names)))
+  for i in range(num_clusters):
+    these_rows = data[data[cluster_column] == i]
+    these_hls = these_rows[label_names]
+    centroids[i, :] = np.mean(these_hls, axis=0)
+    stds[i, :] = np.std(these_hls, axis=0)
+  return centroids, stds
+
+def compute_distances(
+    data: pd.DataFrame,
+    num_clusters: int,
+    label_names: List[str] = labels_v1) -> pd.DataFrame:
+  """Compute the distances from the winning centroid to each datapoint.  Return
+  a new panda dataframe (with the same key).   Use the cluster label for each 
+  patient from the dataframe.
+
+  The distances are scaled by the dimensionality of the centroid, so the 
+  distances are HL/frequency and are in dB.
+  """
+  cluster_column = f'Cluster{num_clusters:02d}Way'
+  results = []
+  for i in range(num_clusters):
+    these_rows = data[data[cluster_column] == i]
+    these_hls = these_rows[label_names]
+    # print(these_hls.shape, type(these_hls))
+    centroids = np.mean(these_hls, axis=0)
+    these_distances = np.sqrt(np.sum((these_hls - centroids)**2, 
+                                     axis=1)/len(label_names))
+    results.append(pd.DataFrame(these_distances, index=these_rows.index))
+  results = pd.concat(results)
+  return results
+
+#####################  DATA SAVING UTILITIES  ############################
 
 def SaveAsJson(
                kmeans: sklearn.cluster._kmeans.KMeans,
@@ -645,32 +769,7 @@ def LoadFromJson(path: str = default_cluster_dir,
 
   return kmeans, features_before, features_after
 
-
-def ReadData(duplicate_column_name: str = duplicate_column_name_v1,
-              spreadsheet_path: str = spreadsheet_path_v1):
-
-  """
-  Clean and transform data from a spreadsheet into a numpy array.
-
-  Parameters:
-      features (List[str], optional):
-          A list of strings representing the names of the features to include
-          in the DataFrame. Defaults to the value of `features_before`.
-      duplicate_column_name (str, optional):
-          The name of the duplicate column to handle in the data.
-          Defaults to the value of `duplicate_column_name_1`.
-      spreadsheet_path (str, optional): The file path of the spreadsheet
-          containing the data to process. Defaults to the value of
-          `spreadsheet_v1_path`.
-
-  Returns:
-      data: A list of lists.  The first list has the column names.  Succeeding
-      lists contain the actual data
-  """
-
-  rows = ImportSpreadsheet(spreadsheet_path)
-  rows = RenameDuplicateColumns(rows, duplicate_column_name)
-  return rows
+#######################  CLUSTER PROCESSING  ############################
 
 def SlopeandMean(kmeans: sklearn.cluster._kmeans.KMeans):
 
@@ -753,41 +852,6 @@ def CreateClusterLabels(
       new_labels[i] = ref_cluster[golden_cluster_centroids[index]]
 
   return new_labels
-
-def ImportHearingSpreadsheet(
-    spreadsheet_path: str = spreadsheet_path_v1,
-    duplicate_column_name: str = duplicate_column_name_v1,
-    labels: Union[List[str], str] = 'default_v1') -> pd.DataFrame:
-  """Read and clean Stanford hearing data from spreadsheet.
-
-  Args:
-    spreadsheet_path: Where to find the spreadsheet with teh golden data
-    duplicate_column_names: Which columns are duplicated in the spreadsheet and
-      should be removed
-    labels: Which column names should be used for clustering
-
-  Returns:
-    A panda dataframe with all the data.
-  """
-  if labels == 'default_v1':
-    labels = labels_v1
-
-  # Read data and create DataFrame
-  data = ReadData(duplicate_column_name, spreadsheet_path)
-  df = MakePandas(data)
-
-  # Remove rows with invalid ages
-  df_good_age = RemoveRowsWithBadAges(df)
-
-  # Apply HLossClassifier and further data processing
-  df = HLossClassifier(df_good_age)
-  df = RemoveRowsWithBCWorseAC(df)
-
-  # Prepare data for clustering
-  hl_data = df.dropna(subset=labels)
-  # hl_data = hl_data[labels]
-
-  return hl_data
 
 
 def CreateClusterV1(
