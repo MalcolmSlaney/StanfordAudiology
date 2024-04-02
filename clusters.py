@@ -289,6 +289,42 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
                   ]
   values = ['Conductive','SNHL','Mixed']
   df['R_Type_HL_All'] = np.select(conditions_3, values, 'Normal')
+
+  #Left
+  # using the new Modeled BC PTA of 5, 1, 2
+  conditions_1 = [
+      (df['L_PTA_BC_Mod'] < 25.1) & (df['L_PTA_ABGap'] >= 10) &
+      (df['L_PTA'] > 25),
+      (df['L_PTA_ABGap'] < 10) & (df['L_PTA'] > 25),
+      (df['L_PTA_BC_Mod'] > 25) & (df['L_PTA_ABGap'] >= 10) &
+      (df['L_PTA'] > 25)
+                  ]
+  values = ['Conductive','SNHL','Mixed']
+  df['L_Type_HL_Mod']= np.select(conditions_1, values, 'Normal')
+
+  # HFPTA of 1
+  conditions_2 = [
+      (df['L_HFPTA_BC_Mod'] < 25.1) & (df['L_HFPTA_ABGap'] >= 10) &
+      (df['L_HFPTA'] > 25),
+      (df['L_HFPTA_ABGap'] < 10) & (df['L_HFPTA'] > 25),
+      (df['L_HFPTA_BC_Mod'] > 25) & (df['L_HFPTA_ABGap'] >= 10) &
+      (df['L_HFPTA'] > 25)
+                  ]
+
+  values = ['Conductive','SNHL','Mixed']
+  df['L_Type_HL_HF'] = np.select(conditions_2, values, 'Normal')
+
+  # # PTA of 500 1 2 4
+  conditions_3 = [
+      (df['L_PTA_BC_All'] < 25.1) & (df['L_PTA_All_ABGap'] >= 10) &
+      (df['L_PTA_All'] > 25),
+      (df['L_PTA_All_ABGap'] < 10) & (df['L_PTA_All'] > 25),
+      (df['L_PTA_BC_All'] > 25) & (df['L_PTA_All_ABGap'] >= 10) &
+      (df['L_PTA_All'] > 25)
+                  ]
+  values = ['Conductive','SNHL','Mixed']
+  df['L_Type_HL_All'] = np.select(conditions_3, values, 'Normal')
+
   return df
 
 
