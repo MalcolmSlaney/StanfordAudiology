@@ -796,12 +796,12 @@ def LoadFromJson(path: str = default_cluster_dir,
 
   #Initialise a kmeans object
   kmeans = KMeans()
-  kmeans.cluster_centers_ = cluster_centers.astype(np.float32)
+  kmeans.cluster_centers_ = cluster_centers.astype(np.double)
   kmeans.random_state = random_state
   kmeans.n_init = n_init
   kmeans.n_clusters = n_cluster
   kmeans.max_iter = max_iter
-  # kmeans._n_threads = _openmp_effective_n_threads()
+  kmeans._n_threads = 1  # _openmp_effective_n_threads()
 
   return kmeans, features_before, features_after
 
