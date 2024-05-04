@@ -177,9 +177,19 @@ flags.DEFINE_string('hmac_key',
                     required=True)
 flags.DEFINE_string('cluster_dir', 'ClusterData_v1',
                     'Where to find the pretrained cluster json data')
-
+flags.DEFINE_string('convert_mrns', None, 
+                    'Which file to read MRNs from to convert to hashes')
 
 def main(argv):
+  if FLAGS.convert_mrns:
+    # Just convert a list of MRNs (in a file) into their hash IDs.
+    with open(FLAGS.convert_mrns, 'r') as fp:
+      print(fp.readline().strip().replace('MRN', 'HMAC'))  # Replace the column header
+      for line in fp:
+        line = line.strip()
+        print(create_hmac(line, FLAGS.hmac_key, hash_type=hashlib.sha3_384))
+  return
+
   df = pd.read_csv(FLAGS.input,
                    on_bad_lines='warn',
                    na_values=['NR', '\n',
