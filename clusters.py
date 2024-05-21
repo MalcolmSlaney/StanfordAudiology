@@ -16,21 +16,18 @@ import os
 import datetime
 
 import gspread
-import google.auth as auth # authenticatiing to google
+import google.auth as auth # authenticating to google
 
 #Global variables/parameters
 
-default_cluster_dir = ('/content/drive/MyDrive/Stanford Audiology Models/'
-                       'Colab Notebooks/')
+default_cluster_dir = ('/content/drive/MyDrive/STAR_Audiology_Model/')
 
 """
 A change is required in the spreadsheet_path. Open the spreadsheet mfb raw audio
 and copy the link from the address bar. The gid code in the url is unique for
 each of the user.
 """
-spreadsheet_path_v1 = ('https://docs.google.com/spreadsheets/d/'
-                       '119_-qrfzGXwV1YBUJdBzvtAQTZnl-xwN7hD9FK5SWfU/'
-                       'edit#gid=84023254')
+spreadsheet_path_v1 = ('https://docs.google.com/spreadsheets/d/1M3pM45Qb2z2pZ_liVssCpOwCVb8fHtaeu1kkiomzxWw/edit#gid=0')
 
 duplicate_column_name_v1: str = 'LBone2000'
 
@@ -161,7 +158,7 @@ def ImportHearingSpreadsheet(
 
 def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   """
-  Function that takes in audiometric frequencies and returns the hearling
+  Function that takes in audiometric frequencies and returns the hearing
   loss class. This function calculate different metrics that will be used as
   criterion for classifying the hearing loss types.
 
@@ -231,7 +228,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   df['R_UHFPTA'] = df[['R2000', 'R4000', 'R8000']].mean(axis=1)
   df['L_UHFPTA'] = df[['L2000', 'L4000', 'L8000']].mean(axis=1)
  
-  #PT Bone conduction modeled
+  #PT Bone conduction modeled -- Unsure from where this was modeled from 
   df['R_PTA_BC_Mod'] = df[['RBone500', 'RBone1000', 'RBone2000']].mean(axis=1)
   df['L_PTA_BC_Mod'] = df[['LBone500', 'LBone1000', 'LBone2000']].mean(axis=1)
 

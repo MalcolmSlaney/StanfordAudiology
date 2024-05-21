@@ -1,8 +1,8 @@
 # Enhance the FM clinical data dump by
 #   Replacing the MRN with a HMAC code
-#   Classifying the type of hearing loss (sensorial neural, conductive, mixed)
+#   Classifying the type of hearing loss (sensorineural, conductive, mixed)
 #   Calculate the speech intelligibiity index
-#   Enhance the dataset with some pure-tone averages
+#   Enhance the dataset with some pure-tone averages (HFPTA, 4-freq PTA, 3-freq PTA)
 #   Add cluster IDs for a number of different cluster counts
 #   Flag the patients with multiple visits
 # and then write out the new data.
@@ -23,7 +23,7 @@ import pandas as pd
 from scipy import interpolate
 
 import clusters
-from speech_intelligibility_index import sii
+from speech_intelligibility_index import sii   #Need to pip download 
 
 # Default to sha3_384, based on this article
 # https://crypto.stackexchange.com/questions/68307/what-is-the-difference-between-sha-3-and-sha-256
@@ -180,7 +180,10 @@ flags.DEFINE_string('cluster_dir', 'ClusterData_v1',
 flags.DEFINE_string('convert_mrns', None, 
                     'Which file to read MRNs from to convert to hashes')
 
+
+
 def main(argv):
+  print("Hello World")
   if FLAGS.convert_mrns:
     # Just convert a list of MRNs (in a file) into their hash IDs.
     with open(FLAGS.convert_mrns, 'r') as fp:
@@ -188,8 +191,9 @@ def main(argv):
       for line in fp:
         line = line.strip()
         print(create_hmac(line, FLAGS.hmac_key, hash_type=hashlib.sha3_384))
-  return
+    return
 
+  assert os.path.exists(FLAGS.input)
   df = pd.read_csv(FLAGS.input,
                    on_bad_lines='warn',
                    na_values=['NR', '\n',
