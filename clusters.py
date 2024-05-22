@@ -197,8 +197,8 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       because of the conductive component {{ e.g. BC thresholds are ~40 dB but 
       the AC thresholds are 70 dB}})
 
-  This code requires data with bone-conduction data, as the default
-  type is normal.
+  This code requires data with bone-conduction data for each ear, as the default
+  type is normal -- Changed the default to 'Unknown' (VMA - 5/22)
 
   Args:
     df:  dataframe with HL measurements at audiometric frequencies
@@ -228,7 +228,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   df['R_UHFPTA'] = df[['R2000', 'R4000', 'R8000']].mean(axis=1)
   df['L_UHFPTA'] = df[['L2000', 'L4000', 'L8000']].mean(axis=1)
  
-  #PT Bone conduction modeled -- Unsure from where this was modeled from 
+  #PT Bone conduction modeled -- Unsure from where this was modeled from (VMA)
   df['R_PTA_BC_Mod'] = df[['RBone500', 'RBone1000', 'RBone2000']].mean(axis=1)
   df['L_PTA_BC_Mod'] = df[['LBone500', 'LBone1000', 'LBone2000']].mean(axis=1)
 
@@ -255,17 +255,21 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   #Right
   # using the new Modeled BC PTA of 5, 1, 2
   conditions_1 = [
+      (df['R_PTA_BC_Mod'] < 25) & (df['R_PTA_ABGap'] < 10) &
+      (df['R_PTA'] < 25),
       (df['R_PTA_BC_Mod'] < 25.1) & (df['R_PTA_ABGap'] >= 10) &
       (df['R_PTA'] > 25),
       (df['R_PTA_ABGap'] < 10) & (df['R_PTA'] > 25),
       (df['R_PTA_BC_Mod'] > 25) & (df['R_PTA_ABGap'] >= 10) &
       (df['R_PTA'] > 25)
                   ]
-  values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_Mod']= np.select(conditions_1, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['R_Type_HL_Mod']= np.select(conditions_1, values, 'Unknown')
 
   # HFPTA of 1
   conditions_2 = [
+      (df['R_PTA_BC_Mod'] < 25) & (df['R_PTA_ABGap'] < 10) &
+      (df['R_PTA'] < 25),
       (df['R_HFPTA_BC_Mod'] < 25.1) & (df['R_HFPTA_ABGap'] >= 10) &
       (df['R_HFPTA'] > 25),
       (df['R_HFPTA_ABGap'] < 10) & (df['R_HFPTA'] > 25),
@@ -273,34 +277,40 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       (df['R_HFPTA'] > 25)
                   ]
 
-  values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_HF'] = np.select(conditions_2, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['R_Type_HL_HF'] = np.select(conditions_2, values, 'Unknown')
 
   # # PTA of 500 1 2 4
   conditions_3 = [
+      (df['R_PTA_BC_Mod'] < 25) & (df['R_PTA_ABGap'] < 10) &
+      (df['R_PTA'] < 25),
       (df['R_PTA_BC_All'] < 25.1) & (df['R_PTA_All_ABGap'] >= 10) &
       (df['R_PTA_All'] > 25),
       (df['R_PTA_All_ABGap'] < 10) & (df['R_PTA_All'] > 25),
       (df['R_PTA_BC_All'] > 25) & (df['R_PTA_All_ABGap'] >= 10) &
       (df['R_PTA_All'] > 25)
                   ]
-  values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_All'] = np.select(conditions_3, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['R_Type_HL_All'] = np.select(conditions_3, values, 'Unknown')
 
   #Left
   # using the new Modeled BC PTA of 5, 1, 2
   conditions_1 = [
+      (df['L_PTA_BC_Mod'] < 25) & (df['L_PTA_ABGap'] < 10) &
+      (df['L_PTA'] < 25),
       (df['L_PTA_BC_Mod'] < 25.1) & (df['L_PTA_ABGap'] >= 10) &
       (df['L_PTA'] > 25),
       (df['L_PTA_ABGap'] < 10) & (df['L_PTA'] > 25),
       (df['L_PTA_BC_Mod'] > 25) & (df['L_PTA_ABGap'] >= 10) &
       (df['L_PTA'] > 25)
                   ]
-  values = ['Conductive','SNHL','Mixed']
-  df['L_Type_HL_Mod']= np.select(conditions_1, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['L_Type_HL_Mod']= np.select(conditions_1, values, 'Unknown')
 
   # HFPTA of 1
   conditions_2 = [
+      (df['L_HFPTA_BC_Mod'] < 25) & (df['L_HFPTA_ABGap'] < 10) &
+      (df['L_HFPTA'] < 25),
       (df['L_HFPTA_BC_Mod'] < 25.1) & (df['L_HFPTA_ABGap'] >= 10) &
       (df['L_HFPTA'] > 25),
       (df['L_HFPTA_ABGap'] < 10) & (df['L_HFPTA'] > 25),
@@ -308,19 +318,21 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       (df['L_HFPTA'] > 25)
                   ]
 
-  values = ['Conductive','SNHL','Mixed']
-  df['L_Type_HL_HF'] = np.select(conditions_2, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['L_Type_HL_HF'] = np.select(conditions_2, values, 'Unknown')
 
   # # PTA of 500 1 2 4
   conditions_3 = [
+      (df['L_PTA_BC_All'] < 25) & (df['L_PTA_All_ABGap'] < 10) &
+      (df['L_PTA_All'] < 25),
       (df['L_PTA_BC_All'] < 25.1) & (df['L_PTA_All_ABGap'] >= 10) &
       (df['L_PTA_All'] > 25),
       (df['L_PTA_All_ABGap'] < 10) & (df['L_PTA_All'] > 25),
       (df['L_PTA_BC_All'] > 25) & (df['L_PTA_All_ABGap'] >= 10) &
       (df['L_PTA_All'] > 25)
                   ]
-  values = ['Conductive','SNHL','Mixed']
-  df['L_Type_HL_All'] = np.select(conditions_3, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['L_Type_HL_All'] = np.select(conditions_3, values, 'Unknown')
 
   return df
 
@@ -401,6 +413,10 @@ def ConvertToNumerical(rows_of_data: List,
                        desired_type = np.float32) -> np.ndarray:
   """
   Converts a list of rows containing data into a numerical NumPy array.
+  
+  If a value is missing --> NaN 
+  If hearing threshold is NR --> 121 dB to ensure PTA computation is meaningful 
+  -- VMA (5/22/24)
 
   Args:
       rows_of_data (List): A list of rows, where each row is an iterable
@@ -418,8 +434,10 @@ def ConvertToNumerical(rows_of_data: List,
     for j, d in enumerate(r):
 
       if desired_type==np.float32 or type==np.float64:
-        if d == '' or d == 'NR':
+        if d == '' :
           d = np.nan
+        elif d == 'NR':
+            d = 121 
         else:
           try:
             d = float(d)

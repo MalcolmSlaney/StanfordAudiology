@@ -59,14 +59,14 @@ def classify_hearing_loss(df: pd.DataFrame):
   return df
 
 
-# From: https://colab.research.google.com/drive/1bAnDpUUx5-BYkL3l3ukNVVnsLzEhy-ds#scrollTo=v6Dd6A2-UWG3
+# From: Google SII Colab Demo: https://colab.research.google.com/drive/1bAnDpUUx5-BYkL3l3ukNVVnsLzEhy-ds#scrollTo=v6Dd6A2-UWG3
 
 default_audiogram_freqs = [125, 250, 500, 750, 1000, 1500, 2000, 3000, 4000, 6000, 8000]
 
 def sii_from_audiogram(
     audiogram_samples: Union[List[float], np.ndarray],
     audiogram_freqs: Union[List[float], np.ndarray] = default_audiogram_freqs) -> float:
-    """Compute the speech intelligibility index from an audiogram
+    """Compute the speech intelligibility index from an audiogram -- This is from the SII module 
 
     Args:
       audiogram_samples: Hearing loss in db at frequencies corresponding to the
@@ -96,6 +96,11 @@ def sii_from_df(df, ear='R'):
   names = [f'{ear}{f}' for f in freqs]
   values = df[names].values
   names_values = list(zip(names, values))
+  
+  """Extracts hearing thresholds from the specified frequencies, filters out the 
+  invalid data (NaN or infinite values), and computes SII only if there are 2
+  valid points 
+  """
   try:
     good_names_values = [nv for nv in names_values if np.isfinite(nv[1])]
     if len(good_names_values) > 2:
@@ -162,8 +167,7 @@ def label_duplicates(df: pd.DataFrame) -> pd.DataFrame:
   df[duplicate_name] = False
   df.loc[df['Patients::HMAC'].duplicated(keep=False), 'MultipleVisits'] = True
   return df
-
-
+    
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input',
                     '/Users/malcolm/Downloads/3-27-2024 raw data no cleaning.csv',
@@ -183,7 +187,6 @@ flags.DEFINE_string('convert_mrns', None,
 
 
 def main(argv):
-  print("Hello World")
   if FLAGS.convert_mrns:
     # Just convert a list of MRNs (in a file) into their hash IDs.
     with open(FLAGS.convert_mrns, 'r') as fp:
@@ -193,14 +196,18 @@ def main(argv):
         print(create_hmac(line, FLAGS.hmac_key, hash_type=hashlib.sha3_384))
     return
 
-  assert os.path.exists(FLAGS.input)
   df = pd.read_csv(FLAGS.input,
                    on_bad_lines='warn',
-                   na_values=['NR', '\n',
+                   na_values=['', '\n',
                               '? * Line 1, Column 1\n  Syntax error: value, '
                               'object or array expected.\n* Line 1, Column 1\n'
                               '  A valid JSON document must be either an array '
-                              'or an object value.']) 
+                              'or an object value.'])   #Removed NR from here -- VMA(5/22/24)
+  df.replace('NR', 121, inplace=True)   #Added here instead -- VMA (5/22/2024)
+  
+  for column in df.columns:
+       df[column] = pd.to_numeric(df[column], errors='ignore')
+  
   print('Column names:', df.columns.tolist())
 
   df = replace_mrn(df, FLAGS.hmac_key)
