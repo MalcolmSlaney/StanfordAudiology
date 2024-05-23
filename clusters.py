@@ -126,7 +126,7 @@ def ImportHearingSpreadsheet(
   """Read and clean Stanford hearing data from spreadsheet.
 
   Args:
-    spreadsheet_path: Where to find the spreadsheet with teh golden data
+    spreadsheet_path: Where to find the spreadsheet with the golden data
     duplicate_column_names: Which columns are duplicated in the spreadsheet and
       should be removed
     labels: Which column names should be used for clustering
@@ -198,15 +198,31 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       the AC thresholds are 70 dB}})
 
   This code requires data with bone-conduction data for each ear, as the default
-  type is normal -- Changed the default to 'Unknown' (VMA - 5/22)
+  type is normal -- Changed the default to 'Unknown' (VMA - 5/22).
+  If BC of one ear is known and the thresholds of the other ear is missing, 
+  it's usually a case of symmetric hearing loss, and thresholds are modeled 
+  (copied) to the other ear (VMA - 5/22/24)
 
   Args:
     df:  dataframe with HL measurements at audiometric frequencies
 
   Returns:
     df: dataframe with HL classes as a new column, with several new working
-      columna added.
+      columns added.
   """
+  
+  frequencies = ['250', '500', '1000', '2000', '3000', '4000']
+
+    # Loop through each frequency
+  for freq in frequencies:
+      right_col = f'RBone{freq}'
+      left_col = f'LBone{freq}'
+        
+      # If BC threshold for right ear is known and left ear is missing, copy from right to left
+      df.loc[df[right_col].notna() & df[left_col].isna(), left_col] = df[right_col]
+    
+      # If BC threshold for left ear is known and right ear is missing, copy from left to right
+      df.loc[df[left_col].notna() & df[right_col].isna(), right_col] = df[left_col]      
 
   #HFPTA
   df['R_HFPTA'] = df[['R1000', 'R2000', 'R4000']].mean(axis=1)
@@ -220,9 +236,9 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   df['R_PTA_All'] = df[['R500', 'R1000', 'R2000', 'R4000']].mean(axis=1)
   df['L_PTA_All'] = df[['L500', 'L1000', 'L2000', 'L4000']].mean(axis=1)
  
-  #LFPTA -  250, 500,1000
-  df['R_LFPTA'] = df[['R500', 'R1000']].mean(axis=1)
-  df['L_LFPTA'] = df[['L500', 'L1000']].mean(axis=1)
+  #LFPTA -  250, 500,1000 
+  df['R_LFPTA'] = df[['R250', 'R500', 'R1000']].mean(axis=1)    #Added 250 Hz here (VMA - 5/23)
+  df['L_LFPTA'] = df[['L250', 'L500', 'L1000']].mean(axis=1)
 
   #UHFPTA - 2000, 4000, 80000
   df['R_UHFPTA'] = df[['R2000', 'R4000', 'R8000']].mean(axis=1)
@@ -293,19 +309,16 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   values = ['Normal','Conductive','SNHL','Mixed']
   df['R_Type_HL_All'] = np.select(conditions_3, values, 'Unknown')
 
-  #Left
+  #### Left Ear ####
   # using the new Modeled BC PTA of 5, 1, 2
   conditions_1 = [
-      (df['L_PTA_BC_Mod'] < 25) & (df['L_PTA_ABGap'] < 10) &
-      (df['L_PTA'] < 25),
-      (df['L_PTA_BC_Mod'] < 25.1) & (df['L_PTA_ABGap'] >= 10) &
-      (df['L_PTA'] > 25),
-      (df['L_PTA_ABGap'] < 10) & (df['L_PTA'] > 25),
-      (df['L_PTA_BC_Mod'] > 25) & (df['L_PTA_ABGap'] >= 10) &
-      (df['L_PTA'] > 25)
-                  ]
+    (df['L_PTA_BC_Mod'] < 25) & (df['L_PTA_ABGap'] < 10) & (df['L_PTA'] < 25),
+    (df['L_PTA_BC_Mod'] < 25.1) & (df['L_PTA_ABGap'] >= 10) & (df['L_PTA'] > 25),
+    (df['L_PTA_ABGap'] < 10) & (df['L_PTA'] > 25),
+    (df['L_PTA_BC_Mod'] > 25) & (df['L_PTA_ABGap'] >= 10) & (df['L_PTA'] > 25)
+                ]
   values = ['Normal','Conductive','SNHL','Mixed']
-  df['L_Type_HL_Mod']= np.select(conditions_1, values, 'Unknown')
+  df['L_Type_HL_Mod'] = np.select(conditions_1, values, 'Unknown')
 
   # HFPTA of 1
   conditions_2 = [

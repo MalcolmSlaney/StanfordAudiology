@@ -43,21 +43,29 @@ def replace_mrn(df, key: str = 'ReplaceMe') -> pd.DataFrame:
 
 def classify_hearing_loss(df: pd.DataFrame):
   # Assign result to a temporary dataframe, since classifier creates lots of 
-  # temporary column names.
+  # temporary column names.  
 
   orig_df = df.copy()
   new_df = clusters.HLossClassifier(df)
   df = orig_df
-  df['R_Type_HL_Mod'] = new_df['R_Type_HL_Mod']
-  df['R_Type_HL_HF'] = new_df['R_Type_HL_HF']
-  df['R_Type_HL_All'] = new_df['R_Type_HL_All']
+  
+  # Specify columns related to bone conduction and hearing loss types to be transferred
+  bc_columns = ['RBone250', 'RBone500', 'RBone1000',
+              'RBone2000', 'RBone3000', 'RBone4000', 
+              'LBone250', 'LBone500', 'LBone1000', 
+              'LBone2000', 'LBone3000', 'LBone4000']
 
-  df['L_Type_HL_Mod'] = new_df['L_Type_HL_Mod']
-  df['L_Type_HL_HF'] = new_df['L_Type_HL_HF']
-  df['L_Type_HL_All'] = new_df['L_Type_HL_All']
+  # Add hearing loss type columns
+  hl_type_columns = ['R_Type_HL_Mod', 'R_Type_HL_HF', 'R_Type_HL_All',
+                   'L_Type_HL_Mod', 'L_Type_HL_HF', 'L_Type_HL_All']
+
+  # Combine the selected columns to be transferred
+  selected_columns = bc_columns + hl_type_columns
+
+  # Update the original dataframe with the new values
+  df[selected_columns] = new_df[selected_columns]
 
   return df
-
 
 # From: Google SII Colab Demo: https://colab.research.google.com/drive/1bAnDpUUx5-BYkL3l3ukNVVnsLzEhy-ds#scrollTo=v6Dd6A2-UWG3
 
