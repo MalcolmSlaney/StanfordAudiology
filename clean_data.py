@@ -99,7 +99,7 @@ def sii_from_audiogram(
     return sii.sii(ssl=ssl, nsl=nsl, hearing_threshold=critical_band_hl)
 
 
-def sii_from_df(df, ear='R'):
+def sii_from_df(df, ear):
   freqs = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
   names = [f'{ear}{f}' for f in freqs]
   values = df[names].values
@@ -107,7 +107,7 @@ def sii_from_df(df, ear='R'):
   
   """Extracts hearing thresholds from the specified frequencies, filters out the 
   invalid data (NaN or infinite values), and computes SII only if there are 2
-  valid points 
+  valid points, with default of right ear 
   """
   try:
     good_names_values = [nv for nv in names_values if np.isfinite(nv[1])]
@@ -115,12 +115,37 @@ def sii_from_df(df, ear='R'):
       freqs, values = zip(*good_names_values)
       freqs = [float(f[1:]) for f in freqs]
 
-      r_sii = sii_from_audiogram(values, freqs)
+      ear_sii = sii_from_audiogram(values, freqs)
     else:
-      r_sii = np.nan
+      ear_sii = np.nan
   except:
-    r_sii = np.nan
-  return r_sii
+    ear_sii = np.nan
+  return ear_sii
+
+# def sii_from_df(df, ear):
+#     freqs = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
+#     names = [f'{ear}{f}' for f in freqs]
+#     values = df[names].values
+#     names_values = list(zip(names, values))
+
+#     try:
+#         good_names_values = [nv for nv in names_values if np.isfinite(nv[1])]
+#         if len(good_names_values) > 2:
+#             freqs, values = zip(*good_names_values)
+#             freqs = [float(f[1:]) for f in freqs]
+
+#             ear_sii = sii_from_audiogram(values, freqs)
+#         else:
+#             ear_sii = np.nan
+#     except:
+#         ear_sii = np.nan
+#     return ear_sii
+
+# def sii_from_df_right(df):
+#     return sii_from_df(df, ear='R')
+
+# def sii_from_df_left(df):
+#     return sii_from_df(df, ear='L')
 
 
 def calculate_all_sii(df: pd.DataFrame):
@@ -211,7 +236,7 @@ def main(argv):
                               'object or array expected.\n* Line 1, Column 1\n'
                               '  A valid JSON document must be either an array '
                               'or an object value.'])   #Removed NR from here -- VMA(5/22/24)
-  df.replace('NR', 121, inplace=True)   #Added here instead -- VMA (5/22/2024)
+  df.replace('NR', 121, inplace=True)   #Added here instead, and replace with 121 dB -- VMA (5/22/2024)
   
   for column in df.columns:
        df[column] = pd.to_numeric(df[column], errors='ignore')
