@@ -219,6 +219,8 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       df: dataframe with HL classes as a new column, with several new working
         columns added.
     """
+    
+    ### Having BC thresholds in both ears in cases of symmetric hearing loss 
 
     frequencies = ['250', '500', '1000', '2000', '3000', '4000']
 
@@ -235,17 +237,9 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
         df.loc[df[left_col].notna() & df[right_col].isna(),
                right_col] = df[left_col]
 
-    ### Do to not calculate PTA if any of the thresholds are marked 'NR'
+    ###Do to not calculate PTA if any of the thresholds are marked 'NR'
     
-    NR_value = 1000000
-    
-    # thresholds = ['R250', 'R500', 'R1000', 'R2000', 'R4000', 'R8000',
-    #               'L250', 'L500', 'L1000', 'L2000', 'L4000', 'L8000',
-    #               'RBone250', 'RBone500', 'RBone1000', 'RBone2000', 'RBone4000',
-    #               'LBone250', 'LBone500', 'LBone1000', 'LBone2000', 'LBone4000']
-
-    # # # If NR, set value to 1000000
-    # df[thresholds] = df[thresholds].replace('NR', NR_value)
+    NR_value = 1000000 #If NR present, it is labelled as 1000000
         
     #Defining required PTAs
     
@@ -269,50 +263,8 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
     #Calculate PTA, but set to np.nan if any of the thresholds are NR
     for pta, cols in pta_cols:
         df[pta] = df[cols].replace(NR_value, np.nan).mean(axis=1, skipna=False)
-        # df[pta] = df[cols].mean(axis=1, skipna=False)
-       
 
-# ## Original 
-#     # HFPTA
-#     df['R_HFPTA'] = df[['R1000', 'R2000', 'R4000']].mean(axis=1)
-#     df['L_HFPTA'] = df[['L1000', 'L2000', 'L4000']].mean(axis=1)
-
-#     # PTA - 500, 1000, 2000
-#     df['R_PTA'] = df[['R500', 'R1000', 'R2000']].mean(axis=1)
-#     df['L_PTA'] = df[['L500', 'L1000', 'L2000']].mean(axis=1)
-
-#     # PTA all -  500,1000,2000,4000
-#     df['R_PTA_All'] = df[['R500', 'R1000', 'R2000', 'R4000']].mean(axis=1)
-#     df['L_PTA_All'] = df[['L500', 'L1000', 'L2000', 'L4000']].mean(axis=1)
-
-#     #LFPTA -  250, 500,1000
-#     df['R_LFPTA'] = df[['R250', 'R500', 'R1000']].mean(
-#         axis=1)  # Added 250 Hz here (VMA - 5/23)
-#     df['L_LFPTA'] = df[['L250', 'L500', 'L1000']].mean(axis=1)
-
-#     #UHFPTA - 2000, 4000, 80000
-#     df['R_UHFPTA'] = df[['R2000', 'R4000', 'R8000']].mean(axis=1)
-#     df['L_UHFPTA'] = df[['L2000', 'L4000', 'L8000']].mean(axis=1)
-
-#     # PT Bone conduction modeled -- Unsure from where this was modeled from (VMA)
-#     df['R_PTA_BC_Mod'] = df[['RBone500',
-#                               'RBone1000', 'RBone2000']].mean(axis=1)
-#     df['L_PTA_BC_Mod'] = df[['LBone500',
-#                               'LBone1000', 'LBone2000']].mean(axis=1)
-
-#     # HFPTA Bone conduction modeled
-#     df['R_HFPTA_BC_Mod'] = df[['RBone1000',
-#                                 'RBone2000', 'RBone4000']].mean(axis=1)
-#     df['L_HFPTA_BC_Mod'] = df[['LBone1000',
-#                                 'LBone2000', 'LBone4000']].mean(axis=1)
-
-#     # BC average of 500, 1, 2, 4kHz
-#     df['R_PTA_BC_All'] = df[['RBone500', 'RBone1000',
-#                               'RBone2000', 'RBone4000']].mean(axis=1)
-#     df['L_PTA_BC_All'] = df[['LBone500', 'LBone1000',
-#                               'LBone2000', 'LBone4000']].mean(axis=1)
-
-    # new ABGap
+    # ABGap
     df['R_PTA_ABGap'] = df['R_PTA'] - df['R_PTA_BC_Mod']
     df['R_HFPTA_ABGap'] = df['R_HFPTA'] - df['R_HFPTA_BC_Mod']
     df['R_PTA_4freq_ABGap'] = df['R_PTA_4freq'] - df['R_PTA_BC_4freq']
