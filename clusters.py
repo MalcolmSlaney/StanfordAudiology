@@ -222,7 +222,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
     
     ### Having BC thresholds in both ears in cases of symmetric hearing loss 
 
-    frequencies = ['250', '500', '1000', '2000', '3000', '4000']
+    frequencies = ['250', '500', '1000', '2000', '4000']
 
     # Loop through each frequency
     for freq in frequencies:
