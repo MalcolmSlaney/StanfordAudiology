@@ -66,8 +66,9 @@ class ClusterTests(absltest.TestCase):
   def test_classification(self):
     column_names = ['R250', 'R500', 'R1000', 'R2000', 'R3000', 'R4000', 'R6000', 
         'R8000','L250', 'L500', 'L1000', 'L2000', 'L3000', 'L4000',
-        'L6000', 'L8000', 'RBone500','RBone1000','RBone2000', 'RBone4000',
-        'LBone500', 'LBone1000', 'LBone2000', 'LBone4000']
+        'L6000', 'L8000', 
+        'RBone250', 'RBone500','RBone1000','RBone2000', 'RBone4000',
+        'LBone250', 'LBone500', 'LBone1000', 'LBone2000', 'LBone4000']
     
     # Make some random data and make sure we get the same results as before.
     np.random.seed(0)

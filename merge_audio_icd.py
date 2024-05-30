@@ -29,6 +29,13 @@ def extract_specific_icd (input_csv, output_csv, icd9_codes=None, icd10_codes=No
     
     new_df = df[combined_icd]
     
+    # # Sort by Patient Id and Date to ensure the latest visit is identified - Not working, check 
+    # new_df['Date'] = pd.to_datetime(new_df['Date'])
+    # new_df = new_df.sort_values(by=['Patient Id', 'Date'])
+
+    # # Drop duplicate patient IDs, keeping only the last entry (latest visit) for each patient
+    # final_df = new_df.drop_duplicates(subset='Patient Id', keep='last')
+    
     output_df = new_df[['Patient Id', 'Date', 'Age', 'ICD9 Code', 'ICD10 Code', 'Description']]
     
     # Save the filtered data to a new CSV file
@@ -36,7 +43,7 @@ def extract_specific_icd (input_csv, output_csv, icd9_codes=None, icd10_codes=No
 
 
 input_csv = 'C:/Users/varsh/Desktop/PostDoc/Audiology_Data/Raw/MD_H81.0/MD_Diagnosis_H81.0.csv'
-output_csv = 'C:/Users/varsh/Desktop/PostDoc/Audiology_Data/Processed/MD_H81.0/MD_Refined_5.24.csv'
+output_csv = 'C:/Users/varsh/Desktop/PostDoc/Audiology_Data/Processed/MD_H81.0/MD_Refined_RemoveMultipleVisits_5.24.csv' #-- Not working
 
 # Meniere's here 
 icd9_codes = ['386']

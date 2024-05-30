@@ -3,3 +3,5 @@
 **.pyc
 **.csv
 **.txt
+.vs/*
+**.vs

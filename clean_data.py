@@ -56,11 +56,16 @@ def classify_hearing_loss(df: pd.DataFrame):
               'LBone2000', 'LBone3000', 'LBone4000']
 
   # Add hearing loss type columns
-  hl_type_columns = ['R_Type_HL_Mod', 'R_Type_HL_HF', 'R_Type_HL_All',
-                   'L_Type_HL_Mod', 'L_Type_HL_HF', 'L_Type_HL_All']
+  hl_type_columns = ['R_Type_HL_Mod', 'R_Type_HL_HF', 'R_Type_HL_4freq',
+                   'L_Type_HL_Mod', 'L_Type_HL_HF', 'L_Type_HL_4freq']
+  
+  #Add PTA columns from the classifier also here 
+  
+  pta_columns = ['R_PTA', 'R_PTA_4freq', 'R_HFPTA',
+                 'L_PTA', 'L_PTA_4freq', 'L_HFPTA']
 
   # Combine the selected columns to be transferred
-  selected_columns = bc_columns + hl_type_columns
+  selected_columns = bc_columns + hl_type_columns + pta_columns
 
   # Update the original dataframe with the new values
   df[selected_columns] = new_df[selected_columns]
@@ -99,7 +104,7 @@ def sii_from_audiogram(
     return sii.sii(ssl=ssl, nsl=nsl, hearing_threshold=critical_band_hl)
 
 
-def sii_from_df(df, ear):
+def sii_from_df(df, ear):   
   freqs = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
   names = [f'{ear}{f}' for f in freqs]
   values = df[names].values
@@ -107,7 +112,7 @@ def sii_from_df(df, ear):
   
   """Extracts hearing thresholds from the specified frequencies, filters out the 
   invalid data (NaN or infinite values), and computes SII only if there are 2
-  valid points, with default of right ear 
+  valid points, with default of any ear     #Changed from default of right ear - VMA 
   """
   try:
     good_names_values = [nv for nv in names_values if np.isfinite(nv[1])]
@@ -122,59 +127,41 @@ def sii_from_df(df, ear):
     ear_sii = np.nan
   return ear_sii
 
-# def sii_from_df(df, ear):
-#     freqs = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
-#     names = [f'{ear}{f}' for f in freqs]
-#     values = df[names].values
-#     names_values = list(zip(names, values))
-
-#     try:
-#         good_names_values = [nv for nv in names_values if np.isfinite(nv[1])]
-#         if len(good_names_values) > 2:
-#             freqs, values = zip(*good_names_values)
-#             freqs = [float(f[1:]) for f in freqs]
-
-#             ear_sii = sii_from_audiogram(values, freqs)
-#         else:
-#             ear_sii = np.nan
-#     except:
-#         ear_sii = np.nan
-#     return ear_sii
-
-# def sii_from_df_right(df):
-#     return sii_from_df(df, ear='R')
-
-# def sii_from_df_left(df):
-#     return sii_from_df(df, ear='L')
-
-
 def calculate_all_sii(df: pd.DataFrame):
   df['R_SII'] = df.apply(lambda df: sii_from_df(df, 'R'), axis=1)
   df['L_SII'] = df.apply(lambda df: sii_from_df(df, 'L'), axis=1)
   return df
 
 
-def pta_summary(df: pd.DataFrame, 
-                freqs: List[float], 
-                ear: str ='R') -> np.ndarray:
-  col_list = [f'{ear}{f}' for f in freqs]
-  data = df[col_list]
-  return np.mean(data.values, axis=1)
+# def pta_summary(df: pd.DataFrame, 
+#                 freqs: List[float], 
+#                 ear: str ='R') -> np.ndarray:
+#   # NR_value = 1000000
+#   thresholds = [f'{ear}{f}' for f in freqs]
+  
+#   # df[thresholds] = df[thresholds].replace('NR', NR_value)
+  
+#   for pta in ['R_PTA', 'R_Conv_PTA', 'R_HF_PTA', 
+#               'L_PTA', 'L_Conv_PTA', 'L_HF_PTA']:
+#       df[pta] = df[thresholds].replace('NR', np.nan).mean(axis=1)
+      
+#   data = df[thresholds]
+#   return np.mean(data.values, axis=1)
 
-def all_pta_summaries(df: pd.DataFrame) -> pd.DataFrame:
-  pta_freqs = [500, 1000, 2000, 4000]
-  conv_freqs = [500, 1000, 2000]
-  hf_freqs = [1000, 2000, 4000]
+# def all_pta_summaries(df: pd.DataFrame) -> pd.DataFrame:
+#   pta_freqs = [500, 1000, 2000, 4000]
+#   conv_freqs = [500, 1000, 2000]
+#   hf_freqs = [1000, 2000, 4000]
 
-  df['L_PTA'] = pta_summary(df, pta_freqs, 'L')
-  df['L_Conv_PTA'] = pta_summary(df, conv_freqs, 'L')
-  df['L_HF_PTA'] = pta_summary(df, hf_freqs, 'L')
-
-  df['R_PTA'] = pta_summary(df, pta_freqs, 'R')
-  df['R_Conv_PTA'] = pta_summary(df, conv_freqs, 'R')
-  df['R_HF_PTA'] = pta_summary(df, hf_freqs, 'R')
-
-  return df
+#   df['R_PTA'] = pta_summary(df, pta_freqs, 'R')
+#   df['R_Conv_PTA'] = pta_summary(df, conv_freqs, 'R')
+#   df['R_HF_PTA'] = pta_summary(df, hf_freqs, 'R')
+  
+#   df['L_PTA'] = pta_summary(df, pta_freqs, 'L')
+#   df['L_Conv_PTA'] = pta_summary(df, conv_freqs, 'L')
+#   df['L_HF_PTA'] = pta_summary(df, hf_freqs, 'L')
+  
+#   return df
 
 
 def add_cluster_ids(df: pd.DataFrame, 
@@ -236,7 +223,7 @@ def main(argv):
                               'object or array expected.\n* Line 1, Column 1\n'
                               '  A valid JSON document must be either an array '
                               'or an object value.'])   #Removed NR from here -- VMA(5/22/24)
-  df.replace('NR', 121, inplace=True)   #Added here instead, and replace with 121 dB -- VMA (5/22/2024)
+  df.replace('NR', 1000000, inplace=True)   #Added here instead, and replace with 1000000 dB -- VMA (5/28/2024)
   
   for column in df.columns:
        df[column] = pd.to_numeric(df[column], errors='ignore')
@@ -246,7 +233,7 @@ def main(argv):
   df = replace_mrn(df, FLAGS.hmac_key)
   df = classify_hearing_loss(df)
   df = calculate_all_sii(df)
-  df = all_pta_summaries(df)
+  # df = all_pta_summaries(df)
   df = add_cluster_ids(df, cluster_dir=FLAGS.cluster_dir)
   df = label_duplicates(df)
   df.to_csv(FLAGS.output)
