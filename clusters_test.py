@@ -75,11 +75,11 @@ class ClusterTests(absltest.TestCase):
     fake_data = np.random.uniform(0, 100, size=(20, len(column_names)))
     df = pd.DataFrame(fake_data, columns=column_names)
     df_with_classes = clusters.HLossClassifier(df)
-    type_counts = Counter(df_with_classes['R_Type_HL_All'].to_list())
+    type_counts = Counter(df_with_classes['R_Type_HL_4freq'].to_list())
     self.assertDictEqual(type_counts, {'SNHL': 15, 'Mixed': 2, 
                                        'Normal': 2, 'Conductive': 1})
 
-    type_counts = Counter(df_with_classes['L_Type_HL_All'].to_list())
+    type_counts = Counter(df_with_classes['L_Type_HL_4freq'].to_list())
     self.assertDictEqual(type_counts, {'SNHL': 13, 'Mixed': 6, 
                                        'Normal': 1})
 
