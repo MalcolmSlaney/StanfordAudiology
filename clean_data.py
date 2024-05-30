@@ -50,10 +50,8 @@ def classify_hearing_loss(df: pd.DataFrame):
   df = orig_df
   
   # Specify columns related to bone conduction, hearing loss types, and PTA to be transferred
-  bc_columns = ['RBone250', 'RBone500', 'RBone1000',
-              'RBone2000', 'RBone3000', 'RBone4000', 
-              'LBone250', 'LBone500', 'LBone1000', 
-              'LBone2000', 'LBone3000', 'LBone4000']
+  bc_columns = ['RBone250', 'RBone500', 'RBone1000','RBone2000', 'RBone4000', 
+              'LBone250', 'LBone500', 'LBone1000', 'LBone2000', 'LBone4000']
 
   # Add hearing loss type columns
   hl_type_columns = ['R_Type_HL_Mod', 'R_Type_HL_HF', 'R_Type_HL_4freq',
