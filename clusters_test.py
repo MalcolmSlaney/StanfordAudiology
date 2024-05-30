@@ -77,11 +77,12 @@ class ClusterTests(absltest.TestCase):
     df_with_classes = clusters.HLossClassifier(df)
     type_counts = Counter(df_with_classes['R_Type_HL_4freq'].to_list())
     self.assertDictEqual(type_counts, {'SNHL': 15, 'Mixed': 2, 
-                                       'Normal': 2, 'Conductive': 1})
+                                       'Normal': 2, 'Conductive': 1,
+                                       'Unknown':2})
 
     type_counts = Counter(df_with_classes['L_Type_HL_4freq'].to_list())
     self.assertDictEqual(type_counts, {'SNHL': 13, 'Mixed': 6, 
-                                       'Normal': 1})
+                                       'Normal': 1, 'Unknown':2})
 
     # Test bone vs. air conduction comparison
     df_clean = clusters.RemoveRowsWithBCWorseAC(df_with_classes, 10)
