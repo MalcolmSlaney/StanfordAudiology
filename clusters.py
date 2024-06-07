@@ -16,7 +16,7 @@ import os
 import datetime
 
 import gspread
-import google.auth as auth # authenticatiing to google
+import google.auth as auth # authenticating to google
 
 #Global variables/parameters
 
@@ -210,120 +210,131 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
     df: dataframe with HL classes as a new column, with several new working
       columna added.
   """
+  
+### Having BC thresholds in both ears in cases of symmetric hearing loss 
 
-  #HFPTA
-  df['R_HFPTA'] = df[['R1000', 'R2000', 'R4000']].mean(axis=1)
-  df['L_HFPTA'] = df[['L1000', 'L2000', 'L4000']].mean(axis=1)
-
-  # PTA - 500, 1000, 2000
-  df['R_PTA'] = df[['R500', 'R1000', 'R2000']].mean(axis=1)
-  df['L_PTA'] = df[['L500', 'L1000', 'L2000']].mean(axis=1)
-
-  #PTA all -  500,1000,2000,4000
-  df['R_PTA_All'] = df[['R500', 'R1000', 'R2000', 'R4000']].mean(axis=1)
-  df['L_PTA_All'] = df[['L500', 'L1000', 'L2000', 'L4000']].mean(axis=1)
- 
-  #LFPTA -  250, 500,1000
-  df['R_LFPTA'] = df[['R500', 'R1000']].mean(axis=1)
-  df['L_LFPTA'] = df[['L500', 'L1000']].mean(axis=1)
-
-  #UHFPTA - 2000, 4000, 80000
-  df['R_UHFPTA'] = df[['R2000', 'R4000', 'R8000']].mean(axis=1)
-  df['L_UHFPTA'] = df[['L2000', 'L4000', 'L8000']].mean(axis=1)
- 
-  #PT Bone conduction modeled
-  df['R_PTA_BC_Mod'] = df[['RBone500', 'RBone1000', 'RBone2000']].mean(axis=1)
-  df['L_PTA_BC_Mod'] = df[['LBone500', 'LBone1000', 'LBone2000']].mean(axis=1)
-
-  #HFPTA Bone conduction modeled
-  df['R_HFPTA_BC_Mod'] = df[['RBone1000', 'RBone2000','RBone4000']].mean(axis=1)
-  df['L_HFPTA_BC_Mod'] = df[['LBone1000', 'LBone2000','LBone4000']].mean(axis=1)
-
-  #BC average of 500, 1, 2, 4kHz
-  df['R_PTA_BC_All'] = df[['RBone500', 'RBone1000',
-                           'RBone2000', 'RBone4000']].mean(axis=1)
-  df['L_PTA_BC_All'] = df[['LBone500', 'LBone1000',
-                           'LBone2000', 'LBone4000']].mean(axis=1)
+  frequencies = ['250', '500', '1000', '2000', '4000']
+  
+  # Loop through each frequency
+  for freq in frequencies:
+      right_col = f'RBone{freq}'
+      left_col = f'LBone{freq}'
+    
+      # If BC threshold for right ear is known and left ear is missing, copy from right to left
+      df.loc[df[right_col].notna() & df[left_col].isna(), left_col] = df[right_col]
+    
+      # If BC threshold for left ear is known and right ear is missing, copy from left to right
+      df.loc[df[left_col].notna() & df[right_col].isna(), right_col] = df[left_col]
+      
+  # Do not calculate PTA of a ear if thresholds are 'NR' at any frequency
+  NR_value = 1000000 #Label NR value as a cautionary value of a million 
+  
+  #Defining required PTAs: 
+  pta_cols = [['R_PTA', ['R500', 'R1000', 'R2000']],['L_PTA', ['L500', 'L1000', 'L2000']],
+              ['R_PTA_4freq', ['R500', 'R1000', 'R2000', 'R4000']],['L_PTA_4freq', ['L500', 'L1000', 'L2000', 'L4000']],
+              ['R_HFPTA', ['R1000', 'R2000', 'R4000']],['L_HFPTA', ['L1000', 'L2000', 'L4000']],
+              ['R_LFPTA', ['R250', 'R500', 'R1000']],['L_LFPTA', ['L250', 'L500', 'L1000']],
+              ['R_UHFPTA', ['R2000', 'R4000', 'R8000']],['L_UHFPTA', ['L2000', 'L4000', 'L8000']],
+              ['R_PTA_BC', ['RBone500', 'RBone1000', 'RBone2000']],['L_PTA_BC', ['LBone500', 'LBone1000', 'LBone2000']],
+              ['R_HFPTA_BC', ['RBone1000', 'RBone2000', 'RBone4000']],['L_HFPTA_BC', ['LBone1000', 'LBone2000', 'LBone4000']],
+              ['R_PTA_BC_4freq', ['RBone500', 'RBone1000', 'RBone2000', 'RBone4000']],
+              ['L_PTA_BC_4freq', ['LBone500', 'LBone1000', 'LBone2000', 'LBone4000']]]
+  
+  #Calculate PTA, but set to np.nan if any of the thresholds are NR
+  for pta, cols in pta_cols:
+      df[pta] = df[cols].replace(NR_value, np.nan).mean(axis=1, skipna=False)
 
   # new ABGap
-  df['R_PTA_ABGap'] = df['R_PTA'] - df['R_PTA_BC_Mod']
-  df['R_HFPTA_ABGap'] = df['R_HFPTA'] - df['R_HFPTA_BC_Mod']
-  df['R_PTA_All_ABGap'] = df['R_PTA_All'] - df['R_PTA_BC_All']
+  df['R_PTA_ABGap'] = df['R_PTA'] - df['R_PTA_BC']
+  df['R_HFPTA_ABGap'] = df['R_HFPTA'] - df['R_HFPTA_BC']
+  df['R_PTA_4freq_ABGap'] = df['R_PTA_4freq'] - df['R_PTA_BC_4freq']
 
-  df['L_PTA_ABGap'] = df['L_PTA'] - df['L_PTA_BC_Mod']
-  df['L_HFPTA_ABGap'] = df['L_HFPTA'] - df['L_HFPTA_BC_Mod']
-  df['L_PTA_All_ABGap'] = df['L_PTA_All'] - df['L_PTA_BC_All']
+  df['L_PTA_ABGap'] = df['L_PTA'] - df['L_PTA_BC']
+  df['L_HFPTA_ABGap'] = df['L_HFPTA'] - df['L_HFPTA_BC']
+  df['L_PTA_4freq_ABGap'] = df['L_PTA_4freq'] - df['L_PTA_BC_4freq']
 
-  #HL Type
+  #HL Type - Added 'Unknown' HL type when BC thresholds are missing in the dataframe
   #Right
-  # using the new Modeled BC PTA of 5, 1, 2
+  # 3 freq PTA using BC PTA of 5, 1, 2
   conditions_1 = [
-      (df['R_PTA_BC_Mod'] < 25.1) & (df['R_PTA_ABGap'] >= 10) &
+      (df['R_PTA_BC_Mod'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
+      (df['R_PTA'] < 25),
+      (df['R_PTA_BC'] < 25.1) & (df['R_PTA_ABGap'] >= 10) &
       (df['R_PTA'] > 25),
       (df['R_PTA_ABGap'] < 10) & (df['R_PTA'] > 25),
-      (df['R_PTA_BC_Mod'] > 25) & (df['R_PTA_ABGap'] >= 10) &
+      (df['R_PTA_BC'] > 25) & (df['R_PTA_ABGap'] >= 10) &
       (df['R_PTA'] > 25)
                   ]
-  values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_Mod']= np.select(conditions_1, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['R_Type_HL']= np.select(conditions_1, values, 'Unknown')
 
-  # HFPTA of 1
+  # HFPTA of 1, 2, 4kHz
   conditions_2 = [
-      (df['R_HFPTA_BC_Mod'] < 25.1) & (df['R_HFPTA_ABGap'] >= 10) &
+      (df['R_PTA_BC'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
+      (df['R_PTA'] < 25),
+      (df['R_HFPTA_BC'] < 25.1) & (df['R_HFPTA_ABGap'] >= 10) &
       (df['R_HFPTA'] > 25),
       (df['R_HFPTA_ABGap'] < 10) & (df['R_HFPTA'] > 25),
-      (df['R_HFPTA_BC_Mod'] > 25) & (df['R_HFPTA_ABGap'] >= 10) &
+      (df['R_HFPTA_BC'] > 25) & (df['R_HFPTA_ABGap'] >= 10) &
       (df['R_HFPTA'] > 25)
                   ]
 
-  values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_HF'] = np.select(conditions_2, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['R_Type_HL_HF'] = np.select(conditions_2, values, 'Unknown')
 
-  # # PTA of 500 1 2 4
+  # 4 freq PTA of 500 1 2 4
   conditions_3 = [
-      (df['R_PTA_BC_All'] < 25.1) & (df['R_PTA_All_ABGap'] >= 10) &
-      (df['R_PTA_All'] > 25),
-      (df['R_PTA_All_ABGap'] < 10) & (df['R_PTA_All'] > 25),
-      (df['R_PTA_BC_All'] > 25) & (df['R_PTA_All_ABGap'] >= 10) &
-      (df['R_PTA_All'] > 25)
+      (df['R_PTA_BC_4freq'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
+      (df['R_PTA'] < 25),
+      (df['R_PTA_BC_4freq'] < 25.1) & (df['R_PTA_4freq_ABGap'] >= 10) &
+      (df['R_PTA_4freq'] > 25),
+      (df['R_PTA_4freq_ABGap'] < 10) & (df['R_PTA_4freq'] > 25),
+      (df['R_PTA_BC_4freq'] > 25) & (df['R_PTA_4freq_ABGap'] >= 10) &
+      (df['R_PTA_4freq'] > 25)
                   ]
-  values = ['Conductive','SNHL','Mixed']
-  df['R_Type_HL_All'] = np.select(conditions_3, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['R_Type_HL_4freq'] = np.select(conditions_3, values, 'Unknown')
 
   #Left
-  # using the new Modeled BC PTA of 5, 1, 2
+  # 3 freq PTA using the PTA of 5, 1, 2
   conditions_1 = [
-      (df['L_PTA_BC_Mod'] < 25.1) & (df['L_PTA_ABGap'] >= 10) &
+      (df['L_PTA_BC'] < 25.1) & (df['L_PTA_ABGap'] < 10) & 
+      (df['L_PTA'] < 25),
+      (df['L_PTA_BC'] < 25.1) & (df['L_PTA_ABGap'] >= 10) &
       (df['L_PTA'] > 25),
       (df['L_PTA_ABGap'] < 10) & (df['L_PTA'] > 25),
-      (df['L_PTA_BC_Mod'] > 25) & (df['L_PTA_ABGap'] >= 10) &
+      (df['L_PTA_BC'] > 25) & (df['L_PTA_ABGap'] >= 10) &
       (df['L_PTA'] > 25)
                   ]
-  values = ['Conductive','SNHL','Mixed']
-  df['L_Type_HL_Mod']= np.select(conditions_1, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['L_Type_HL']= np.select(conditions_1, values, 'Unknown')
 
-  # HFPTA of 1
+  # HFPTA of 1, 2, 4kHz
   conditions_2 = [
-      (df['L_HFPTA_BC_Mod'] < 25.1) & (df['L_HFPTA_ABGap'] >= 10) &
+      (df['L_HFPTA_BC'] < 25.1) & (df['L_HFPTA_ABGap'] < 10) &
+      (df['L_HFPTA'] < 25),
+      (df['L_HFPTA_BC'] < 25.1) & (df['L_HFPTA_ABGap'] >= 10) &
       (df['L_HFPTA'] > 25),
       (df['L_HFPTA_ABGap'] < 10) & (df['L_HFPTA'] > 25),
-      (df['L_HFPTA_BC_Mod'] > 25) & (df['L_HFPTA_ABGap'] >= 10) &
+      (df['L_HFPTA_BC'] > 25) & (df['L_HFPTA_ABGap'] >= 10) &
       (df['L_HFPTA'] > 25)
                   ]
 
-  values = ['Conductive','SNHL','Mixed']
-  df['L_Type_HL_HF'] = np.select(conditions_2, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['L_Type_HL_HF'] = np.select(conditions_2, values, 'Unkwown')
 
-  # # PTA of 500 1 2 4
+  # 4 freq PTA of 500 1 2 4
   conditions_3 = [
-      (df['L_PTA_BC_All'] < 25.1) & (df['L_PTA_All_ABGap'] >= 10) &
-      (df['L_PTA_All'] > 25),
-      (df['L_PTA_All_ABGap'] < 10) & (df['L_PTA_All'] > 25),
-      (df['L_PTA_BC_All'] > 25) & (df['L_PTA_All_ABGap'] >= 10) &
-      (df['L_PTA_All'] > 25)
+      (df['L_PTA_BC_4freq'] < 25.1) & (df['L_PTA_4freq_ABGap'] < 10) &
+      (df['L_PTA_4freq'] < 25),
+      (df['L_PTA_BC_4freq'] < 25.1) & (df['L_PTA_4freq_ABGap'] >= 10) &
+      (df['L_PTA_4freq'] > 25),
+      (df['L_PTA_4freq_ABGap'] < 10) & (df['L_PTA_4freq'] > 25),
+      (df['L_PTA_BC_4freq'] > 25) & (df['L_PTA_4freq_ABGap'] >= 10) &
+      (df['L_PTA_4freq'] > 25)
                   ]
-  values = ['Conductive','SNHL','Mixed']
-  df['L_Type_HL_All'] = np.select(conditions_3, values, 'Normal')
+  values = ['Normal','Conductive','SNHL','Mixed']
+  df['L_Type_HL_4freq'] = np.select(conditions_3, values, 'Unknown')
 
   return df
 
@@ -404,6 +415,8 @@ def ConvertToNumerical(rows_of_data: List,
                        desired_type = np.float32) -> np.ndarray:
   """
   Converts a list of rows containing data into a numerical NumPy array.
+  If a value is missing --> NaN 
+  If hearing threshold is NR --> 1000000 - User can modify if absolutely necessary
 
   Args:
       rows_of_data (List): A list of rows, where each row is an iterable
@@ -421,8 +434,10 @@ def ConvertToNumerical(rows_of_data: List,
     for j, d in enumerate(r):
 
       if desired_type==np.float32 or type==np.float64:
-        if d == '' or d == 'NR':
+        if d == '':
           d = np.nan
+        elif d == 'NR':
+          d == 1000000
         else:
           try:
             d = float(d)
@@ -467,9 +482,9 @@ def RemoveRowsWithBCWorseAC(data: pd.DataFrame,
 
   initial_row_count = data.shape[0]
 
-  data = data.drop(data.loc[data['R_PTA_BC_All'] - data['R_PTA_All'] >=
+  data = data.drop(data.loc[data['R_PTA_BC_4freq'] - data['R_PTA_4freq'] >=
                             threshold].index)
-  data = data.drop(data.loc[data['L_PTA_BC_All'] - data['L_PTA_All'] >=
+  data = data.drop(data.loc[data['L_PTA_BC_4freq'] - data['L_PTA_4freq'] >=
                             threshold].index)
 
   final_row_count = data.shape[0]

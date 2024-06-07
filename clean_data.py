@@ -1,8 +1,8 @@
 # Enhance the FM clinical data dump by
 #   Replacing the MRN with a HMAC code
-#   Classifying the type of hearing loss (sensorial neural, conductive, mixed)
+#   Classifying the type of hearing loss (sensorineural, conductive, mixed)
 #   Calculate the speech intelligibiity index
-#   Enhance the dataset with some pure-tone averages
+#   Enhance the dataset with some pure-tone averages (3-freq PTA, 4-freq, HFPTA)
 #   Add cluster IDs for a number of different cluster counts
 #   Flag the patients with multiple visits
 # and then write out the new data.
@@ -12,7 +12,7 @@
 #  --hmac_key ReplaceMe --output 3-27-2024-clean-enhanced-data.csv
 
 import os
-from typing import List, Union
+from typing import List, Union, Literal
 
 from absl import app
 from absl import flags
@@ -23,7 +23,7 @@ import pandas as pd
 from scipy import interpolate
 
 import clusters
-from speech_intelligibility_index import sii
+from speech_intelligibility_index import sii    #Need to pip install
 
 # Default to sha3_384, based on this article
 # https://crypto.stackexchange.com/questions/68307/what-is-the-difference-between-sha-3-and-sha-256
@@ -42,21 +42,31 @@ def replace_mrn(df, key: str = 'ReplaceMe') -> pd.DataFrame:
 
 
 def classify_hearing_loss(df: pd.DataFrame):
-  # Assign result to a temporary dataframe, since classifier creates lots of 
-  # temporary column names.
+  # Assign result to a temporary dataframe, since classifier creates lots of temporary column names.
 
   orig_df = df.copy()
   new_df = clusters.HLossClassifier(df)
   df = orig_df
-  df['R_Type_HL_Mod'] = new_df['R_Type_HL_Mod']
-  df['R_Type_HL_HF'] = new_df['R_Type_HL_HF']
-  df['R_Type_HL_All'] = new_df['R_Type_HL_All']
+  
+  # Specify columns related to bone conduction, hearing loss types, and PTA to be included in output file
+  bc_columns = ['RBone250', 'RBone500', 'RBone1000','RBone2000', 'RBone4000', 
+              'LBone250', 'LBone500', 'LBone1000', 'LBone2000', 'LBone4000']
 
-  df['L_Type_HL_Mod'] = new_df['L_Type_HL_Mod']
-  df['L_Type_HL_HF'] = new_df['L_Type_HL_HF']
-  df['L_Type_HL_All'] = new_df['L_Type_HL_All']
+  hl_type_columns = ['R_Type_HL', 'R_Type_HL_HF', 'R_Type_HL_4freq',
+                   'L_Type_HL', 'L_Type_HL_HF', 'L_Type_HL_4freq']
+
+  #Add PTA columns from the classifier also here 
+  pta_columns = ['R_PTA', 'R_PTA_4freq', 'R_HFPTA',
+                 'L_PTA', 'L_PTA_4freq', 'L_HFPTA']
+
+  # Combine the selected columns to be transferred
+  selected_columns = bc_columns + hl_type_columns + pta_columns
+
+  # Update the original dataframe with the new values
+  df[selected_columns] = new_df[selected_columns]
 
   return df
+
 
 
 # From: https://colab.research.google.com/drive/1bAnDpUUx5-BYkL3l3ukNVVnsLzEhy-ds#scrollTo=v6Dd6A2-UWG3
@@ -91,7 +101,11 @@ def sii_from_audiogram(
     return sii.sii(ssl=ssl, nsl=nsl, hearing_threshold=critical_band_hl)
 
 
-def sii_from_df(df, ear='R'):
+def sii_from_df(df, ear: Literal['R', 'L']):
+    
+  """Extracts hearing thresholds from the specified frequencies, filters out the invalid data (NaN or infinite values), 
+  and computes SII only if there are 2 valid points, with default of any ear"""
+  
   freqs = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
   names = [f'{ear}{f}' for f in freqs]
   values = df[names].values
@@ -102,12 +116,12 @@ def sii_from_df(df, ear='R'):
       freqs, values = zip(*good_names_values)
       freqs = [float(f[1:]) for f in freqs]
 
-      r_sii = sii_from_audiogram(values, freqs)
+      ear_sii = sii_from_audiogram(values, freqs)
     else:
-      r_sii = np.nan
+      ear_sii = np.nan
   except:
-    r_sii = np.nan
-  return r_sii
+    ear_sii = np.nan
+  return ear_sii
 
 
 def calculate_all_sii(df: pd.DataFrame):
@@ -115,29 +129,7 @@ def calculate_all_sii(df: pd.DataFrame):
   df['L_SII'] = df.apply(lambda df: sii_from_df(df, 'L'), axis=1)
   return df
 
-
-def pta_summary(df: pd.DataFrame, 
-                freqs: List[float], 
-                ear: str ='R') -> np.ndarray:
-  col_list = [f'{ear}{f}' for f in freqs]
-  data = df[col_list]
-  return np.mean(data.values, axis=1)
-
-def all_pta_summaries(df: pd.DataFrame) -> pd.DataFrame:
-  pta_freqs = [500, 1000, 2000, 4000]
-  conv_freqs = [500, 1000, 2000]
-  hf_freqs = [1000, 2000, 4000]
-
-  df['L_PTA'] = pta_summary(df, pta_freqs, 'L')
-  df['L_Conv_PTA'] = pta_summary(df, conv_freqs, 'L')
-  df['L_HF_PTA'] = pta_summary(df, hf_freqs, 'L')
-
-  df['R_PTA'] = pta_summary(df, pta_freqs, 'R')
-  df['R_Conv_PTA'] = pta_summary(df, conv_freqs, 'R')
-  df['R_HF_PTA'] = pta_summary(df, hf_freqs, 'R')
-
-  return df
-
+# Deleted PTA summaries from here, calling functions from clusters.py to calculate PTA above (Lines 58-60)
 
 def add_cluster_ids(df: pd.DataFrame, 
                     cluster_counts: List[int] = [6, 8, 10, 12],
@@ -192,17 +184,22 @@ def main(argv):
 
   df = pd.read_csv(FLAGS.input,
                    on_bad_lines='warn',
-                   na_values=['NR', '\n',
+                   na_values=['\n',
                               '? * Line 1, Column 1\n  Syntax error: value, '
                               'object or array expected.\n* Line 1, Column 1\n'
                               '  A valid JSON document must be either an array '
                               'or an object value.']) 
+  #Replace NR values with a million to ensure it is not included in calculations of PTA, and to caution the user regarding no responses values at a particular frequency
+  df.replace('NR', 1000000, inplace=True)
+  
+  for column in df.columns:
+       df[column] = pd.to_numeric(df[column], errors='ignore')
+       
   print('Column names:', df.columns.tolist())
 
   df = replace_mrn(df, FLAGS.hmac_key)
   df = classify_hearing_loss(df)
   df = calculate_all_sii(df)
-  df = all_pta_summaries(df)
   df = add_cluster_ids(df, cluster_dir=FLAGS.cluster_dir)
   df = label_duplicates(df)
   df.to_csv(FLAGS.output)
