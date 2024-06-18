@@ -49,8 +49,8 @@ cluster_labels_v1 = {4: 'Low flat',
                     1: 'Low slope',
                     3: 'Mid slope',
                     5: 'High slope'}
-labels_v1 = ['R250',	'R500',	'R1000',	'R2000',
-             'R3000',	'R4000',	'R6000',	'R8000']
+labels_v1 = ['R250', 'R500', 'R1000', 'R2000',
+             'R3000', 'R4000', 'R6000', 'R8000']
 
 ######################  DATA IMPORT  ############################
 
@@ -213,36 +213,43 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
     df: dataframe with HL classes as a new column, with several new working
       columna added.
   """
-  
-### Ensuring BC thresholds in both ears in cases of symmetric hearing loss:
-### If BC threshold for right ear is known and left ear is missing, copy from right to left
 
-  frequencies = ['250', '500', '1000', '2000', '4000']
-  
+### Ensuring BC thresholds in both ears in cases of symmetric hearing loss:
+### Known BC threshold from one ear copied to the other ear
+
+  frequencies = ['500', '1000', '2000', '4000']
+
   right_cols = [f'RBone{freq}' for freq in frequencies]
   left_cols = [f'LBone{freq}' for freq in frequencies]
-  
+
   for right_col, left_col in zip(right_cols, left_cols):
-      df[right_col].fillna(df[left_col], inplace=True)
-      df[left_col].fillna(df[right_col], inplace=True)
-      
+    df.fillna({right_col:left_col}, inplace=True)
+    df.fillna({left_col:right_col}, inplace=True)
+
   # Do not calculate PTA of a ear if thresholds are 'NR' at any frequency
-  NR_value = 1000000 #Label NR value as a cautionary value of a million 
-  
-  #Defining required PTAs: 
-  pta_cols = [['R_PTA', ['R500', 'R1000', 'R2000']],['L_PTA', ['L500', 'L1000', 'L2000']],
-              ['R_PTA_4freq', ['R500', 'R1000', 'R2000', 'R4000']],['L_PTA_4freq', ['L500', 'L1000', 'L2000', 'L4000']],
-              ['R_HFPTA', ['R1000', 'R2000', 'R4000']],['L_HFPTA', ['L1000', 'L2000', 'L4000']],
-              ['R_LFPTA', ['R250', 'R500', 'R1000']],['L_LFPTA', ['L250', 'L500', 'L1000']],
-              ['R_UHFPTA', ['R2000', 'R4000', 'R8000']],['L_UHFPTA', ['L2000', 'L4000', 'L8000']],
-              ['R_PTA_BC', ['RBone500', 'RBone1000', 'RBone2000']],['L_PTA_BC', ['LBone500', 'LBone1000', 'LBone2000']],
-              ['R_HFPTA_BC', ['RBone1000', 'RBone2000', 'RBone4000']],['L_HFPTA_BC', ['LBone1000', 'LBone2000', 'LBone4000']],
+  NR_value = 10e5 #Label NR value as a cautionary value of a million
+
+  #Defining required PTAs:
+  pta_cols = [['R_PTA', ['R500', 'R1000', 'R2000']],
+              ['L_PTA', ['L500', 'L1000', 'L2000']],
+              ['R_PTA_4freq', ['R500', 'R1000', 'R2000', 'R4000']],
+              ['L_PTA_4freq', ['L500', 'L1000', 'L2000', 'L4000']],
+              ['R_HFPTA', ['R1000', 'R2000', 'R4000']],
+              ['L_HFPTA', ['L1000', 'L2000', 'L4000']],
+              ['R_LFPTA', ['R250', 'R500', 'R1000']],
+              ['L_LFPTA', ['L250', 'L500', 'L1000']],
+              ['R_UHFPTA', ['R2000', 'R4000', 'R8000']],
+              ['L_UHFPTA', ['L2000', 'L4000', 'L8000']],
+              ['R_PTA_BC', ['RBone500', 'RBone1000', 'RBone2000']],
+              ['L_PTA_BC', ['LBone500', 'LBone1000', 'LBone2000']],
+              ['R_HFPTA_BC', ['RBone1000', 'RBone2000', 'RBone4000']],
+              ['L_HFPTA_BC', ['LBone1000', 'LBone2000', 'LBone4000']],
               ['R_PTA_BC_4freq', ['RBone500', 'RBone1000', 'RBone2000', 'RBone4000']],
               ['L_PTA_BC_4freq', ['LBone500', 'LBone1000', 'LBone2000', 'LBone4000']]]
-  
+
   #Calculate PTA, but set to np.nan if any of the thresholds are NR
   for pta, cols in pta_cols:
-      df[pta] = df[cols].replace(NR_value, np.nan).mean(axis=1, skipna=False)
+    df[pta] = df[cols].replace(NR_value, np.nan).mean(axis=1, skipna=False)
 
   # new ABGap
   df['R_PTA_ABGap'] = df['R_PTA'] - df['R_PTA_BC']
@@ -253,21 +260,24 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   df['L_HFPTA_ABGap'] = df['L_HFPTA'] - df['L_HFPTA_BC']
   df['L_PTA_4freq_ABGap'] = df['L_PTA_4freq'] - df['L_PTA_BC_4freq']
 
+
   #HL Type - Added 'Unknown' HL type when BC thresholds are missing in the dataframe to give 5 types of hearing loss:
-  # 1. Normal
-  # 2. Conductive
-  # 3. SNHL
-  # 4. Mixed
-  # 5. Unknown 
-  
+  #1. Normal
+  #2. Conductive
+  #3. SNHL
+  #4. Mixed
+  #5. Unknown
+
+
   #Right
-  # 3 freq PTA using BC PTA of 500, 1k, 2k Hz
+  #3 freq PTA using BC PTA of 500, 1k, 2k Hz
   conditions_1 = [
       (df['R_PTA_BC'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
-      (df['R_PTA'] < 25),
+      (df['R_PTA_ABGap'] >= -20) & (df['R_PTA'] < 25),
       (df['R_PTA_BC'] < 25.1) & (df['R_PTA_ABGap'] >= 10) &
       (df['R_PTA'] > 25),
-      (df['R_PTA_ABGap'] < 10) & (df['R_PTA'] > 25),
+      (df['R_PTA_ABGap'] < 10) & (df['R_PTA_ABGap'] >= -20) &
+      (df['R_PTA'] > 25),
       (df['R_PTA_BC'] > 25) & (df['R_PTA_ABGap'] >= 10) &
       (df['R_PTA'] > 25)
                   ]
@@ -276,13 +286,14 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
 
   # HFPTA of 1, 2, 4kHz
   conditions_2 = [
-      (df['R_PTA_BC'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
-      (df['R_PTA'] < 25),
-      (df['R_HFPTA_BC'] < 25.1) & (df['R_HFPTA_ABGap'] >= 10) &
-      (df['R_HFPTA'] > 25),
-      (df['R_HFPTA_ABGap'] < 10) & (df['R_HFPTA'] > 25),
-      (df['R_HFPTA_BC'] > 25) & (df['R_HFPTA_ABGap'] >= 10) &
-      (df['R_HFPTA'] > 25)
+     (df['R_HFPTA_BC'] < 25.1) & (df['R_HFPTA_ABGap'] < 10) &
+     (df['R_HFPTA_ABGap'] >=-20) & (df['R_PTA'] < 25),
+     (df['R_HFPTA_BC'] < 25.1) & (df['R_HFPTA_ABGap'] >= 10) &
+     (df['R_HFPTA'] > 25),
+     (df['R_HFPTA_ABGap'] < 10) & (df['R_HFPTA_ABGap'] >=-20) &
+     (df['R_HFPTA'] > 25),
+     (df['R_HFPTA_BC'] > 25) & (df['R_HFPTA_ABGap'] >= 10) &
+     (df['R_HFPTA'] > 25)
                   ]
 
   values = ['Normal','Conductive','SNHL','Mixed']
@@ -290,11 +301,12 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
 
   # 4 freq PTA of 500, 1k, 2k, 4kHz
   conditions_3 = [
-      (df['R_PTA_BC_4freq'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
-      (df['R_PTA'] < 25),
+      (df['R_PTA_BC_4freq'] < 25.1) & (df['R_PTA_4freq_ABGap'] < 10) &
+      (df['R_PTA_4freq_ABGap'] >=-20) & (df['R_PTA_4freq'] < 25),
       (df['R_PTA_BC_4freq'] < 25.1) & (df['R_PTA_4freq_ABGap'] >= 10) &
       (df['R_PTA_4freq'] > 25),
-      (df['R_PTA_4freq_ABGap'] < 10) & (df['R_PTA_4freq'] > 25),
+      (df['R_PTA_4freq_ABGap'] < 10) & (df['R_PTA_4freq_ABGap'] >=-20) &
+      (df['R_PTA_4freq'] > 25),
       (df['R_PTA_BC_4freq'] > 25) & (df['R_PTA_4freq_ABGap'] >= 10) &
       (df['R_PTA_4freq'] > 25)
                   ]
@@ -304,11 +316,12 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   #Left
   # 3 freq PTA using the PTA of 500, 1k, 2kHz
   conditions_1 = [
-      (df['L_PTA_BC'] < 25.1) & (df['L_PTA_ABGap'] < 10) & 
-      (df['L_PTA'] < 25),
+      (df['L_PTA_BC'] < 25.1) & (df['L_PTA_ABGap'] < 10) &
+      (df['L_PTA_ABGap'] >= -20) & (df['L_PTA'] < 25),
       (df['L_PTA_BC'] < 25.1) & (df['L_PTA_ABGap'] >= 10) &
       (df['L_PTA'] > 25),
-      (df['L_PTA_ABGap'] < 10) & (df['L_PTA'] > 25),
+      (df['L_PTA_ABGap'] < 10) & (df['L_PTA_ABGap'] >= -20) &
+      (df['L_PTA'] > 25),
       (df['L_PTA_BC'] > 25) & (df['L_PTA_ABGap'] >= 10) &
       (df['L_PTA'] > 25)
                   ]
@@ -318,10 +331,11 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   # HFPTA of 1k, 2k, 4kHz
   conditions_2 = [
       (df['L_HFPTA_BC'] < 25.1) & (df['L_HFPTA_ABGap'] < 10) &
-      (df['L_HFPTA'] < 25),
+      (df['L_HFPTA_ABGap'] >= -20) & (df['L_HFPTA'] < 25),
       (df['L_HFPTA_BC'] < 25.1) & (df['L_HFPTA_ABGap'] >= 10) &
       (df['L_HFPTA'] > 25),
-      (df['L_HFPTA_ABGap'] < 10) & (df['L_HFPTA'] > 25),
+      (df['L_HFPTA_ABGap'] < 10) & (df['L_HFPTA_ABGap'] >= -20) &
+      (df['L_HFPTA'] > 25),
       (df['L_HFPTA_BC'] > 25) & (df['L_HFPTA_ABGap'] >= 10) &
       (df['L_HFPTA'] > 25)
                   ]
@@ -332,10 +346,11 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   # 4 freq PTA of 500, 1k, 2k, 4kHz
   conditions_3 = [
       (df['L_PTA_BC_4freq'] < 25.1) & (df['L_PTA_4freq_ABGap'] < 10) &
-      (df['L_PTA_4freq'] < 25),
+      (df['L_PTA_4freq_ABGap'] >= -20) & (df['L_PTA_4freq'] < 25),
       (df['L_PTA_BC_4freq'] < 25.1) & (df['L_PTA_4freq_ABGap'] >= 10) &
       (df['L_PTA_4freq'] > 25),
-      (df['L_PTA_4freq_ABGap'] < 10) & (df['L_PTA_4freq'] > 25),
+      (df['L_PTA_4freq_ABGap'] < 10) & (df['L_PTA_4freq_ABGap'] >= -20) &
+      (df['L_PTA_4freq'] > 25),
       (df['L_PTA_BC_4freq'] > 25) & (df['L_PTA_4freq_ABGap'] >= 10) &
       (df['L_PTA_4freq'] > 25)
                   ]
@@ -475,7 +490,7 @@ def RemoveRowsWithBCWorseAC(data: pd.DataFrame,
                             threshold: int = 100) -> pd.DataFrame:
   """
   A function to drop the rows where Bone Conduction is greater than Air
-  Conduction by atleast 100dB
+  Conduction by atleast 100 dB
 
   Args:
   - data: A pandas dataframe on which HLossClassifier() function is run.
@@ -699,7 +714,7 @@ def ComputeDistances(
   patient from the dataframe.
 
   The distances are scaled by the dimensionality of the centroid, so the 
-  distances are HL/frequency and are in dB.
+  distances are HL/frequency and are in dB
   """
   cluster_column = f'Cluster{num_clusters:02d}Way'
   results = []
@@ -708,7 +723,7 @@ def ComputeDistances(
     these_hls = these_rows[label_names]
     # print(these_hls.shape, type(these_hls))
     centroids = np.mean(these_hls, axis=0)
-    these_distances = np.sqrt(np.sum((these_hls - centroids)**2, 
+    these_distances = np.sqrt(np.sum((these_hls - centroids)**2,
                                      axis=1)/len(label_names))
     results.append(pd.DataFrame(these_distances, index=these_rows.index))
   results = pd.concat(results)
@@ -974,6 +989,6 @@ def ComputeContinuousEntropy(data, min, step):
 
 def ComputeDiscreteEntropy(idata):
   # https://stackoverflow.com/questions/4746812/count-the-multiple-occurrences-in-a-set
-  d = Counter(idata)  
+  d = Counter(idata)
   p = np.asarray(list(d.values())).astype(float) / len(idata)
   return -np.sum(p * np.log2(p))
