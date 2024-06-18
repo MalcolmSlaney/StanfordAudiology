@@ -104,7 +104,7 @@ def sii_from_audiogram(
 def sii_from_df(df, ear: Literal['R', 'L']):
     
   """Extracts hearing thresholds from the specified frequencies, filters out the invalid data (NaN or infinite values), 
-  and computes SII only if there are 2 valid points, with default of any ear"""
+  and computes SII only if there are 2 valid points, with default of any ear; if <2 values, returns NaN"""
   
   freqs = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
   names = [f'{ear}{f}' for f in freqs]
@@ -180,7 +180,6 @@ def main(argv):
       for line in fp:
         line = line.strip()
         print(create_hmac(line, FLAGS.hmac_key, hash_type=hashlib.sha3_384))
-  return
 
   df = pd.read_csv(FLAGS.input,
                    on_bad_lines='warn',
@@ -209,7 +208,8 @@ def main(argv):
   num_visits = len(df['Patients::HMAC'])
   print(f'Total # Records: {num_visits}, # Patients: {num_patients}, '
         f'# Multiple Visit Patients: {num_multiples}')
-
+  
+  return
 
 if __name__ == '__main__':
   app.run(main)

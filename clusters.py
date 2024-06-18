@@ -200,8 +200,11 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       because of the conductive component {{ e.g. BC thresholds are ~40 dB but 
       the AC thresholds are 70 dB}})
 
-  This code requires data with bone-conduction data, as the default
-  type is normal.
+  This code requires data with bone-conduction data to determine type of hearing loss. 
+  If BC threshold of one ear is missing (in case of symmetric hearing loss),then,
+  BC threshold of the known ear is copied to the ear with missing BC.
+  
+  If BC threshold is missing in both ears, then the hearing loss type defaults to 'Unknown'
 
   Args:
     df:  dataframe with HL measurements at audiometric frequencies
@@ -211,20 +214,17 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
       columna added.
   """
   
-### Having BC thresholds in both ears in cases of symmetric hearing loss 
+### Ensuring BC thresholds in both ears in cases of symmetric hearing loss:
+### If BC threshold for right ear is known and left ear is missing, copy from right to left
 
   frequencies = ['250', '500', '1000', '2000', '4000']
   
-  # Loop through each frequency
-  for freq in frequencies:
-      right_col = f'RBone{freq}'
-      left_col = f'LBone{freq}'
-    
-      # If BC threshold for right ear is known and left ear is missing, copy from right to left
-      df.loc[df[right_col].notna() & df[left_col].isna(), left_col] = df[right_col]
-    
-      # If BC threshold for left ear is known and right ear is missing, copy from left to right
-      df.loc[df[left_col].notna() & df[right_col].isna(), right_col] = df[left_col]
+  right_cols = [f'RBone{freq}' for freq in frequencies]
+  left_cols = [f'LBone{freq}' for freq in frequencies]
+  
+  for right_col, left_col in zip(right_cols, left_cols):
+      df[right_col].fillna(df[left_col], inplace=True)
+      df[left_col].fillna(df[right_col], inplace=True)
       
   # Do not calculate PTA of a ear if thresholds are 'NR' at any frequency
   NR_value = 1000000 #Label NR value as a cautionary value of a million 
@@ -253,11 +253,17 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   df['L_HFPTA_ABGap'] = df['L_HFPTA'] - df['L_HFPTA_BC']
   df['L_PTA_4freq_ABGap'] = df['L_PTA_4freq'] - df['L_PTA_BC_4freq']
 
-  #HL Type - Added 'Unknown' HL type when BC thresholds are missing in the dataframe
+  #HL Type - Added 'Unknown' HL type when BC thresholds are missing in the dataframe to give 5 types of hearing loss:
+  # 1. Normal
+  # 2. Conductive
+  # 3. SNHL
+  # 4. Mixed
+  # 5. Unknown 
+  
   #Right
-  # 3 freq PTA using BC PTA of 5, 1, 2
+  # 3 freq PTA using BC PTA of 500, 1k, 2k Hz
   conditions_1 = [
-      (df['R_PTA_BC_Mod'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
+      (df['R_PTA_BC'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
       (df['R_PTA'] < 25),
       (df['R_PTA_BC'] < 25.1) & (df['R_PTA_ABGap'] >= 10) &
       (df['R_PTA'] > 25),
@@ -282,7 +288,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   values = ['Normal','Conductive','SNHL','Mixed']
   df['R_Type_HL_HF'] = np.select(conditions_2, values, 'Unknown')
 
-  # 4 freq PTA of 500 1 2 4
+  # 4 freq PTA of 500, 1k, 2k, 4kHz
   conditions_3 = [
       (df['R_PTA_BC_4freq'] < 25.1) & (df['R_PTA_ABGap'] < 10) &
       (df['R_PTA'] < 25),
@@ -296,7 +302,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   df['R_Type_HL_4freq'] = np.select(conditions_3, values, 'Unknown')
 
   #Left
-  # 3 freq PTA using the PTA of 5, 1, 2
+  # 3 freq PTA using the PTA of 500, 1k, 2kHz
   conditions_1 = [
       (df['L_PTA_BC'] < 25.1) & (df['L_PTA_ABGap'] < 10) & 
       (df['L_PTA'] < 25),
@@ -309,7 +315,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   values = ['Normal','Conductive','SNHL','Mixed']
   df['L_Type_HL']= np.select(conditions_1, values, 'Unknown')
 
-  # HFPTA of 1, 2, 4kHz
+  # HFPTA of 1k, 2k, 4kHz
   conditions_2 = [
       (df['L_HFPTA_BC'] < 25.1) & (df['L_HFPTA_ABGap'] < 10) &
       (df['L_HFPTA'] < 25),
@@ -323,7 +329,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   values = ['Normal','Conductive','SNHL','Mixed']
   df['L_Type_HL_HF'] = np.select(conditions_2, values, 'Unkwown')
 
-  # 4 freq PTA of 500 1 2 4
+  # 4 freq PTA of 500, 1k, 2k, 4kHz
   conditions_3 = [
       (df['L_PTA_BC_4freq'] < 25.1) & (df['L_PTA_4freq_ABGap'] < 10) &
       (df['L_PTA_4freq'] < 25),
