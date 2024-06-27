@@ -164,19 +164,19 @@ def label_duplicates(df: pd.DataFrame) -> pd.DataFrame:
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input',
-          '/Users/malcolm/Downloads/3-27-2024 raw data no cleaning.csv',
-          'Input CSV filename')
+                    '/Users/malcolm/Downloads/3-27-2024 raw data no cleaning.csv',
+                    'Input CSV filename')
 flags.DEFINE_string('output',
-          'All_Clean_Audiology_Data.csv',
-          'Output CSV filename')
+                    'All_Clean_Audiology_Data.csv',
+                    'Output CSV filename')
 flags.DEFINE_string('hmac_key',
-          None,
-          'Key to use when hashing the MRN.',
-          required=True)
+                    None,
+                    'Key to use when hashing the MRN.',
+                    required=True)
 flags.DEFINE_string('cluster_dir', 'ClusterData_v1',
-          'Where to find the pretrained cluster json data')
+                    'Where to find the pretrained cluster json data')
 flags.DEFINE_string('convert_mrns', None,
-          'Which file to read MRNs from to convert to hashes')
+                    'Which file to read MRNs from to convert to hashes')
 
 
 def main(argv):

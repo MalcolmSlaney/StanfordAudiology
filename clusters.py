@@ -18,7 +18,7 @@ import datetime
 import gspread
 import google.auth as auth  # authenticating to google
 
-# Global variables/parameters
+#Global variables/parameters
 
 default_cluster_dir = ('/content/drive/MyDrive/Stanford Audiology Models/'
                        'Colab Notebooks/')
@@ -29,28 +29,28 @@ and copy the link from the address bar. The gid code in the url is unique for
 each of the user.
 """
 spreadsheet_path_v1 = ('https://docs.google.com/spreadsheets/d/'
-             '119_-qrfzGXwV1YBUJdBzvtAQTZnl-xwN7hD9FK5SWfU/'
-             'edit#gid=84023254')
+                       '119_-qrfzGXwV1YBUJdBzvtAQTZnl-xwN7hD9FK5SWfU/'
+                       'edit#gid=84023254')
 
 duplicate_column_name_v1: str = 'LBone2000'
 
-# Golden cluster can be computed by calling CreateKMeans() with random_seed = 0
+#Golden cluster can be computed by calling CreateKMeans() with random_seed = 0
 
 golden_cluster_v1 = {(69.764465, 17.85707): 'High flat',
-           (22.426544, 19.861082): 'Low slope',
-           (42.734375, 5.0265923): 'Mid flat',
-           (35.734127, 46.22456): 'Mid slope',
-           (9.56347, 2.5132303): 'Low flat',
-           (52.65366, 47.10048): 'High slope'}
+                     (22.426544, 19.861082): 'Low slope',
+                     (42.734375, 5.0265923): 'Mid flat',
+                     (35.734127, 46.22456): 'Mid slope',
+                     (9.56347, 2.5132303): 'Low flat',
+                     (52.65366, 47.10048): 'High slope'}
 
 cluster_labels_v1 = {4: 'Low flat',
-           2: 'Mid flat',
-           0: 'High flat',
-           1: 'Low slope',
-           3: 'Mid slope',
-           5: 'High slope'}
+                     2: 'Mid flat',
+                     0: 'High flat',
+                     1: 'Low slope',
+                     3: 'Mid slope',
+                     5: 'High slope'}
 labels_v1 = ['R250', 'R500', 'R1000', 'R2000',
-       'R3000', 'R4000', 'R6000', 'R8000']
+             'R3000', 'R4000', 'R6000', 'R8000']
 
 ######################  DATA IMPORT  ############################
 
@@ -70,16 +70,14 @@ def ImportSpreadsheet(path) -> List:
     - list contains feature names.
   """
   creds, _ = auth.default()
-  gc = gspread.authorize(creds)
-  # get_all_values gives a list of rows
+  gc = gspread.authorize(creds) # get_all_values gives a list of rows
   worksheet = gc.open_by_url(path).sheet1
   rows = worksheet.get_all_values()
 
   return rows
 
 
-def ReadData(duplicate_column_name: str = duplicate_column_name_v1,
-       spreadsheet_path: str = spreadsheet_path_v1):
+def ReadData(duplicate_column_name: str = duplicate_column_name_v1,spreadsheet_path: str = spreadsheet_path_v1):
   """
   Clean and transform data from a spreadsheet into a numpy array.
 
@@ -109,17 +107,16 @@ def MakePandas(rows_of_data: List) -> pd.DataFrame:
   Creates a Pandas DataFrame from a list of rows containing data.
 
   Args:
-    rows_of_data (List): A list of rows, where each row is an iterable
-        containing data values.
-        Rows of data obtained after calling
-        RenameDuplicateColumns() on `rows_of_data`
-        Column_names are first list element of `rows_of_data`
+    rows_of_data (List): A list of rows, where each row is an iterable containing data values.
+    Rows of data obtained after calling
+    RenameDuplicateColumns() on `rows_of_data`
+    Column_names are first list element of `rows_of_data`
   Returns:
     pd.DataFrame: A Pandas DataFrame containing the converted data.
   """
   features = ConvertSpaces(rows_of_data[0])
   data = ConvertToNumerical(rows_of_data[1:])
-  data_df = pd.DataFrame(data, columns=features)
+  data_df = pd.DataFrame(data, columns = features)
 
   return data_df
 
@@ -131,9 +128,8 @@ def ImportHearingSpreadsheet(
   """Read and clean Stanford hearing data from spreadsheet.
 
   Args:
-    spreadsheet_path: Where to find the spreadsheet with teh golden data
-    duplicate_column_names: Which columns are duplicated in the spreadsheet and
-    should be removed
+    spreadsheet_path: Where to find the spreadsheet with the golden data
+    duplicate_column_names: Which columns are duplicated in the spreadsheet and should be removed
     labels: Which column names should be used for clustering
 
   Returns:
@@ -187,21 +183,18 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
      AC > 25 dB HL
      BC < 25 dB HL
      Air-bone gap > 10 dB
-     (i.e. BC is normal but there is a hearing loss when listening via AC due to
-    the pathology in the  outer and/or middle ear)
+     (i.e. BC is normal but there is a hearing loss when listening via AC due to the pathology in the  outer and/or middle ear)
   Sensorineural:
      AC > 25 dB HL
      BC > 25 dB HL
      Air-bone gap <10 dB
-     (i.e. there is a hearing loss present whether listening via AC or BC and
-    there is not a significant air-bone gap)
+     (i.e. there is a hearing loss present whether listening via AC or BC and there is not a significant air-bone gap)
   Mixed:
      AC > 25 dB HL
      BC > 25 dB HL
      Air-bone gap > 10 dB
-     (i.e. hearing loss present but is made much worse when listening via AC
-    because of the conductive component {{ e.g. BC thresholds are ~40 dB but
-    the AC thresholds are 70 dB}})
+     (i.e. hearing loss present but is made much worse when listening via AC because of the conductive component
+      {{ e.g. BC thresholds are ~40 dB but the AC thresholds are 70 dB}})
 
   This code requires data with bone-conduction data to determine type of hearing loss.
   If BC threshold of one ear is missing (in case of symmetric hearing loss),then,
@@ -361,7 +354,7 @@ def HLossClassifier(df: pd.DataFrame) -> pd.DataFrame:
   return df
 
 
-def HLPlot(df: pd.DataFrame, title=None):
+def HLPlot(df: pd.DataFrame, title = None):
   """
   This function displays a scatter plot of Avg air conduction vs Avg bone
   conduction threshold coloured by 4 hearing loss classes:
@@ -373,8 +366,7 @@ def HLPlot(df: pd.DataFrame, title=None):
     - df: dataframe computed by function HL_loss_classification()
     - title: title of the plot (incase when needed)
 
-  Displays:
-    a scatter plot in the current figure.
+  Displays: a scatter plot in the current figure.
 
   """
   df_normal = df.loc[df['R_Type_HL_All'] == 'Normal']
@@ -382,14 +374,10 @@ def HLPlot(df: pd.DataFrame, title=None):
   df_conductive = df.loc[df['R_Type_HL_All'] == 'Conductive']
   df_mixed = df.loc[df['R_Type_HL_All'] == 'Mixed']
 
-  plt.scatter(df_normal['R_PTA_BC_All'], df_normal['R_PTA_All'], color='r',
-        alpha=0.5, label='Normal')
-  plt.scatter(df_snhl['R_PTA_BC_All'], df_snhl['R_PTA_All'], color='b',
-        alpha=0.5, label='SNHL')
-  plt.scatter(df_conductive['R_PTA_BC_All'], df_conductive['R_PTA_All'],
-        alpha=0.5, color='g', label='Conductive')
-  plt.scatter(df_mixed['R_PTA_BC_All'], df_mixed['R_PTA_All'],
-        color='black', alpha=0.5, label='Mixed')
+  plt.scatter(df_normal['R_PTA_BC_All'], df_normal['R_PTA_All'], color='r', alpha = 0.5, label = 'Normal')
+  plt.scatter(df_snhl['R_PTA_BC_All'], df_snhl['R_PTA_All'], color='b', alpha = 0.5, label = 'SNHL')
+  plt.scatter(df_conductive['R_PTA_BC_All'], df_conductive['R_PTA_All'], alpha = 0.5, color = 'g', label = 'Conductive')
+  plt.scatter(df_mixed['R_PTA_BC_All'], df_mixed['R_PTA_All'], color = 'black', alpha = 0.5, label = 'Mixed')
 
   plt.xlabel('Average Bone Conduction Threshold')
   plt.ylabel('Average Air Conduction Threshold')
@@ -402,8 +390,7 @@ def HLPlot(df: pd.DataFrame, title=None):
 ######################  DATA CLEANSING  ############################
 
 
-def RenameDuplicateColumns(row_list: List,
-               column_name: str) -> List:
+def RenameDuplicateColumns(row_list: List, column_name: str) -> List:
   """
   Function to rename a duplicate column name.
 
@@ -436,25 +423,21 @@ def ConvertSpaces(column_names: List) -> List:
   return column_names
 
 
-def ConvertToNumerical(rows_of_data: List,
-             desired_type=np.float32) -> np.ndarray:
+def ConvertToNumerical(rows_of_data: List, desired_type=np.float32) -> np.ndarray:
   """
   Converts a list of rows containing data into a numerical NumPy array.
   If a value is missing --> NaN
   If hearing threshold is NR --> 1000000 - User can modify if absolutely necessary
 
   Args:
-    rows_of_data (List): A list of rows, where each row is an iterable
-      containing data values.
-    desired_type (data type, optional): The data type to use for the
-      NumPy array. Default is np.float32.
+    rows_of_data (List): A list of rows, where each row is an iterable containing data values.
+    desired_type (data type, optional): The data type to use for the NumPy array. Default is np.float32.
 
   Returns:
     np.ndarray: A numerical NumPy array containing the converted data.
   """
 
-  data = np.zeros((len(rows_of_data), len(
-    rows_of_data[0])), dtype=desired_type)
+  data = np.zeros((len(rows_of_data), len(rows_of_data[0])), dtype=desired_type)
 
   for i, r in enumerate(rows_of_data):
     for j, d in enumerate(r):
@@ -483,28 +466,23 @@ def RemoveRowsWithBadAges(df: pd.DataFrame) -> pd.DataFrame:
     df (pd.DataFrame): The input DataFrame containing age data.
 
   Returns:
-    pd.DataFrame: A new DataFrame with rows removed if their 'AgeAtTestDate'
-      values are outside the valid range [0, 100].
+    pd.DataFrame: A new DataFrame with rows removed if their 'AgeAtTestDate' values are outside the valid range [0, 100].
   """
 
-  df_good_age = df.drop(df.loc[(df['AgeAtTestDate'] < 0) |
-                 (df['AgeAtTestDate'] > 100)].index)
+  df_good_age = df.drop(df.loc[(df['AgeAtTestDate'] < 0) | (df['AgeAtTestDate'] > 100)].index)
   return df_good_age
 
 
-def RemoveRowsWithBCWorseAC(data: pd.DataFrame,
-              threshold: int = 100) -> pd.DataFrame:
+def RemoveRowsWithBCWorseAC(data: pd.DataFrame, threshold: int = 100) -> pd.DataFrame:
   """
   A function to drop the rows where Bone Conduction is greater than Air
   Conduction by at least 100 dB
 
   Args:
   - data: A pandas dataframe on which HLossClassifier() function is run.
-  - threshold: The minimum difference between air conduction and bone conduction
-      loss.
+  - threshold: The minimum difference between air conduction and bone conduction loss.
   Return:
-  - data: A pandas dataframe where the rows with bone conduction loss > air
-      conduction loss are dropped
+  - data: A pandas dataframe where the rows with bone conduction loss > air conduction loss are dropped
   """
 
   initial_row_count = data.shape[0]
@@ -525,16 +503,16 @@ def RemoveRowsWithBCWorseAC(data: pd.DataFrame,
 
 
 def CreateKMeans(n: int,
-         data: pd.DataFrame,
-         random_state: int = 0,
-         max_iter: int = 1000,
-         n_init: int = 10) -> sklearn.cluster._kmeans.KMeans:
+                 data: pd.DataFrame,
+                 random_state: int = 0,
+                 max_iter: int = 1000,
+                 n_init: int = 10) -> sklearn.cluster._kmeans.KMeans:
   if n <= len(data):
     kmeans = KMeans(n_clusters=n,
-            init='k-means++',
-            max_iter=max_iter,
-            n_init=n_init,
-            random_state=random_state)
+                    init='k-means++',
+                    max_iter=max_iter,
+                    n_init=n_init,
+                    random_state=random_state)
     kmeans.fit(data)  # To compute cluster centres
     return kmeans
 
@@ -553,8 +531,7 @@ def PlotClusterCenters(
   Args:
     - labels: Labels for x-axis
     - kmeans: kmeans clusters computed using scikit learn package
-    - cluster_label: A dictionary that assigns predefined labels to clusters
-      (default value is cluster_labels_v1)
+    - cluster_label: A dictionary that assigns predefined labels to clusters (default value is cluster_labels_v1)
     - n: Number of clusters (default value is 6)
   """
   if cluster_label == 'default_v1':
@@ -566,15 +543,13 @@ def PlotClusterCenters(
 
   # Check the shape of the cluster centers array
   if kmeans.cluster_centers_.ndim == 0:
-    raise ValueError(
-      'The cluster centers array must be at least 1-dimensional')
+    raise ValueError('The cluster centers array must be at least 1-dimensional')
 
   if cluster_label is None:
     cluster_label = [f'Cluster {i}' for i in range(n)]
   # Plot
   for i in range(n):
-    plt.semilogx(conv_labels, kmeans.cluster_centers_.T[:, i],
-           label=cluster_label[i])
+    plt.semilogx(conv_labels, kmeans.cluster_centers_.T[:, i], label = cluster_label[i])
     plt.legend()
 
   plt.xlabel('Frequency (Hz)')
@@ -601,10 +576,8 @@ def TestKMeansClusters():
   n = 4  # Number of clusters
 
   # Generate data using make_blobs
-  centers = np.array([[0, 0], [1, 0], [2, 0], [3, 0]]
-             )  # Centers of the blobs
-  data, _ = make_blobs(n_samples=num_points, centers=centers,
-             cluster_std=variance)
+  centers = np.array([[0, 0], [1, 0], [2, 0], [3, 0]])  # Centers of the blobs
+  data, _ = make_blobs(n_samples=num_points, centers=centers, cluster_std=variance)
 
   # Populate DataFrame with the data
   df = pd.DataFrame(data, columns=['X', 'Y'])
@@ -632,29 +605,27 @@ def TestKMeansClusters():
 
 
 def KMeansPredictions(kmeans: sklearn.cluster._kmeans.KMeans,
-            data: pd.DataFrame,
-            # new_column_name: str = 'prediction'
-            ) -> pd.DataFrame:
+                      data: pd.DataFrame,
+                      # new_column_name: str = 'prediction'
+                      ) -> pd.DataFrame:
   """
   Predicts the cluster labels for the given data using the given KMeans model.
 
   Args:
     - kmeans: The KMeans model to be used for predicting the cluster labels.
     - data: The data to be clustered
-    - new_column_name: The name of the new column containing the cluster
-    assignments.
+    - new_column_name: The name of the new column containing the cluster assignments.
 
   Returns:
-    A new data frame enhanced with a new column containing the cluster
-    assignment.
+    A new data frame enhanced with a new column containing the cluster assignment.
   """
   p = kmeans.predict(data)
   return p
 
 
 def CountPredictions(data: pd.DataFrame,
-           # cluster_label: Optional[dict] = None,
-           cluster_field='predictions') -> Dict[int, int]:
+                     # cluster_label: Optional[dict] = None,
+                     cluster_field='predictions') -> Dict[int, int]:
   """
   Counts the number of patients in each cluster.
 
@@ -725,7 +696,7 @@ def ComputeDistances(
   patient from the dataframe.
 
   The distances are scaled by the dimensionality of the centroid, so the
-  distances are HL/frequency and are in dB
+  distances are HL/frequency and are in dB.
   """
   cluster_column = f'Cluster{num_clusters:02d}Way'
   results = []
@@ -734,8 +705,7 @@ def ComputeDistances(
     these_hls = these_rows[label_names]
     # print(these_hls.shape, type(these_hls))
     centroids = np.mean(these_hls, axis=0)
-    these_distances = np.sqrt(np.sum((these_hls - centroids)**2,
-                     axis=1)/len(label_names))
+    these_distances = np.sqrt(np.sum((these_hls - centroids)**2, axis=1)/len(label_names))
     results.append(pd.DataFrame(these_distances, index=these_rows.index))
   results = pd.concat(results)
   return results
@@ -743,30 +713,25 @@ def ComputeDistances(
 #####################  DATA SAVING UTILITIES  ############################
 
 
-def SaveAsJson(
-    kmeans: sklearn.cluster._kmeans.KMeans,
-    features_initial: List,
-    features_final: List,
-    num_cluster_points: dict,
-    filename,
-    path: str = default_cluster_dir,
-    cluster_labels: Union[dict, str] = 'default_v1') -> str:
+def SaveAsJson(kmeans: sklearn.cluster._kmeans.KMeans,
+               features_initial: List,
+               features_final: List,
+               num_cluster_points: dict,
+               filename,
+               path: str = default_cluster_dir,
+               cluster_labels: Union[dict, str] = 'default_v1') -> str:
   """
   Save the KMeans clustering results as a JSON file.
 
   Args:
     - path: The path of the google directory where the JSON file will be saved.
-    - cluster_labels: A dictionary mapping cluster labels to the corresponding
-      data points (default is cluster_labels_v1)
+    - cluster_labels: A dictionary mapping cluster labels to the corresponding data points (default is cluster_labels_v1)
     - kmeans: The KMeans model that was used to cluster the data.
     - features_initial: The list of features that were used to cluster the data.
-    - features_final: Additional features computed when performing the HL
-      classifcation.
+    - features_final: Additional features computed when performing the HL classifcation.
     - filename: Name of the file
-    - num_cluster_points: A dictionary mapping cluster labels to the number of
-      data points in each cluster
-    - clusters: A dictionary that maps the mean and slope of cluster centroids
-      to the labels (default is golden_cluster_v1)
+    - num_cluster_points: A dictionary mapping cluster labels to the number of data points in each cluster
+    - clusters: A dictionary that maps the mean and slope of cluster centroids to the labels (default is golden_cluster_v1)
 
   Returns:
     The path to the JSON file that was saved.
@@ -774,18 +739,17 @@ def SaveAsJson(
   if cluster_labels == 'default_v1':
     cluster_labels = cluster_labels_v1
 
-  data = {
-    'cluster_centers': kmeans.cluster_centers_.tolist(),
-    'random_state': kmeans.random_state,
-    'n_init': kmeans.n_init,
-    'n_cluster': kmeans.n_clusters,
-    'max_iter': kmeans.max_iter,
-    'features_before': features_initial,
-    'features_after': features_final,
-    'cluster_labels': cluster_labels,
-    'n_cluster_points': num_cluster_points,
-    'date_time': str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-  }
+  data = {'cluster_centers': kmeans.cluster_centers_.tolist(),
+          'random_state': kmeans.random_state,
+          'n_init': kmeans.n_init,
+          'n_cluster': kmeans.n_clusters,
+          'max_iter': kmeans.max_iter,
+          'features_before': features_initial,
+          'features_after': features_final,
+          'cluster_labels': cluster_labels,
+          'n_cluster_points': num_cluster_points,
+          'date_time': str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+          }
   filepath = os.path.join(path + filename + '.json')
   with open(filepath, 'w', encoding='utf8') as file:
     json.dump(data, file, indent=4)
@@ -815,8 +779,7 @@ def ChangeKeyValuesToInteger(dictionary):
   return new_dictionary
 
 
-def LoadFromJson(path: str = default_cluster_dir,
-         ) -> Tuple[KMeans, List[str], List[str], List[str]]:
+def LoadFromJson(path: str = default_cluster_dir,) -> Tuple[KMeans, List[str], List[str], List[str]]:
   """
   Load the KMeans clustering results from a JSON file.
 
@@ -912,10 +875,8 @@ def CreateClusterLabels(
     pre-defined "golden" cluster centroids.
 
     Returns:
-    A dictionary containing the updated cluster labels for each centroid in
-    `kmeans`. The keys represent the index of the centroid in `kmeans`,
-    and the values are the corresponding cluster labels from the
-    `golden_cluster` dictionary.
+      A dictionary containing the updated cluster labels for each centroid in `kmeans`.
+      The keys represent the index of the centroid in `kmeans`, and the values are the corresponding cluster labels from the `golden_cluster` dictionary.
   """
   if ref_cluster == 'default_v1':
     ref_cluster = golden_cluster_v1
@@ -926,9 +887,9 @@ def CreateClusterLabels(
 
   for i, (mean, slope) in enumerate(clusters_slope_mean):
     distance_mean = [EuclideanDistance(mean, centroid[0])
-             for centroid in golden_cluster_centroids]
+                     for centroid in golden_cluster_centroids]
     distance_slope = [EuclideanDistance(slope, centroid[1])
-              for centroid in golden_cluster_centroids]
+                      for centroid in golden_cluster_centroids]
     index_mean = np.argmin(distance_mean)
     index_slope = np.argmin(distance_slope)
 
@@ -939,32 +900,30 @@ def CreateClusterLabels(
   return new_labels
 
 
-def CreateClusterV1(
-  filename: str,
-  duplicate_column_name: str = duplicate_column_name_v1,
-  cluster_features: Union[List[str], str] = 'default_v1',
-  spreadsheet_path: Union[str, pd.DataFrame] = spreadsheet_path_v1,
-  save_path: str = default_cluster_dir,
-  # ref_cluster: dict = golden_cluster_v1,
-  random_state: int = 0,
-  n: int = 6,
-  max_iter: int = 1000,
-    n_init: int = 10):
+def CreateClusterV1(filename: str,
+                    duplicate_column_name: str = duplicate_column_name_v1,
+                    cluster_features: Union[List[str], str] = 'default_v1',
+                    spreadsheet_path: Union[str, pd.DataFrame] = spreadsheet_path_v1,
+                    save_path: str = default_cluster_dir,
+                    # ref_cluster: dict = golden_cluster_v1,
+                    random_state: int = 0,
+                    n: int = 6,
+                    max_iter: int = 1000,
+                    n_init: int = 10):
   if cluster_features == 'default_v1':
     cluster_features = labels_v1
 
   if isinstance(spreadsheet_path, str):
     all_data = ImportHearingSpreadsheet(spreadsheet_path,
-                      duplicate_column_name,
-                      cluster_features)
+                                        duplicate_column_name,
+                                        cluster_features)
   elif isinstance(spreadsheet_path, pd.DataFrame):
     all_data = spreadsheet_path
   else:
     raise TypeError('Argument must be a str or DataFrame')
   print(f'all_data has {len(all_data.columns)} columns')
   # Create and apply K-means clustering
-  kmeans = CreateKMeans(n, all_data[cluster_features],
-              random_state, max_iter, n_init)
+  kmeans = CreateKMeans(n, all_data[cluster_features], random_state, max_iter, n_init)
   # cluster_labels = CreateClusterLabels(kmeans, ref_cluster)
   prediction_col_name = 'predictions'
   # Do KMeans clustering over a subset of the original data
@@ -977,14 +936,13 @@ def CreateClusterV1(
 
   # Save clustering results to JSON file
   if filename is not None:
-    filepath = SaveAsJson(
-      kmeans,
-      cluster_features,
-      all_data.columns.tolist(),
-      count,
-      filename,
-      save_path,
-      cluster_features)
+    filepath = SaveAsJson(kmeans,
+                          cluster_features,
+                          all_data.columns.tolist(),
+                          count,
+                          filename,
+                          save_path,
+                          cluster_features)
   else:
     filepath = None
   return filepath, all_data
