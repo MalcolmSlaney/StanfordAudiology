@@ -1,5 +1,6 @@
 .DS_Store
-*pycache*
+**/__pycache__/
 **.pyc
 **.csv
 **.txt
+.vscode/
