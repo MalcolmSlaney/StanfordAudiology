@@ -10,6 +10,7 @@ from urllib.request import DataHandler
 
 data_folder = '/content/drive/MyDrive/Research/ABR Analysis Project/Bidelman Data/'
 
+
 def extract_abr(subject, period, run, bandpass_lo_freq=90, 
                 bandpass_high_freq=2000, print_info=False,
                 data_folder=data_folder):
@@ -40,6 +41,7 @@ def compute_energy(abr_data):
   energy = np.sum(abr_data ** 2, axis=0) # sum across time
   assert len(energy) == abr_data.shape[1]
   return energy
+
 
 def compute_rms(abr_data):
   energy = compute_energy(abr_data)
@@ -97,9 +99,11 @@ def compute_covariance_with_mean(abr_data):
   assert len(covariance) == abr_data.shape[1]
   return covariance
 
+
 def compute_d_prime(signal, noise):
   return np.abs(np.mean(signal) - np.mean(noise)) / np.sqrt(
     (np.std(signal) ** 2 + np.std(noise) ** 2) / 2)
+
 
 def plot_subject(subject, offset_removal=False, artifact_rejection=False, 
                  print_info=False):
