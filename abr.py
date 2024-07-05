@@ -77,6 +77,52 @@ def reject_artifacts(abr_data, variance_percentile=95,
   # print("data shape after rejecting artifacts:", filtered_abr_data.shape)
   return filtered_abr_data
 
+from scipy.signal import butter, freqz, lfilter, sosfilt, sosfiltfilt
+
+def design_butterworth_filter(lowcut: float, highcut: float, 
+                            fs: float, order: int=6) -> np.ndarray:
+  """Design a butterworth filter with the indicated parameters. Returns the filter 
+  coefficients (for each second order section) as an array.
+  """
+  if lowcut <= 0:
+    filter_type = 'lowpass'
+    freqs = highcut
+  elif highcut >= fs/2:
+    filter_type = 'highpass'
+    freqs = lowcut
+  else:
+    filter_type = 'bandpass'
+    freqs = [lowcut, highcut]
+  # print(f'Designing a {filter_type} filter with critical '
+  #       f'frequencies {freqs}.')
+  return butter(order, freqs, fs=fs, btype=filter_type, output='sos')
+
+def butterworth_filter(data: np.ndarray, lowcut: float, highcut: float, 
+                       fs: float, order: int=5) -> np.ndarray:
+  """FIlter a one-dimensional signal with a Butterworth (smooth passband) 
+  filter with the given low-frequency and high-frequency cutoffs.  All 
+  frequencies are in Hz.
+
+  Args
+    data: A one-dimensional signal to be filtered
+    lowcut: The low frequency cutoff for the filter.  If it is zero, then a
+      low-pass filter is designed (instead of a bandpass.)
+    highcut: The hiqh frequency cutoff for the filter.  If it is greater 
+      than or equal to the Nyquist frequency (fs/2) then a low-pass filter
+      is computed.
+    fs: Sampling rate for the data (Hz, like the cutoffs)
+    order: The polynomial order in the filter implementation.  Higher orders
+      lead to sharper transitions, and more computational time. 
+
+  Returns:
+    The original data filtered as requested.        
+  
+  ToDo(Malcolm): use sosfiltfilt to get zero phase response.
+  """
+  sos_sections = design_butterworth_filter(lowcut, highcut, fs, order=order)
+  y = sosfilt(sos_sections, data)
+  return y
+
 
 def remove_offset(abr_data):
   filtered_data = np.array([abr_data[:, i] - np.mean(abr_data[:, i]) 
