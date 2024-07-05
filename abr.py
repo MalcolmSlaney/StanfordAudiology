@@ -144,9 +144,18 @@ def butterworth_filter(data: np.ndarray, lowcut: float, highcut: float,
   return y
 
 
-def remove_offset(abr_data):
-  filtered_data = np.array([abr_data[:, i] - np.mean(abr_data[:, i]) 
-                            for i in range(abr_data.shape[1])]).T
+def remove_offset(abr_data: np.ndarray) -> np.ndarray:
+  """Remove the mean from each channel. This is good to do this way (instead
+  of using the bandpass filter, because there is no startup energy due to a 
+  non-zero offset)
+  
+  Args:
+    abr_data: The raw data of shape num_samples x num_channels.
+    
+  Returns:
+    The same shape data, with the mean in each channel removed.
+  """
+  filtered_data = abr_data - np.mean(abr_data, axis=0, keepdims=True)
   assert filtered_data.shape[0] == abr_data.shape[0]
   return filtered_data
 
