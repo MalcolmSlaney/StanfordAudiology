@@ -43,7 +43,9 @@ class TestProcessingModules(absltest.TestCase):
                     fs: float = 16000, order: int = 8):
       n = 16384
       impulse = np.zeros(n)
-      impulse[0] = 1.0
+      # Don't put impulse at time zero because we get artifacts when using
+      # sosfiltfilt.
+      impulse[100] = 1.0
       
       y = abr.butterworth_filter(impulse, lower_cutoff, upper_cutoff, 
                                  fs, order=order)
@@ -62,7 +64,7 @@ class TestProcessingModules(absltest.TestCase):
         plt.savefig(fp)
 
       spectrum[0] = spectrum[1]
-      passband_freqs = freqs[np.where(spectrum[:n//2] > -3.02)[0]]
+      passband_freqs = freqs[np.where(spectrum[:n//2] > -6.02)[0]]
       return np.min(passband_freqs), np.max(passband_freqs)
     
     # Bandpass filter

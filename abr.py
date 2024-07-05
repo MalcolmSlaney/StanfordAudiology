@@ -98,10 +98,14 @@ def design_butterworth_filter(lowcut: float, highcut: float,
   return butter(order, freqs, fs=fs, btype=filter_type, output='sos')
 
 def butterworth_filter(data: np.ndarray, lowcut: float, highcut: float, 
-                       fs: float, order: int=5) -> np.ndarray:
-  """FIlter a one-dimensional signal with a Butterworth (smooth passband) 
+                       fs: float, order: int=5, axis=-1) -> np.ndarray:
+  """FIlter an array of signals with a Butterworth (smooth passband) 
   filter with the given low-frequency and high-frequency cutoffs.  All 
   frequencies are in Hz.
+
+  This function filters the data twice, once forward and once backward.  This
+  means the effective order is twice the requested order, but more importantly
+  it cancels the filter's phase.
 
   Args
     data: A one-dimensional signal to be filtered
@@ -113,14 +117,13 @@ def butterworth_filter(data: np.ndarray, lowcut: float, highcut: float,
     fs: Sampling rate for the data (Hz, like the cutoffs)
     order: The polynomial order in the filter implementation.  Higher orders
       lead to sharper transitions, and more computational time. 
+    axis: Which axis of the data over which to filter.
 
   Returns:
     The original data filtered as requested.        
-  
-  ToDo(Malcolm): use sosfiltfilt to get zero phase response.
   """
   sos_sections = design_butterworth_filter(lowcut, highcut, fs, order=order)
-  y = sosfilt(sos_sections, data)
+  y = sosfiltfilt(sos_sections, data, axis=axis)
   return y
 
 
