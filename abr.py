@@ -2,11 +2,29 @@ from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import List, Tuple
+from scipy.signal import butter, freqz, lfilter, sosfilt, sosfiltfilt
 from sklearn.linear_model import Ridge, LinearRegression
 from urllib.request import DataHandler
 
-# from google.colab import drive
-# drive.mount('/content/drive')
+""" 
+To use this code in Colab do the following:
+  !git clone https://github.com/MalcolmSlaney/StanfordAudiology.git
+  !ls StanfordAudiology
+  import sys
+  sys.path.insert(0,'StanfordAudiology')
+
+  # Note this syntax (import *) is in general a bad idea.  But it's a good 
+  # solution in colab so you can easily redefine a function that was already 
+  # defined in the abr.py file.  Just don't forget to check in the new version 
+  # at some point.
+  #   https://www.geeksforgeeks.org/why-import-star-in-python-is-a-bad-idea/
+
+  from StanfordAudiology.abr import *
+
+You might also want to do
+  from google.colab import drive
+  drive.mount('/content/drive')
+"""
 
 data_folder = '/content/drive/MyDrive/Research/ABR Analysis Project/Bidelman Data/'
 
@@ -77,7 +95,6 @@ def reject_artifacts(abr_data, variance_percentile=95,
   # print("data shape after rejecting artifacts:", filtered_abr_data.shape)
   return filtered_abr_data
 
-from scipy.signal import butter, freqz, lfilter, sosfilt, sosfiltfilt
 
 def design_butterworth_filter(lowcut: float, highcut: float, 
                             fs: float, order: int=6) -> np.ndarray:
