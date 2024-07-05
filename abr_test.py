@@ -41,6 +41,9 @@ class TestProcessingModules(absltest.TestCase):
   def test_filter(self):
     def evaluate_filter(lower_cutoff: float, upper_cutoff: float, 
                     fs: float = 16000, order: int = 8):
+      """Design and characterize one filter. Compute the impulse response and
+      take its FFT to find the spectrum. Save the frequency response plot, 
+      and return the upper and lower cutoff frequencies (-6dB points)."""
       n = 16384
       impulse = np.zeros(n)
       # Don't put impulse at time zero because we get artifacts when using
