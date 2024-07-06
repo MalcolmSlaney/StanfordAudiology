@@ -155,7 +155,10 @@ def remove_offset(abr_data: np.ndarray) -> np.ndarray:
   Returns:
     The same shape data, with the mean in each channel removed.
   """
-  filtered_data = abr_data - np.mean(abr_data, axis=0, keepdims=True)
+  # Important to use 64 bit arithmetic otherwise "Catastrophic cancellation" 
+  # causes imprecision, especially on long signals.
+  filtered_data = abr_data - np.mean(abr_data.astype(np.float64), 
+                                     axis=0, keepdims=True)
   assert filtered_data.shape[0] == abr_data.shape[0]
   return filtered_data
 
