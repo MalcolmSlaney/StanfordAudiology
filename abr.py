@@ -212,9 +212,11 @@ def epoch_bipolar_data(clean_eeg: np.ndarray,
                        negative_indices: Union[List[int], np.ndarray], 
                        epoch_length) -> np.ndarray:
   """
-  Accumulate positive and negative click responses, and flip the negative
-  responses to get an average ABR response.  We flip consequitive clicks so the
-  electrical noise will cancel out (but the brain's response won't care.)
+  Accumulate positive and negative click stimuli, and flip the negative
+  stimuli to get an average response. This was originally done so that
+  we could cancel the electrical noise, but that's not necessary if the stimuli
+  are flipped, and the brain will respond the same way either way.  Thus 
+  cancelling the electrical noise (but not the brain noise.)
 
   Args:
     clean_eeg: The EEG data, of size num_samples x num_channels
