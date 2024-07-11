@@ -1,7 +1,7 @@
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import List, Tuple
+from typing import List, Optional, Union
 from scipy.signal import butter, freqz, lfilter, sosfilt, sosfiltfilt
 from sklearn.linear_model import Ridge, LinearRegression
 from urllib.request import DataHandler
@@ -161,6 +161,78 @@ def remove_offset(abr_data: np.ndarray) -> np.ndarray:
                                      axis=0, keepdims=True)
   assert filtered_data.shape[0] == abr_data.shape[0]
   return filtered_data
+
+
+def rereference(eeg: np.ndarray, channel: Optional[int]) -> np.ndarray:
+  """Re reference the EEG data, by using a new *ground* signal.  This reference
+  can either be a single channel (the ground) or the mean of all the channels.
+  
+  Args:
+    eeg: The EEG data, of size num_samples x num_channels
+    channel: Either an integer channel number (zero based) or None to indicate
+      a the mean of all channels is the reference.
+      
+  Returns:
+    The modified array, with the new ground reference.
+  """
+  if isinstance(channel, int):
+    reference = eeg[:, channel:channel+1],
+  else:
+    reference = np.mean(eeg, keepdims=True, axis=1)
+  return eeg - reference
+
+def extract_epochs(data: np.ndarray,
+                   locs: Union[int, List[int], np.ndarray],
+                   length: int) -> np.ndarray:
+  """
+  Extract the click response from a multi-channel EEG recording.
+  
+  Args:
+    data: The EEG data, of size num_samples (time) x num_channels
+    locs: Where each click occurs.  Either an integer indicating a periodic
+      stimuli, or a list of integers indicating the time of each click.
+    length:  How many samples to extract after each click.
+
+  Returns:
+    A tensor of shape length (time) x num_epochs x num_channels
+  """
+  num_samples, num_channels = data.shape
+  if isinstance(locs, int):
+    locs = list(range(0, num_samples, locs))
+  num_epochs = len(locs)
+  epochs = np.zeros((length, num_epochs, num_channels), np.float32)
+  for i, sample_start in enumerate(locs):
+    if sample_start+length < num_samples:
+      epochs[:, i, :] = data[sample_start:sample_start+length, :]
+  return epochs
+
+
+def epoch_bipolar_data(clean_eeg: np.ndarray, 
+                       positive_indices: Union[List[int], np.ndarray], 
+                       negative_indices: Union[List[int], np.ndarray], 
+                       epoch_length) -> np.ndarray:
+  """
+  Accumulate positive and negative click responses, and flip the negative
+  responses to get an average ABR response.  We flip consequitive clicks so the
+  electrical noise will cancel out (but the brain's response won't care.)
+
+  Args:
+    clean_eeg: The EEG data, of size num_samples x num_channels
+    positive_indices: The location of the postitive clicks (sanple #).
+    negative_indices: The location of the negative clicks (sanple #).
+    epoch_length: How much data to extract after each click.
+
+  Returns:
+    A tensor of shape length (time) x num_epochs x num_channels
+  """
+  positive_epochs = extract_epochs(data=clean_eeg, locs=positive_indices,
+                                   length=epoch_length)
+  negative_epochs = extract_epochs(data=clean_eeg, locs=negative_indices,
+                                   length=epoch_length)
+  epoch_count = min(positive_epochs.shape[1], negative_epochs.shape[1])
+  epochs = (positive_epochs[:, :epoch_count, :] -
+            negative_epochs[:, :epoch_count, :])
+  return epochs
 
 
 def compute_covariance_per_trial(abr_data_trial, abr_data_mean):
