@@ -120,5 +120,20 @@ class TestProcessingModules(absltest.TestCase):
                                                 [[3, 4],
                                                  [7, 8]]]))
 
-if __name__=="__main__": 
+  def test_estimate_snr_at_t(self):
+    signal_level = .3
+    noise_level = 2
+    noise = np.random.randn(4000)*noise_level
+    with open(f'test_snr_estimate.png', 'wb') as fp:
+      (regression_s, regression_n, 
+       mean_s, mean_n) = abr.estimate_snr_at_t(signal_level+noise, 
+                                               ridge_alpha=0,
+                                               plot_results=True)
+      plt.savefig(fp)
+    self.assertAlmostEqual(mean_s, signal_level, delta=0.1)
+    self.assertAlmostEqual(mean_n, noise_level, delta=0.1)
+    self.assertAlmostEqual(regression_s, signal_level, delta=.2)
+    self.assertAlmostEqual(regression_n, noise_level, delta=.3)
+
+if __name__=="__main__":  
   absltest.main()

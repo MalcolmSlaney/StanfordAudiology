@@ -1,7 +1,7 @@
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 from scipy.signal import butter, freqz, lfilter, sosfilt, sosfiltfilt
 from sklearn.linear_model import Ridge, LinearRegression
 from urllib.request import DataHandler
@@ -235,6 +235,83 @@ def epoch_bipolar_data(clean_eeg: np.ndarray,
   epochs = (positive_epochs[:, :epoch_count, :] -
             negative_epochs[:, :epoch_count, :])
   return epochs
+
+
+def estimate_snr_at_t(data: np.ndarray, # A 1D array over trials at one time
+                      ridge_alpha: float = 1.0,
+                      plot_results: bool = False,
+                      low_trial_count: int = 10
+                      ) -> Tuple[float, float, float, float]:
+  """Estimate the signal and noise levels from an array of ABR results at *one*
+  time, post-epoch.  Divide the data into smaller blocks, average each block to
+  extract the signal and then square to get the power per block.  Average these
+  block-powers to get a curve that shows power vs. block size.  Then perform
+  linear regression over this curve to estimate the underlying signal and noise
+  power.
+
+  Args:
+    data: A 1D array of EEG data at one time over multiple trials
+    ridge_alpha: How much to regulaize the ridge regression
+    plot_results: Generate a plot showing the data and the regression
+    low_trial_count: mininum number of trials needed for estimating the noise
+
+  Returns:
+    A four-ple consisting of the 
+      signal level via regression
+      noise level via regression
+      signal level by calculating the mean of the data
+      noise level by calculating the standard deviation of the data
+  """
+  data = np.reshape(data, (-1,))
+  N = data.shape[0]
+  split_list = 2**np.arange(20)
+  results = []
+  block_sizes = []
+  for num_splits in split_list:
+    block_count = int(N/num_splits)
+    if block_count < low_trial_count:
+      break
+    split_list = np.split(data[:block_count*num_splits], num_splits)
+    block_sizes.append(block_count)
+    all_frames = np.asarray(split_list)
+    # Size  num_blocks x block_size
+    # print('All frames shape is', all_frames.shape)
+
+    ave = np.mean(all_frames, axis=1) # Average within a block over trials
+    # Size num_blocks
+    # print('Mean over windows of size:', ave.shape)
+
+    ave = np.mean(ave**2) # Average the square over all the split of data.
+    # print(ave.shape)
+    results.append(ave)
+  x = 1/np.reshape(block_sizes, (-1, 1))
+  results = np.reshape(results, (-1, 1))
+  # print(x, results)
+  if ridge_alpha > 0:
+    regressor = Ridge(alpha=ridge_alpha)
+  else:
+    regressor = LinearRegression()
+  estimator = regressor.fit(x, results)
+  # Coef estimates the noise**2, intercept estimates the signal**2.
+  if plot_results:
+    plt.subplot(1, 2, 1)
+    plt.semilogx(block_sizes, results)
+    plt.xlabel('Trial Counts (N)')
+    plt.ylabel('Energy in Averaged Signals')
+    plt.title('Energy vs. Trial Count')
+    plt.subplot(1, 2, 2)
+    plt.plot(x, results, 'ro')
+    plt.xlabel('1/N')
+    plt.title('Energy vs. 1/Trial Count')
+    b = estimator.intercept_[0] 
+    m = estimator.coef_[0][0]
+    plt.plot(x, m*x+b, 'b')
+
+  # Return the linear regression estimate of the signal and noise,
+  #  as well as the mean and std (standard measures) based on the raw data
+  regression_signal = np.sqrt(np.maximum(estimator.intercept_[0], 0))
+  regression_noise = np.sqrt(np.maximum(estimator.coef_[0][0], 0))
+  return regression_signal, regression_noise, np.mean(data), np.std(data)
 
 
 def compute_covariance_per_trial(abr_data_trial, abr_data_mean):
