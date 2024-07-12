@@ -238,7 +238,7 @@ def epoch_bipolar_data(clean_eeg: np.ndarray,
 
 
 def estimate_snr_at_t(data: np.ndarray, # A 1D array over trials at one time
-                      ridge_alpha: float = 1.0,
+                      ridge_alpha: float = 0.0,
                       plot_results: bool = False,
                       low_trial_count: int = 10
                       ) -> Tuple[float, float, float, float]:
@@ -252,7 +252,8 @@ def estimate_snr_at_t(data: np.ndarray, # A 1D array over trials at one time
 
   Args:
     data: A 1D array of EEG data at one time over multiple trials
-    ridge_alpha: How much to regulaize the ridge regression
+    ridge_alpha: How much to regularize the ridge regression. Setting to 0
+      seems to work more reliably (i.e. turn off ridge regression).
     plot_results: Generate a plot showing the data and the regression
     low_trial_count: mininum number of trials needed for estimating the noise
 
