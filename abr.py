@@ -247,7 +247,8 @@ def estimate_snr_at_t(data: np.ndarray, # A 1D array over trials at one time
   extract the signal and then square to get the power per block.  Average these
   block-powers to get a curve that shows power vs. block size.  Then perform
   linear regression over this curve to estimate the underlying signal and noise
-  power.
+  power. See "The SNR of ABR Signals" at VCCA 2024, 
+  https://www.youtube.com/watch?v=2pTfYg6Bu0U
 
   Args:
     data: A 1D array of EEG data at one time over multiple trials
