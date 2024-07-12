@@ -176,7 +176,7 @@ def rereference(eeg: np.ndarray, channel: Optional[int]) -> np.ndarray:
     The modified array, with the new ground reference.
   """
   if isinstance(channel, int):
-    reference = eeg[:, channel:channel+1],
+    reference = eeg[:, channel:channel+1]
   else:
     reference = np.mean(eeg, keepdims=True, axis=1)
   return eeg - reference
@@ -202,7 +202,7 @@ def extract_epochs(data: np.ndarray,
   num_epochs = len(locs)
   epochs = np.zeros((length, num_epochs, num_channels), np.float32)
   for i, sample_start in enumerate(locs):
-    if sample_start+length < num_samples:
+    if sample_start+length <= num_samples:
       epochs[:, i, :] = data[sample_start:sample_start+length, :]
   return epochs
 

@@ -85,6 +85,40 @@ class TestProcessingModules(absltest.TestCase):
     self.assertAlmostEqual(low_cutoff, 1000, delta=1)
     self.assertAlmostEqual(high_cutoff, 2000, delta=1)
 
+  def test_remove_offset(self):
+    num_samples = 10
+    num_channels = 3
+    d = np.random.randn(num_samples, num_channels)
+    d = abr.remove_offset(d)
+    # Make sure mean of each column is amost zero.
+    self.assertLess(np.max(np.abs(np.mean(d, axis=0))), 1e-6)
                          
+  def test_re_reference(self):
+    d = np.array([[1, 2], [3, 4]])
+
+    # Reference is channel 1
+    n = abr.rereference(d, 1)
+    np.testing.assert_almost_equal(n, np.array([[-1, 0], [-1, 0]]))
+                                   
+    # Reference is mean across channels
+    n = abr.rereference(d, None)
+    np.testing.assert_almost_equal(n, np.array([[-0.5, 0.5], [-0.5, 0.5]]))
+
+  def test_extract_epochs(self):
+    d = np.array([[1, 2],
+                  [3, 4],
+                  [5, 6],
+                  [7, 8]])
+    n = abr.extract_epochs(d, [0, 2], 2)
+    np.testing.assert_almost_equal(n, np.array([[[1, 2], 
+                                                 [5, 6]], 
+                                                [[3, 4],
+                                                 [7, 8]]]))
+    n = abr.extract_epochs(d, 2, 2)
+    np.testing.assert_almost_equal(n, np.array([[[1, 2], 
+                                                 [5, 6]], 
+                                                [[3, 4],
+                                                 [7, 8]]]))
+
 if __name__=="__main__": 
   absltest.main()
