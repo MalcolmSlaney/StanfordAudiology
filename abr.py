@@ -28,7 +28,7 @@ You might also want to do
 
 data_folder = '/content/drive/MyDrive/Research/ABR Analysis Project/Bidelman Data/'
 
-
+# See this colab: https://colab.research.google.com/drive/17ACFXE1knv_r5M1lWU9bGFApaDqL1pwu#scrollTo=L8bX1VE4mzPO
 def create_abr_audio(fs = 16000, duration_minutes=10):
   """Generate the bipolar ABR audio.
   Return the audio waveform and its sampling frequency.
