@@ -29,6 +29,22 @@ You might also want to do
 data_folder = '/content/drive/MyDrive/Research/ABR Analysis Project/Bidelman Data/'
 
 
+def create_abr_audio(fs = 16000, duration_minutes=10):
+  """Generate the bipolar ABR audio.
+  Return the audio waveform and its sampling frequency.
+  """
+  total_len = int(fs * duration_minutes * 60)  # in samples
+
+  first_step = 390 # In samples
+  
+  s = np.zeros(total_len)
+  s[0:total_len:2*first_step] = 1
+  s[first_step:total_len:2*first_step] = -1
+
+  s *= 32000
+  return s, fs
+
+
 def extract_abr(subject, period, run, bandpass_lo_freq=90, 
                 bandpass_high_freq=2000, print_info=False,
                 data_folder=data_folder):
