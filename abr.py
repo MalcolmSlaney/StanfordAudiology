@@ -179,7 +179,7 @@ def remove_offset(abr_data: np.ndarray) -> np.ndarray:
   return filtered_data
 
 
-def rereference(eeg: np.ndarray, channel: Optional[int]) -> np.ndarray:
+def rereference(eeg: np.ndarray, channel: Optional[int] = None) -> np.ndarray:
   """Re reference the EEG data, by using a new *ground* signal.  This reference
   can either be a single channel (the ground) or the mean of all the channels.
   
@@ -216,8 +216,10 @@ def extract_epochs(data: np.ndarray,
   if isinstance(locs, int):
     locs = list(range(0, num_samples, locs))
   num_epochs = len(locs)
+  length = int(length)
   epochs = np.zeros((length, num_epochs, num_channels), np.float32)
   for i, sample_start in enumerate(locs):
+    sample_start = int(sample_start)
     if sample_start+length <= num_samples:
       epochs[:, i, :] = data[sample_start:sample_start+length, :]
   return epochs
