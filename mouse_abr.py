@@ -354,6 +354,101 @@ def load_exp_dir(exp_dir: str) -> List[MouseExp]:
   else:
     print(f'Could not find pickled data in {pickle_file}')
 
+###############  Cache all the Mouse CSV files ###########################
+
+mouse_data_pickle_name = 'mouse_exp.pkl'
+mouse_summary_pickle_name = 'mouse_summary.pkl'
+mouse_dprime_pickle_name = 'mouse_dprime.pkl'
+
+def load_cached_mouse_data(d: str) -> List[MouseExp]:
+  pickle_file = os.path.join(d, mouse_data_pickle_name)
+  if os.path.exists(pickle_file):
+    with open(pickle_file, 'r') as f:
+        all_trials = jsonpickle.decode(f.read())
+        return all_trials
+  return None
+
+def cache_mouse_data(d: str, load_data: bool = False):
+  """
+  Cache the CSV files in one of George's mouse recording folders.
+  Check first to see if we have the cache file.
+  If we have it and load_data is true return it.
+  If the cache file is missing, parse all the CSV files and create
+  a new cache file.
+
+  Args:
+    exp_dir: Which data directory to read and cache.
+    load_data: Whether to return the cached data if it is there.
+
+  Returns:
+    A list of MouseExp structures.
+  """
+  pickle_file = os.path.join(d, mouse_data_pickle_name)
+  if os.path.exists(pickle_file):
+    if load_data:
+      with open(pickle_file, 'r') as f:
+        all_trials = jsonpickle.decode(f.read())
+        return all_trials
+    print(f'{d} exists. Skipping')
+    return None
+  try:
+    print(f'Reading {d}')
+    all_trials = read_all_mouse_dir(d, debug=True)
+  except Exception as e:
+    print(f'Could not read {d} because of {e}')
+    print(' Skipping')
+    return None
+  with open(pickle_file, 'w') as f:
+    f.write(jsonpickle.encode(all_trials))
+    print(f' Found {len(all_trials)} experiments')
+  return all_trials
+
+def cache_mouse_summary(directory: str, all_trials):
+  summaries = []
+  for t in all_trials:
+    t.single_trials = None
+    summaries.append(t)
+  pickle_file = os.path.join(directory, mouse_summary_pickle_name)
+  with open(pickle_file, 'w') as f:
+    f.write(jsonpickle.encode(summaries))
+  return summaries
+
+def read_mouse_summary(d):
+  pickle_file = os.path.join(d, mouse_summary_pickle_name)
+  if os.path.exists(pickle_file):
+    with open(pickle_file, 'r') as f:
+      all_trials = jsonpickle.decode(f.read())
+      return all_trials
+  return None
+
+def cache_all_dirs(all_exp_dirs: List[str],
+                   return_results: bool = False):
+  """
+  Read all of George's ABR directories, parse the CSV files, and store the lists
+  of MouseExp structures in a pickle file.
+  This routine walks all the directories in the input list.
+
+  Args:
+    all_exp_dirs: Where to find all the experimental data.
+  """
+  all_summaries = []
+  for d in all_exp_dirs:
+    print(f'Caching {d}')
+    try:
+      summary = read_mouse_summary(d)
+      if summary is None:
+        all_trials = cache_mouse_data(d, load_data=True)
+        if all_trials is None:
+          continue
+        summary = cache_mouse_summary(d, all_trials)
+      if return_results:
+        all_summaries.append(summary)
+    except Exception as e:
+      print(f'Could not read {d} because of {e}')
+      print(' Skipping')
+      continue
+  return all_summaries
+
 
 def cache_all_dprimes(all_exp_dirs: List[str]) -> List:
   all_dprimes = {}
