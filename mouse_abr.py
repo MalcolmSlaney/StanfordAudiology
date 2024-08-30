@@ -328,7 +328,7 @@ def plot_dprimes(dprimes: np.ndarray, all_exp_freqs: List[float],
 def find_all_mouse_data(mouse_data_dir: str) -> List[str]:
   all_exp_dirs = [x[0] for x in os.walk(mouse_data_dir)
                   if 'analyze' not in x[0] and 'bad' not in x[0] and
-                    'traces' not in x[0] and '_b' in x[0]]
+                    'traces' not in x[0]]
   return all_exp_dirs
 
 # all_exp_dirs = find_all_mouse_data()
@@ -395,7 +395,7 @@ def cache_mouse_data(d: str, load_data: bool = False):
     print(f'Reading {d}')
     all_trials = read_all_mouse_dir(d, debug=True)
   except Exception as e:
-    print(f'Could not read {d} because of {e}')
+    print(f'Could not read {d} because of {repr(e)}')
     print(' Skipping')
     return None
   with open(pickle_file, 'w') as f:
