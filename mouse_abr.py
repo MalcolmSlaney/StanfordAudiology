@@ -166,7 +166,13 @@ def find_noise_exp(all_exps: List[MouseExp],
 
 
 # Maybe move to abr.py
-def preprocess_mouse_data(data: np.ndarray) -> np.ndarray:
+def preprocess_mouse_data(data: np.ndarray,
+                          remove_dc: bool = True,
+                          remove_artifacts: bool = True,
+                          bandpass_filter: bool = False,
+                          low_filter: float = 0*200,
+                          high_filter: float = 1000,
+                          mouse_sample_rate: float = 24414) -> np.ndarray:
   """
   Preprocess the mouse data, removing the DC offset, rejecting artifacts, and
   applying a bandpass filter.
@@ -178,10 +184,16 @@ def preprocess_mouse_data(data: np.ndarray) -> np.ndarray:
   Returns:
     A matrix of shape num_samples x num_trials, transposed from the original.
   """
-  data = remove_offset(data.T)  # Now data is time x num_trials
-  data = reject_artifacts(data)
-  #Bidelman 90-2000?
-  data = butterworth_filter(data, lowcut=200, highcut=1000, fs=mouse_sample_rate)
+  if remove_dc:
+    data = remove_offset(data.T)  # Now data is time x num_trials
+  else:
+    data = data.T
+  if remove_artifacts:
+    data = reject_artifacts(data)
+  if bandpass_filter:
+    #Bidelman used 90-2000?
+    data = butterworth_filter(data, lowcut=low_filter, highcut=high_filter, 
+                              fs=mouse_sample_rate)
   return data
 
 
@@ -229,7 +241,7 @@ def calculate_dprime(data: np.ndarray,
   h2_response = np.sum(h2, axis=0) # Sum response over time
   dprime = (np.std(h1_response) - np.std(h2_response)) / np.sqrt(np.std(h1_response)*np.std(h2_response))
   if debug:
-    counts, bins = np.histogram(h1_response)
+    counts, bins = np.histogram(h1_response, bins=40)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='signal_trial')
     counts, bins = np.histogram(h2_response)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
@@ -313,8 +325,8 @@ def plot_dprimes(dprimes: np.ndarray, all_exp_freqs: List[float],
 
 
 # Look for all the directories that seem to contain George's mouse data.
-def find_all_mouse_data():
-  all_exp_dirs = [x[0] for x in os.walk(GeorgeMouseDataDir)
+def find_all_mouse_data(mouse_data_dir: str) -> List[str]:
+  all_exp_dirs = [x[0] for x in os.walk(mouse_data_dir)
                   if 'analyze' not in x[0] and 'bad' not in x[0] and
                     'traces' not in x[0] and '_b' in x[0]]
   return all_exp_dirs
@@ -341,102 +353,6 @@ def load_exp_dir(exp_dir: str) -> List[MouseExp]:
       return all_trials
   else:
     print(f'Could not find pickled data in {pickle_file}')
-
-
-mouse_data_pickle_name = 'mouse_exp.pkl'
-mouse_summary_pickle_name = 'mouse_summary.pkl'
-mouse_dprime_pickle_name = 'mouse_dprime.pkl'
-
-def load_cached_mouse_data(d: str) -> List[MouseExp]:
-  pickle_file = os.path.join(d, mouse_data_pickle_name)
-  if os.path.exists(pickle_file):
-    with open(pickle_file, 'r') as f:
-        all_trials = jsonpickle.decode(f.read())
-        return all_trials
-  return None
-
-def cache_mouse_data(d: str, load_data:bool = False):
-  """
-  Cache the CSV files in one of George's mouse recording folders.
-  Check first to see if we have the cache file.
-  If we have it and load_data is true return it.
-  If the cache file is missing, parse all the CSV files and create
-  a new cache file.
-
-  Args:
-    exp_dir: Which data directory to read and cache.
-    load_data: Whether to return the cached data if it is there.
-
-  Returns:
-    A list of MouseExp structures.
-  """
-  pickle_file = os.path.join(d, mouse_data_pickle_name)
-  if os.path.exists(pickle_file):
-    if load_data:
-      with open(pickle_file, 'r') as f:
-        all_trials = jsonpickle.decode(f.read())
-        return all_trials
-    print(f'{d} exists. Skipping')
-    return None
-  try:
-    print(f'Reading {d}')
-    all_trials = read_all_mouse_dir(d, debug=True)
-  except Exception as e:
-    print(f'Could not read {d} because of {e}')
-    print(' Skipping')
-    return None
-  with open(pickle_file, 'w') as f:
-    f.write(jsonpickle.encode(all_trials))
-    print(f' Found {len(all_trials)} experiments')
-  return all_trials
-
-def cache_mouse_summary(directory: str, all_trials):
-  summaries = []
-  for t in all_trials:
-    t.single_trials = None
-    summaries.append(t)
-  pickle_file = os.path.join(directory, mouse_summary_pickle_name)
-  with open(pickle_file, 'w') as f:
-    f.write(jsonpickle.encode(summaries))
-  return summaries
-
-def read_mouse_summary(d):
-  pickle_file = os.path.join(d, mouse_summary_pickle_name)
-  if os.path.exists(pickle_file):
-    with open(pickle_file, 'r') as f:
-      all_trials = jsonpickle.decode(f.read())
-      return all_trials
-  return None
-
-def cache_all_dirs(all_exp_dirs: List[str], force_calc: bool = False,
-                   return_results: bool = False):
-  """
-  Read all of George's ABR directories, parse the CSV files, and store the lists
-  of MouseExp structures in a pickle file.
-  This routine walks all the directories in the input list.
-
-  Args:
-    all_exp_dirs: Where to find all the experimental data.
-  """
-  all_summaries = []
-  for d in all_exp_dirs:
-    print(f'Caching {d}')
-    try:
-      summary = None
-      if not force_calc:
-        summary = read_mouse_summary(d)
-      if summary is None:
-        all_trials = cache_mouse_data(d, load_data=True)
-        if all_trials is None:
-          continue
-        summary = cache_mouse_summary(d, all_trials)
-      if return_results:
-        all_summaries.append(summary)
-    except Exception as e:
-      print(f'Could not read {d} because of {e}')
-      print(' Skipping')
-      continue
-  return all_summaries
 
 
 def cache_all_dprimes(all_exp_dirs: List[str]) -> List:
