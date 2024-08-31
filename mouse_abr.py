@@ -131,16 +131,16 @@ def find_exp(all_exps: List[MouseExp],
   Returns:
     A list of MouseExp's with the desired frequency and level.
   """
-  good = []
+  good_ones = []
   for exp in all_exps:
-    if freq and freq != exp.freq:
+    if freq  is not None and freq != exp.freq:
         continue
-    if level and level != exp.level:
+    if level is not None and level != exp.level:
         continue
-    if channel and channel != exp.channel:
+    if channel  is not None and channel != exp.channel:
         continue
-    good.append(exp)
-  return good
+    good_ones.append(exp)
+  return good_ones
 
 
 def find_noise_exp(all_exps: List[MouseExp],
@@ -164,6 +164,7 @@ def find_noise_exp(all_exps: List[MouseExp],
   i = np.argmin(levels)
   return exps[i]
 
+################### d' calculations and caching ##################
 
 # Maybe move to abr.py
 def preprocess_mouse_data(data: np.ndarray,
@@ -213,6 +214,7 @@ def shuffle_data(data: np.ndarray) -> np.ndarray:
   rng.shuffle(data, axis=0) # Shuffle in time
   return data
 
+
 def calculate_dprime(data: np.ndarray,
                      noise_data: Optional[np.ndarray] = None,
                      debug=False) -> float:
@@ -239,14 +241,19 @@ def calculate_dprime(data: np.ndarray,
   h1_response = np.sum(h1, axis=0) # Sum response over time
   h2 = model * shuffled_data
   h2_response = np.sum(h2, axis=0) # Sum response over time
-  dprime = (np.std(h1_response) - np.std(h2_response)) / np.sqrt(np.std(h1_response)*np.std(h2_response))
+  dprime = (np.mean(h1_response) - np.mean(h2_response)) / np.sqrt(np.std(h1_response)*np.std(h2_response))
   if debug:
     counts, bins = np.histogram(h1_response, bins=40)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='signal_trial')
     counts, bins = np.histogram(h2_response)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
     plt.legend()
-    plt.title('Histrogam of covariance of channel 2 (with and without signal)')
+    plt.title('Histogram of covariance of channel 2')
+    a = plt.axis()
+    plt.text(a[0], a[2], 
+             f' H1: {np.mean(h1_response):4.3G} +/- {np.std(h1_response):4.3G}\n'
+             f' H2: {np.mean(h2_response):4.3G} +/-{np.std(h2_response):4.3G}\n'
+             f' d\'={dprime:4.3G}\n\n\n')
   return dprime
 
 
@@ -256,7 +263,7 @@ def calculate_all_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
                                                              List[int]]:
   """
   Calculate the d-prime for all the experiments.  Preprocess each experiment
-  uisng the preprocess_mouse_data function.  The calculate the d' for each
+  using the preprocess_mouse_data function.  The calculate the d' for each
   set of experiments with the same frequency and level.
 
   Args:
@@ -271,30 +278,38 @@ def calculate_all_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
   all_exp_freqs = sorted(list(set([exp.freq for exp in all_exps])))
   all_exp_channels = sorted(list(set([exp.channel for exp in all_exps])))
 
+  plot_num = 1
   dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
                              len(all_exp_channels)))
-  for i, freqs in enumerate(all_exp_freqs):
+  for i, freq in enumerate(all_exp_freqs):
     for k, channel in enumerate([1, 2]):
       # Find the noisy data for this combination of frequency and channel
-      noise_exp = find_noise_exp(all_exps, freq=freqs, channel=channel)
+      noise_exp = find_noise_exp(all_exps, freq=freq, channel=channel)
       if noise_exp is None:
-        print(f'Found no noise data for freq={freqs}, channel={channel}')
+        print(f'Found no noise data for freq={freq}, channel={channel}')
         continue
+      
       noise_data = preprocess_mouse_data(noise_exp.single_trials)
 
-      for j, levels in enumerate(all_exp_levels):
-        exps = find_exp(all_exps, freq=freqs, level=levels, channel=channel)
+      for j, level in enumerate(all_exp_levels):
+        exps = find_exp(all_exps, freq=freq, level=level, channel=channel)
         if len(exps) > 1:
           #print(f'Found too many examples for freq={freqs}, level={levels}, '
           #      f'channel={channel}: {len(exps)}')
           pass
         elif len(exps) == 0:
-          print(f'Found ZERO examples for freq={freqs}, level={levels}, '
+          print(f'Found ZERO examples for freq={freq}, level={level}, '
                 f'channel={channel}: {len(exps)}')
+          continue
         signal_data = preprocess_mouse_data(exps[0].single_trials)
-        dprimes[i, j, k] = calculate_dprime(signal_data, noise_data)
+        debug = channel==2 and freq==16000 and level in [0.0, 30.0, 60.0, 90.0]
+        if debug:
+          plt.subplot(2, 2, plot_num)
+          plot_num += 1
+        dprimes[i, j, k] = calculate_dprime(signal_data, noise_data, debug)
+        if debug:
+          plt.title(f'freq={int(freq)}, level={int(level)}, channel={int(channel)}')
   return dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
-
 
 def plot_dprimes(dprimes: np.ndarray, all_exp_freqs: List[float],
                  all_exp_levels: List[float], all_exp_channels: List[int]):
