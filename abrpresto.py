@@ -158,22 +158,25 @@ def compute_all_dprimes(all_mice, all_exp_dprimes = {}):
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('basedir',
-                    'drive/Shareddrives/StanfordAudiology/ABRPresto/ABRpresto data',
+                    'drive/Shareddrives/StanfordAudiology/ABRPresto/',
                     'Base directory to find the ABRPresto mouse data')
+flags.DEFINE_string('json', 'all_exp_dprimes.json', 
+                    'Where to read and store the results cache file')
 
 def main():
-  one_exp = glob.glob(os.path.join(FLAGS.basedir, '*350*timepoint0*'))[0]
+  one_exp = glob.glob(os.path.join(FLAGS.basedir, 'ABRpresto data', 
+                                   '*350*timepoint0*'))[0]
   all_mice = glob.glob(os.path.join(basedir, 'Mouse*abr*'))
 
   all_exp_dprimes = {}
 
-  with open('drive/Shareddrives/StanfordAudiology/ABRPresto/all_exp_dprimes.json', 'r') as f:
+  with open(os.path.join(FLAGS.basedir, 'all_exp_dprimes.json'), 'r') as f:
     all_exp_dprimes = json.load(f)
   print(f'Loaded {len(all_exp_dprimes)} mice experiments')
 
   all_exp_dprimes = compute_all_dprimes(all_mice, all_exp_dprimes)
 
-  with open('drive/Shareddrives/StanfordAudiology/ABRPresto/all_exp_dprimes.json', 'w') as f:
+  with open(os.path.join(FLAGS.basedir, FLAGS.json), 'w') as f:
     json.dump(all_exp_dprimes, f)
 
 
