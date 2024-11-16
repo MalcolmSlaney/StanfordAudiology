@@ -160,10 +160,10 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('basedir',
                     'drive/Shareddrives/StanfordAudiology/ABRPresto/',
                     'Base directory to find the ABRPresto mouse data')
-flags.DEFINE_string('json', 'all_exp_dprimes2.json', 
+flags.DEFINE_string('json', 'all_exp_dprimes.json', 
                     'Where to read and store the results cache file')
 
-def main():
+def main(_):
   one_exp = glob.glob(os.path.join(FLAGS.basedir, 'ABRpresto data', 
                                    '*350*timepoint0*'))[0]
   all_mice = glob.glob(os.path.join(basedir, 'Mouse*abr*'))
