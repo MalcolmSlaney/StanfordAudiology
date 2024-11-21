@@ -15,7 +15,7 @@ from scipy.stats import linregress
 
 from abr import *
 
-from typing import List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Union, Tuple
 
 from absl import app
 from absl import flags
@@ -495,14 +495,17 @@ def summarize_all_dprimes(all_exp_dirs: List[str]):
       print(f'  Could not load mouse data for {d} because of {e}')
 
 
-def load_dprime_data():
-  pickle_file = os.path.join(GeorgeMouseDataDir, 'all_dprimes.pkl')
+def load_dprime_data(data_dir: str) -> Dict[str, Tuple[np.ndarray,  # d' data
+                                                       List[float], # freqs
+                                                       List[float], # levels
+                                                       List[int]]]: # Channels
+  pickle_file = os.path.join(data_dir, 'all_dprimes.pkl')
   with open(pickle_file, 'r') as f:
-    all_dprimes = jsonpickle.decode( f.read())
-  return all_dprimes
+    return jsonpickle.decode( f.read())
+
 
 def summarize_dprime_data(all_dprimes):
-  for k in all_primes:
+  for k in all_dprimes:
     dprimes, all_exp_freqs, all_exp_levels, all_exp_channels = all_dprimes[k]
     print(f'{dprimes.shape}: {k}')
 
