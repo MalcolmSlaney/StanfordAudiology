@@ -148,8 +148,8 @@ def compute_all_dprimes(all_mice, all_exp_dprimes = {}):
     plt.title(one_exp.replace(basedir + '/', ''))
     num_computed += 1
     if num_computed % 50 == 0:
-      print(f'Saving {len(all_exp_dprimes)} records')
-      with open('drive/Shareddrives/StanfordAudiology/ABRPresto/all_exp_dprimes.json', 'w') as f:
+      print(f'Saving {len(all_exp_dprimes)} records to {FLAGS.json}')
+      with open(os.path.join(FLAGS.basedir, FLAGS.json), 'w') as f:
         json.dump(all_exp_dprimes, f)
   print('all done')
   return all_exp_dprimes
@@ -170,7 +170,7 @@ def main(_):
 
   all_exp_dprimes = {}
 
-  with open(os.path.join(FLAGS.basedir, 'all_exp_dprimes.json'), 'r') as f:
+  with open(os.path.join(FLAGS.basedir, FLAGS.json), 'r') as f:
     all_exp_dprimes = json.load(f)
   print(f'Loaded {len(all_exp_dprimes)} mice experiments')
 
