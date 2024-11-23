@@ -84,7 +84,7 @@ def read_mouse_exp(filename: str) -> MouseExp:
         all_data_rows.append(row_vals)
 
   exp = MouseExp(filename=filename,
-                 basename= os.path.basename(filename)
+                 basename=os.path.basename(filename),
                  sgi=int(header['sgi']),
                  channel=int(header['channel']),
                  freq=float(header['Freq(Hz)']),
