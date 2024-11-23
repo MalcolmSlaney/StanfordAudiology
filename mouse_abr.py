@@ -509,7 +509,10 @@ def cache_waveform_data(d: str,
   if load_data:
     with open(pickle_file, 'r') as f:
       all_trials = jsonpickle.decode(f.read())
-      print(f'  Loaded {len(all_trials)} waveforms from {pickle_file}.')
+      if all_trials:
+        print(f'  Loaded {len(all_trials)} waveforms from {pickle_file}.')
+      else:
+        print(f'  Found empty pickle file in {pickle_file}')
   return all_trials
 
 def cache_mouse_summary(directory: str, 
