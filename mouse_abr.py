@@ -498,17 +498,18 @@ def cache_waveform_data(d: str,
   pickle_file = os.path.join(d, waveform_pickle_name)
   if not os.path.exists(pickle_file):
     try:
-      print(f' Reading mouse waveforms {d}')
+      print(f'  Reading mouse waveforms {d}')
       all_trials = read_all_mouse_dir(d, debug=True)
       with open(pickle_file, 'w') as f:
         f.write(jsonpickle.encode(all_trials))
-        print(f' Cached {len(all_trials)} experiments')
+        print(f'  Cached {len(all_trials)} experiments')
     except Exception as e:
-      print(f' **** Could not read {d} because of {repr(e)}. Skipping')
+      print(f'  **** Could not read {d} because of {repr(e)}. Skipping')
       return None
   if load_data:
     with open(pickle_file, 'r') as f:
       all_trials = jsonpickle.decode(f.read())
+      print(f'  Loaded {len(all_trials)} waveforms from {pickle_file}.')
   return all_trials
 
 def cache_mouse_summary(directory: str, 
@@ -630,7 +631,7 @@ def summarize_dprime_data(all_dprimes):
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('basedir',
-                    'drive/Shareddrives/StanfordAudiology/ABRPresto/',
+                    'drive/Shareddrives/StanfordAudiology/GeorgeMouseABR/CAP_ABR',
                     'Base directory to find the ABRPresto mouse data')
 flags.DEFINE_string('waveforms_cache', 'mouse_exp.pkl',
                     'Where to cache all the waveforms in this directory')
@@ -650,7 +651,7 @@ def main(_):
         cache_dprime_data(dir, dprimes, FLAGS.dprime_cache)
         all_dprimes.update(dprimes)
       else:
-        print(f' No waveform data to process for dprimes.')
+        print(f'  No waveform data to process for dprimes.')
 
 if __name__ == '__main__':
   app.run(main)
