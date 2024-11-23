@@ -113,7 +113,7 @@ def read_all_mouse_dir(expdir: str, debug=False) -> List[MouseExp]:
   all_exps = []
   for f in all_exp_files:
     if debug:
-      print(f'   Reading {f}')
+      print(f'    Reading {f}')
     exp = read_mouse_exp(os.path.join(expdir, f))
     all_exps.append(exp)
   return all_exps
@@ -498,7 +498,7 @@ def cache_waveform_data(d: str,
   pickle_file = os.path.join(d, waveform_pickle_name)
   if not os.path.exists(pickle_file):
     try:
-      print(f'  Reading mouse waveforms {d}')
+      print(f'  Reading mouse waveforms from {d}')
       all_trials = read_all_mouse_dir(d, debug=True)
       with open(pickle_file, 'w') as f:
         f.write(jsonpickle.encode(all_trials))
