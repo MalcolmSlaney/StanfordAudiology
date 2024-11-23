@@ -638,7 +638,7 @@ flags.DEFINE_string('basedir',
                     'Base directory to find the ABRPresto mouse data')
 flags.DEFINE_string('waveforms_cache', 'mouse_exp.pkl',
                     'Where to cache all the waveforms in this directory')
-flags.DEFINE_string('dprime_cache', 'mouse_dprimes.pkl',
+flags.DEFINE_string('dprimes_cache', 'mouse_dprimes.pkl',
                     'Where to cache the dprimes in this directory')
 flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 
@@ -647,8 +647,8 @@ def main(_):
   all_dprimes = {}
   for dir in all_mouse_dirs:
     if FLAGS.filter in dir:
-      waveform_cache = os.path.join(FLAGS.basedir, FLAGS.waveform_cache)
-      dprime_cache = os.path.join(FLAGS.basedir, FLAGS.dprime_cache)
+      waveform_cache = os.path.join(FLAGS.basedir, FLAGS.waveforms_cache)
+      dprime_cache = os.path.join(FLAGS.basedir, FLAGS.dprimes_cache)
       if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
           os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
         print(f'Skipping waveforms and dprimes in {dir}.')
@@ -657,7 +657,7 @@ def main(_):
       all_exps = cache_waveform_data(dir, FLAGS.waveforms_cache, True)
       if all_exps:
         dprimes = calculate_all_dprimes(all_exps)
-        cache_dprime_data(dir, dprimes, FLAGS.dprime_cache)
+        cache_dprime_data(dir, dprimes, FLAGS.dprimes_cache)
         all_dprimes.update(dprimes)
       else:
         print(f'  No waveform data to process for dprimes.')
