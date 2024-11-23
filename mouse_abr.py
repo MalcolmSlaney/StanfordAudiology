@@ -649,6 +649,8 @@ def main(_):
         dprimes = calculate_all_dprimes(all_exps)
         cache_dprime_data(dir, dprimes, FLAGS.dprime_cache)
         all_dprimes.update(dprimes)
+      else:
+        print(f' No waveform data to process for dprimes.')
 
 if __name__ == '__main__':
   app.run(main)
