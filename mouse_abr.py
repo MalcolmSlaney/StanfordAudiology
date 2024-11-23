@@ -649,9 +649,12 @@ def main(_):
     if FLAGS.filter in dir:
       waveform_cache = os.path.join(FLAGS.basedir, FLAGS.waveforms_cache)
       dprime_cache = os.path.join(FLAGS.basedir, FLAGS.dprimes_cache)
+      print(os.path.exists(waveform_cache), os.path.getsize(waveform_cache),
+            os.path.exists(dprime_cache), os.path.getsize(dprime_cache))
       if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
           os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
-        print(f'Skipping waveforms and dprimes in {dir}.')
+        print(f'Skipping waveforms and dprimes in {dir} because they are '
+              'already cached.')
         continue
       print(f'Processing waveforms in {dir}')
       all_exps = cache_waveform_data(dir, FLAGS.waveforms_cache, True)
