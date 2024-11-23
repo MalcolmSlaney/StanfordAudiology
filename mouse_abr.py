@@ -278,7 +278,7 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
     value is a list of MouseExps.
   """
   types = set([exp_type_from_name(exp.basename) for exp in all_exps])
-  exp_groups = []
+  exp_groups = {}
   for exp_type in types:
     this_exps = [exp for exp in all_exps 
                  if exp_type_from_name(exp.basename) == exp_type]
