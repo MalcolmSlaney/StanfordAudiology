@@ -45,11 +45,12 @@ class MouseExp:
     single_trials: ???
     paired_trials: ????
   """
-  filename: str
+  filename: str  # Full filename of the CSV mouse waveform data
+  basename: str  # Just the experiment description part of the filename
   freq: float # Hz
   level: float # dB
   channel: int # which electrode, probably 1 or 2
-  sgi: int
+  sgi: int # TDT Stimulus generation index (i.e. freq and level)
   description: str = ''
   single_trials: np.ndarray = None # num_trials x num_waveform_samples
   paired_trials: np.ndarray = None
@@ -83,18 +84,21 @@ def read_mouse_exp(filename: str) -> MouseExp:
         all_data_rows.append(row_vals)
 
   exp = MouseExp(filename=filename,
-                  sgi=int(header['sgi']),
-                  channel=int(header['channel']),
-                  freq=float(header['Freq(Hz)']),
-                  level=float(header['Level(dB)']),
-                  description=header['subject'],
-                  single_trials=np.array(all_data_rows)
-                  )
+                 basename= os.path.basename(filename)
+                 sgi=int(header['sgi']),
+                 channel=int(header['channel']),
+                 freq=float(header['Freq(Hz)']),
+                 level=float(header['Level(dB)']),
+                 description=header['subject'],
+                 single_trials=np.array(all_data_rows)
+                 )
   return exp
 
 def read_all_mouse_dir(expdir: str, debug=False) -> List[MouseExp]:
   """
-  Read in all the mouse experiments in the given directory.
+  Read in all the mouse experiments in the given directory. Each experiment
+  is stored in a single CSV file.  This routine reads all the csv files and 
+  returns a list of MouseExp's
 
   Args:
     expdir:  Where to find the experimental for this animal
@@ -256,15 +260,71 @@ def calculate_dprime(data: np.ndarray,
              f' d\'={dprime:4.3G}\n\n\n')
   return dprime
 
+def exp_type_from_name(name: str) -> str:
+  """Return the experiment type from a full pathname.  For example 
+    20230810_control2_post60-0-30-2-1
+  becomes control2_post60
+  """
+  return name.split('-', 1)[0].split('_', 1)[1]
 
-def calculate_all_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
-                                                             List[float],
-                                                             List[float],
-                                                             List[int]]:
+def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
+  """Group all the experiments in a directory, based on the experiment type.
+  The experiment type is the first part of the filename, after the date.
+  Args:
+    all_exps: A list of all the MouseExps (in a directory)
+    
+  Returns:
+    A dictionary of groups of MouseExps.  The key is the experiment type and the
+    value is a list of MouseExps.
+  """
+  types = set([exp_type_from_name(exp.basename) for exp in all_exps])
+  exp_groups = []
+  for exp_type in types:
+    this_exps = [exp for exp in all_exps 
+                 if exp_type_from_name(exp.basename) == exp_type]
+    exp_groups[exp_type] = this_exps
+  return exp_groups
+
+
+@dataclasses.dataclass
+class DPrime_Result(object):
+  dprimes: np.ndarray
+  freqs: List[float]
+  levels: List[float]
+  channels: List[int]
+
+
+def calculate_all_dprimes(all_exps) -> Dict[str, DPrime_Result]:
+  """Calculate the dprime for each type of experiment within this list of 
+  results.  Each result is for one experiment, at one frequency, level and 
+  channel. This code groups the experiments together that share the same type,
+  based on the second component of the file name, and then computes the
+  d' as a function of frequency, level and channel.
+
+  Arg:
+    all_exps: A list of MouseExps, containing the raw waveform data for each
+      condition
+
+  Returns:
+    A dictionary, keyed by experiment type, containing the dprime result.
+  """ 
+  all_groups = group_experiments(all_exps)
+  all_dprimes = {}
+  for t, exps in all_groups.items():
+    result = DPrime_Result(*calculate_dprimes(exps))
+    all_dprimes[t] = result
+  return all_dprimes
+
+
+def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
+                                                         List[float],
+                                                         List[float],
+                                                         List[int]]:
   """
   Calculate the d-prime for all the experiments.  Preprocess each experiment
-  using the preprocess_mouse_data function.  The calculate the d' for each
-  set of experiments with the same frequency and level.
+  using the preprocess_mouse_data function.  Then calculate the d' for each
+  set of experiments with the same frequency, level and channel.  Returns a
+  3d array index by frequency, level, and channel.
 
   Args:
     all_exps: a list containing experiments in MouseExp format, before
@@ -281,6 +341,7 @@ def calculate_all_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
   plot_num = 1
   dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
                              len(all_exp_channels)))
+  # Now loop through all the frequencies, channels, and levels.
   for i, freq in enumerate(all_exp_freqs):
     for k, channel in enumerate([1, 2]):
       # Find the noisy data for this combination of frequency and channel
@@ -311,6 +372,7 @@ def calculate_all_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
           plt.title(f'freq={int(freq)}, level={int(level)}, channel={int(channel)}')
   return dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
 
+
 def plot_dprimes(dprimes: np.ndarray, all_exp_freqs: List[float],
                  all_exp_levels: List[float], all_exp_channels: List[int]):
   """Create a plot summarizing the d' collected by the calculate_all_dprimes
@@ -339,14 +401,46 @@ def plot_dprimes(dprimes: np.ndarray, all_exp_freqs: List[float],
   plt.xlabel('Level (dB)');
 
 
-# Look for all the directories that seem to contain George's mouse data.
-def find_all_mouse_data(mouse_data_dir: str) -> List[str]:
+def cache_dprime_data(d: str, 
+                      dprimes: DPrime_Result,
+                      dprime_pickle_name: str, 
+                      load_data: bool = False):
+  """
+  Cache all the dprime data in one of George's mouse recording folders.
+  If we don't have the cache file, calculate the dprime data
+  a new cache file.  If return_data is true, return the dictionary of waveform
+  data, reading it back in if we didn't compute it here.
+
+  Args:
+    exp_dir: Which data directory to read and cache.
+    waveform_pickle_name: The name of the waveform cache file.
+    load_data: Whether to return the cached data if it is there.
+
+  Returns:
+    A list of MouseExp structures.
+  """
+  pickle_file = os.path.join(d, dprime_pickle_name)
+  with open(pickle_file, 'w') as f:
+    f.write(jsonpickle.encode(dprimes))
+    print(f' Cached data for {len(dprimes)} dprime experiments')
+
+
+def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
+  """Look for all the directories that seem to contain George's mouse data. Walk
+  the directory tree starting at the given directory, looking for all 
+  directories names that do not contain the following words: 
+    analyze, bad and traces
+
+  Args:
+    mouse_data_dir: where to start looking for George's mouse data
+  
+  Returns:
+    A list of file paths.
+  """
   all_exp_dirs = [x[0] for x in os.walk(mouse_data_dir)
                   if 'analyze' not in x[0] and 'bad' not in x[0] and
-                    'traces' not in x[0]]
+                     'traces' not in x[0]]
   return all_exp_dirs
-
-# all_exp_dirs = find_all_mouse_data()
 
 
 def load_exp_dir(exp_dir: str) -> List[MouseExp]:
@@ -383,62 +477,86 @@ def load_cached_mouse_data(d: str) -> List[MouseExp]:
         return all_trials
   return None
 
-def cache_mouse_data(d: str, load_data: bool = False):
+def cache_mouse_data(d: str, 
+                     waveform_pickle_name: str, 
+                     load_data: bool = False) -> Optional[Dict[str, MouseExp]]:
   """
-  Cache the CSV files in one of George's mouse recording folders.
-  Check first to see if we have the cache file.
-  If we have it and load_data is true return it.
-  If the cache file is missing, parse all the CSV files and create
-  a new cache file.
+  Cache all the CSV files in one of George's mouse recording folders.
+  If we don't have the cache file, parse all the CSV files and create
+  a new cache file.  If return_data is true, return the dictionary of waveform
+  data, reading it back in if we didn't compute it here.
 
   Args:
     exp_dir: Which data directory to read and cache.
+    waveform_pickle_name: The name of the waveform cache file.
     load_data: Whether to return the cached data if it is there.
 
   Returns:
     A list of MouseExp structures.
   """
-  pickle_file = os.path.join(d, mouse_data_pickle_name)
-  if os.path.exists(pickle_file):
-    if load_data:
-      with open(pickle_file, 'r') as f:
-        all_trials = jsonpickle.decode(f.read())
-        return all_trials
-    print(f'{d} exists. Skipping')
-    return None
-  try:
-    print(f'Reading {d}')
-    all_trials = read_all_mouse_dir(d, debug=True)
-  except Exception as e:
-    print(f'Could not read {d} because of {repr(e)}')
-    print(' Skipping')
-    return None
-  with open(pickle_file, 'w') as f:
-    f.write(jsonpickle.encode(all_trials))
-    print(f' Found {len(all_trials)} experiments')
+  pickle_file = os.path.join(d, waveform_pickle_name)
+  if not os.path.exists(pickle_file):
+    try:
+      print(f'Reading and caching {d}')
+      all_trials = read_all_mouse_dir(d, debug=True)
+      with open(pickle_file, 'w') as f:
+        f.write(jsonpickle.encode(all_trials))
+        print(f' Cached {len(all_trials)} experiments')
+    except Exception as e:
+      print(f'Could not read {d} because of {repr(e)}')
+      print(' Skipping')
+      return None
+  if load_data:
+    with open(pickle_file, 'r') as f:
+      all_trials = jsonpickle.decode(f.read())
   return all_trials
 
-def cache_mouse_summary(directory: str, all_trials):
+def cache_mouse_summary(directory: str, 
+                        all_trials: List[MouseExp]) -> List[MouseExp]:
+  """Remove the waveform data from each MouseExp in the directory and store
+  the experiment summary.  Most importantly, this contains the d' estimate.
+  Args:
+    directory: Where to store the summary in the global 
+        mouse_summary_pickle_name
+      file.
+    all_trials: The experimental data to store, a list of MouseExp
+  
+  Returns:
+    A list of mouse experiments, each one missing the waveform data.
+  """
   summaries = []
   for t in all_trials:
     t.single_trials = None
+    t.paried_trials = None
     summaries.append(t)
   pickle_file = os.path.join(directory, mouse_summary_pickle_name)
   with open(pickle_file, 'w') as f:
     f.write(jsonpickle.encode(summaries))
   return summaries
 
-def read_mouse_summary(d):
+def read_mouse_summary(d) -> List[MouseExp]:
+  """Read one mouse summary, containing the MouseExp data, minus the 
+  waveforms.
+  
+  Args:
+    d: directory to find the mouse experiment summary pickle file
+
+  Returns:
+    List of MouseExp's, all without their waveforms.
+  """
   pickle_file = os.path.join(d, mouse_summary_pickle_name)
   if os.path.exists(pickle_file):
     with open(pickle_file, 'r') as f:
-      all_trials = jsonpickle.decode(f.read())
-      return all_trials
+      return jsonpickle.decode(f.read())
   return None
 
-def cache_all_dirs(all_exp_dirs: List[str],
-                   return_results: bool = False):
+def load_or_cache_all_dirs(all_exp_dirs: List[str],
+                           return_results: bool = False):
   """
+  For each directory in the all_exp_dirs list, first check to see if there is a 
+  cached version of the data. If there is, load it.  Otherwise, read the CSV
+  file and create a new cache file. Reading CSV files is expensive, so the cache
+  files saves a lot of time.
   Read all of George's ABR directories, parse the CSV files, and store the lists
   of MouseExp structures in a pickle file.
   This routine walks all the directories in the input list.
@@ -465,7 +583,7 @@ def cache_all_dirs(all_exp_dirs: List[str],
   return all_summaries
 
 
-def cache_all_dprimes(all_exp_dirs: List[str]) -> List:
+def XXcalculate_all_dprimes(all_exp_dirs: List[str]) -> Dict[str, float]:
   all_dprimes = {}
 
   for d in all_exp_dirs:
@@ -509,10 +627,27 @@ def summarize_dprime_data(all_dprimes):
     dprimes, all_exp_freqs, all_exp_levels, all_exp_channels = all_dprimes[k]
     print(f'{dprimes.shape}: {k}')
 
-def main(argv):
-  all_dprimes = load_dprime_data()
-  summarize_dprime_data(all_dprimes)
 
+FLAGS = flags.FLAGS
+flags.DEFINE_string('basedir',
+                    'drive/Shareddrives/StanfordAudiology/ABRPresto/',
+                    'Base directory to find the ABRPresto mouse data')
+flags.DEFINE_string('waveforms_cache', 'mouse_exp.pkl',
+                    'Where to cache all the waveforms in this directory')
+flags.DEFINE_string('dprime_cache', 'mouse_dprimes.pkl',
+                    'Where to cache the dprimes in this directory')
+FLAGS.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
+
+def main(_):
+  all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
+  all_dprimes = {}
+  for dir in all_mouse_dirs:
+    if FLAGS.filter in dir:
+      all_exps = cache_mouse_data(dir, FLAGS.waveforms_cache, True)
+      if all_exps:
+        dprimes = calculate_all_dprimes(all_exps)
+        cache_dprime_data(dir, dprimes, FLAGS.dprime_cache)
+        all_dprimes.update(dprimes)
 
 if __name__ == '__main__':
   app.run(main)
