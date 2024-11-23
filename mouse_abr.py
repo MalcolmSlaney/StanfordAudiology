@@ -477,9 +477,10 @@ def load_cached_mouse_data(d: str) -> List[MouseExp]:
         return all_trials
   return None
 
-def cache_mouse_data(d: str, 
-                     waveform_pickle_name: str, 
-                     load_data: bool = False) -> Optional[Dict[str, MouseExp]]:
+def cache_waveform_data(d: str, 
+                        waveform_pickle_name: str, 
+                        load_data: bool = False) -> Optional[Dict[str, 
+                                                                  MouseExp]]:
   """
   Cache all the CSV files in one of George's mouse recording folders.
   If we don't have the cache file, parse all the CSV files and create
@@ -497,14 +498,13 @@ def cache_mouse_data(d: str,
   pickle_file = os.path.join(d, waveform_pickle_name)
   if not os.path.exists(pickle_file):
     try:
-      print(f'Reading and caching {d}')
+      print(f' Reading mouse waveforms {d}')
       all_trials = read_all_mouse_dir(d, debug=True)
       with open(pickle_file, 'w') as f:
         f.write(jsonpickle.encode(all_trials))
         print(f' Cached {len(all_trials)} experiments')
     except Exception as e:
-      print(f'Could not read {d} because of {repr(e)}')
-      print(' Skipping')
+      print(f' **** Could not read {d} because of {repr(e)}. Skipping')
       return None
   if load_data:
     with open(pickle_file, 'r') as f:
@@ -643,7 +643,8 @@ def main(_):
   all_dprimes = {}
   for dir in all_mouse_dirs:
     if FLAGS.filter in dir:
-      all_exps = cache_mouse_data(dir, FLAGS.waveforms_cache, True)
+      print(f'Caching waveforms in {dir}')
+      all_exps = cache_waveform_data(dir, FLAGS.waveforms_cache, True)
       if all_exps:
         dprimes = calculate_all_dprimes(all_exps)
         cache_dprime_data(dir, dprimes, FLAGS.dprime_cache)
