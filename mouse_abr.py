@@ -647,8 +647,8 @@ def main(_):
   all_dprimes = {}
   for dir in all_mouse_dirs:
     if FLAGS.filter in dir:
-      waveform_cache = os.path.join(FLAGS.basedir, FLAGS.waveforms_cache)
-      dprime_cache = os.path.join(FLAGS.basedir, FLAGS.dprimes_cache)
+      waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
+      dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
       print(os.path.exists(waveform_cache), os.path.getsize(waveform_cache),
             os.path.exists(dprime_cache), os.path.getsize(dprime_cache))
       if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
