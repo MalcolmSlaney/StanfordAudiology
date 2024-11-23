@@ -636,7 +636,7 @@ flags.DEFINE_string('waveforms_cache', 'mouse_exp.pkl',
                     'Where to cache all the waveforms in this directory')
 flags.DEFINE_string('dprime_cache', 'mouse_dprimes.pkl',
                     'Where to cache the dprimes in this directory')
-FLAGS.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
+flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 
 def main(_):
   all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
