@@ -422,7 +422,7 @@ def cache_dprime_data(d: str,
   pickle_file = os.path.join(d, dprime_pickle_name)
   with open(pickle_file, 'w') as f:
     f.write(jsonpickle.encode(dprimes))
-    print(f' Cached data for {len(dprimes)} dprime experiments')
+    print(f'  Cached data for {len(dprimes)} types of dprime experiments.')
 
 
 def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
@@ -647,7 +647,7 @@ def main(_):
   all_dprimes = {}
   for dir in all_mouse_dirs:
     if FLAGS.filter in dir:
-      print(f'Caching waveforms in {dir}')
+      print(f'Processing waveforms in {dir}')
       all_exps = cache_waveform_data(dir, FLAGS.waveforms_cache, True)
       if all_exps:
         dprimes = calculate_all_dprimes(all_exps)
