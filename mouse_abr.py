@@ -649,8 +649,6 @@ def main(_):
     if FLAGS.filter in dir:
       waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
       dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
-      print(os.path.exists(waveform_cache), os.path.getsize(waveform_cache),
-            os.path.exists(dprime_cache), os.path.getsize(dprime_cache))
       if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
           os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
         print(f'Skipping waveforms and dprimes in {dir} because they are '
