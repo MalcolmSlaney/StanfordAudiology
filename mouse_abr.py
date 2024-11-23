@@ -113,7 +113,7 @@ def read_all_mouse_dir(expdir: str, debug=False) -> List[MouseExp]:
   all_exps = []
   for f in all_exp_files:
     if debug:
-      print(f' Reading {f}')
+      print(f'   Reading {f}')
     exp = read_mouse_exp(os.path.join(expdir, f))
     all_exps.append(exp)
   return all_exps
@@ -647,6 +647,12 @@ def main(_):
   all_dprimes = {}
   for dir in all_mouse_dirs:
     if FLAGS.filter in dir:
+      waveform_cache = os.path.join(FLAGS.basedir, FLAGS.waveform_cache)
+      dprime_cache = os.path.join(FLAGS.basedir, FLAGS.dprime_cache)
+      if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
+          os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
+        print(f'Skipping waveforms and dprimes in {dir}.')
+        continue
       print(f'Processing waveforms in {dir}')
       all_exps = cache_waveform_data(dir, FLAGS.waveforms_cache, True)
       if all_exps:
