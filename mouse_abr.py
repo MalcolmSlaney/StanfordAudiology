@@ -26,9 +26,8 @@ import jsonpickle
 import jsonpickle.ext.numpy as jsonpickle_numpy
 jsonpickle_numpy.register_handlers()
 
-if os.path.exists('/content/gdrive/MyDrive/Sta nford Audiology'):
-  expdir = '/content/gdrive/MyDrive/Stanford Audiology/GeorgeMouseABRData/20230823_control1_pre-0-24-1-1'
 
+################### d' calculations and caching ##################
 
 @dataclasses.dataclass
 class MouseExp:
@@ -112,6 +111,8 @@ def read_all_mouse_dir(expdir: str, debug=False) -> List[MouseExp]:
 
   all_exps = []
   for f in all_exp_files:
+    if 'saline' in f:
+      continue
     if debug:
       print(f'    Reading {f}')
     exp = read_mouse_exp(os.path.join(expdir, f))
@@ -286,6 +287,7 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
   return exp_groups
 
 
+###############  Compute all the d-primes for our data #######################
 @dataclasses.dataclass
 class DPrime_Result(object):
   dprimes: np.ndarray
@@ -373,8 +375,7 @@ def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
   return dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
 
 
-def plot_dprimes(dprimes: np.ndarray, all_exp_freqs: List[float],
-                 all_exp_levels: List[float], all_exp_channels: List[int]):
+def plot_dprimes(dp: DPrime_Result):
   """Create a plot summarizing the d' collected by the calculate_all_dprimes
   routine above.  Show d' versus level, for each frequency and channel pair.
 
@@ -386,13 +387,13 @@ def plot_dprimes(dprimes: np.ndarray, all_exp_freqs: List[float],
   colors = prop_cycle.by_key()['color']
   plt.figure(figsize=(10, 8))
 
-  for i, freqs in enumerate(all_exp_freqs):
-    for k, channel in enumerate(all_exp_channels):
+  for i, freqs in enumerate(dp.all_exp_freqs):
+    for k, channel in enumerate(dp.all_exp_channels):
       if channel == 2:
         linestyle = '--'
       else:
         linestyle = '-'
-      plt.plot(all_exp_levels, dprimes[i, :, k],
+      plt.plot(dp.all_exp_levels, dp.dprimes[i, :, k],
               label=f'freq={freqs}, channel={channel}',
               linestyle=linestyle,
               color=colors[i])
@@ -425,6 +426,21 @@ def cache_dprime_data(d: str,
     print(f'  Cached data for {len(dprimes)} types of dprime experiments.')
 
 
+###############  Cache all the Mouse CSV files ###########################
+
+mouse_data_pickle_name = 'mouse_exp.pkl'
+mouse_summary_pickle_name = 'mouse_summary.pkl'
+mouse_dprime_pickle_name = 'mouse_dprime.pkl'
+
+def XXload_cached_mouse_data(d: str) -> List[MouseExp]:
+  pickle_file = os.path.join(d, mouse_data_pickle_name)
+  if os.path.exists(pickle_file):
+    with open(pickle_file, 'r') as f:
+        all_trials = jsonpickle.decode(f.read())
+        return all_trials
+  return None
+
+
 def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
   """Look for all the directories that seem to contain George's mouse data. Walk
   the directory tree starting at the given directory, looking for all 
@@ -443,7 +459,7 @@ def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
   return all_exp_dirs
 
 
-def load_exp_dir(exp_dir: str) -> List[MouseExp]:
+def XXload_exp_dir(exp_dir: str) -> List[MouseExp]:
   """
   Load all the experiments in the given directory.
   Still need to preprocess them,
@@ -463,19 +479,6 @@ def load_exp_dir(exp_dir: str) -> List[MouseExp]:
   else:
     print(f'Could not find pickled data in {pickle_file}')
 
-###############  Cache all the Mouse CSV files ###########################
-
-mouse_data_pickle_name = 'mouse_exp.pkl'
-mouse_summary_pickle_name = 'mouse_summary.pkl'
-mouse_dprime_pickle_name = 'mouse_dprime.pkl'
-
-def load_cached_mouse_data(d: str) -> List[MouseExp]:
-  pickle_file = os.path.join(d, mouse_data_pickle_name)
-  if os.path.exists(pickle_file):
-    with open(pickle_file, 'r') as f:
-        all_trials = jsonpickle.decode(f.read())
-        return all_trials
-  return None
 
 def cache_waveform_data(d: str, 
                         waveform_pickle_name: str, 
@@ -515,7 +518,7 @@ def cache_waveform_data(d: str,
         print(f'  Found empty pickle file in {pickle_file}')
   return all_trials
 
-def cache_mouse_summary(directory: str, 
+def XXcache_mouse_summary(directory: str, 
                         all_trials: List[MouseExp]) -> List[MouseExp]:
   """Remove the waveform data from each MouseExp in the directory and store
   the experiment summary.  Most importantly, this contains the d' estimate.
@@ -538,7 +541,7 @@ def cache_mouse_summary(directory: str,
     f.write(jsonpickle.encode(summaries))
   return summaries
 
-def read_mouse_summary(d) -> List[MouseExp]:
+def XXread_mouse_summary(d) -> List[MouseExp]:
   """Read one mouse summary, containing the MouseExp data, minus the 
   waveforms.
   
@@ -554,7 +557,7 @@ def read_mouse_summary(d) -> List[MouseExp]:
       return jsonpickle.decode(f.read())
   return None
 
-def load_or_cache_all_dirs(all_exp_dirs: List[str],
+def XXload_or_cache_all_dirs(all_exp_dirs: List[str],
                            return_results: bool = False):
   """
   For each directory in the all_exp_dirs list, first check to see if there is a 
@@ -587,19 +590,7 @@ def load_or_cache_all_dirs(all_exp_dirs: List[str],
   return all_summaries
 
 
-def XXcalculate_all_dprimes(all_exp_dirs: List[str]) -> Dict[str, float]:
-  all_dprimes = {}
-
-  for d in all_exp_dirs:
-    try:
-      print(f'Calculating dprime for {d}')
-      all_exps = load_cached_mouse_data(d)
-      all_dprimes[d] = calculate_all_dprimes(all_exps)
-    except Exception as e:
-      print(f'Could not calculate dprimes for {d} because of {e}')
-  return all_dprimes
-
-def summarize_all_dprimes(all_exp_dirs: List[str]):
+def XXsummarize_all_dprimes(all_exp_dirs: List[str]):
   for d in all_exp_dirs:
     try:
       print(f'Summarizing data in {d}')
@@ -617,7 +608,7 @@ def summarize_all_dprimes(all_exp_dirs: List[str]):
       print(f'  Could not load mouse data for {d} because of {e}')
 
 
-def load_dprime_data(data_dir: str) -> Dict[str, Tuple[np.ndarray,  # d' data
+def XXload_dprime_data(data_dir: str) -> Dict[str, Tuple[np.ndarray,  # d' data
                                                        List[float], # freqs
                                                        List[float], # levels
                                                        List[int]]]: # Channels
@@ -626,11 +617,13 @@ def load_dprime_data(data_dir: str) -> Dict[str, Tuple[np.ndarray,  # d' data
     return jsonpickle.decode( f.read())
 
 
-def summarize_dprime_data(all_dprimes):
+def XXsummarize_dprime_data(all_dprimes):
   for k in all_dprimes:
     dprimes, all_exp_freqs, all_exp_levels, all_exp_channels = all_dprimes[k]
     print(f'{dprimes.shape}: {k}')
 
+
+###############  Main program, so we can run this offline ######################
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('basedir',
