@@ -432,14 +432,6 @@ mouse_data_pickle_name = 'mouse_exp.pkl'
 mouse_summary_pickle_name = 'mouse_summary.pkl'
 mouse_dprime_pickle_name = 'mouse_dprime.pkl'
 
-def XXload_cached_mouse_data(d: str) -> List[MouseExp]:
-  pickle_file = os.path.join(d, mouse_data_pickle_name)
-  if os.path.exists(pickle_file):
-    with open(pickle_file, 'r') as f:
-        all_trials = jsonpickle.decode(f.read())
-        return all_trials
-  return None
-
 
 def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
   """Look for all the directories that seem to contain George's mouse data. Walk
@@ -457,27 +449,6 @@ def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
                   if 'analyze' not in x[0] and 'bad' not in x[0] and
                      'traces' not in x[0]]
   return all_exp_dirs
-
-
-def XXload_exp_dir(exp_dir: str) -> List[MouseExp]:
-  """
-  Load all the experiments in the given directory.
-  Still need to preprocess them,
-
-  Args:
-    exp_dir:
-
-  Returns:
-    A list of MouseExp structures.
-  """
-  pickle_file = os.path.join(exp_dir, 'mouse_exp.pkl')
-  if os.path.exists(pickle_file):
-    with open(pickle_file, 'r') as f:
-      all_trials = jsonpickle.decode(f.read())
-      print(f'  Found {len(all_trials)} experiments')
-      return all_trials
-  else:
-    print(f'Could not find pickled data in {pickle_file}')
 
 
 def cache_waveform_data(d: str, 
@@ -518,83 +489,13 @@ def cache_waveform_data(d: str,
         print(f'  Found empty pickle file in {pickle_file}')
   return all_trials
 
-def XXcache_mouse_summary(directory: str, 
-                        all_trials: List[MouseExp]) -> List[MouseExp]:
-  """Remove the waveform data from each MouseExp in the directory and store
-  the experiment summary.  Most importantly, this contains the d' estimate.
-  Args:
-    directory: Where to store the summary in the global 
-        mouse_summary_pickle_name
-      file.
-    all_trials: The experimental data to store, a list of MouseExp
-  
-  Returns:
-    A list of mouse experiments, each one missing the waveform data.
-  """
-  summaries = []
-  for t in all_trials:
-    t.single_trials = None
-    t.paried_trials = None
-    summaries.append(t)
-  pickle_file = os.path.join(directory, mouse_summary_pickle_name)
-  with open(pickle_file, 'w') as f:
-    f.write(jsonpickle.encode(summaries))
-  return summaries
 
-def XXread_mouse_summary(d) -> List[MouseExp]:
-  """Read one mouse summary, containing the MouseExp data, minus the 
-  waveforms.
-  
-  Args:
-    d: directory to find the mouse experiment summary pickle file
-
-  Returns:
-    List of MouseExp's, all without their waveforms.
-  """
-  pickle_file = os.path.join(d, mouse_summary_pickle_name)
-  if os.path.exists(pickle_file):
-    with open(pickle_file, 'r') as f:
-      return jsonpickle.decode(f.read())
-  return None
-
-def XXload_or_cache_all_dirs(all_exp_dirs: List[str],
-                           return_results: bool = False):
-  """
-  For each directory in the all_exp_dirs list, first check to see if there is a 
-  cached version of the data. If there is, load it.  Otherwise, read the CSV
-  file and create a new cache file. Reading CSV files is expensive, so the cache
-  files saves a lot of time.
-  Read all of George's ABR directories, parse the CSV files, and store the lists
-  of MouseExp structures in a pickle file.
-  This routine walks all the directories in the input list.
-
-  Args:
-    all_exp_dirs: Where to find all the experimental data.
-  """
-  all_summaries = []
-  for d in all_exp_dirs:
-    print(f'Caching {d}')
-    try:
-      summary = read_mouse_summary(d)
-      if summary is None:
-        all_trials = cache_mouse_data(d, load_data=True)
-        if all_trials is None:
-          continue
-        summary = cache_mouse_summary(d, all_trials)
-      if return_results:
-        all_summaries.append(summary)
-    except Exception as e:
-      print(f'Could not read {d} because of {e}')
-      print(' Skipping')
-      continue
-  return all_summaries
-
-
-def XXsummarize_all_dprimes(all_exp_dirs: List[str]):
+def summarize_all_data(all_exp_dirs: List[str], pickle_name):
   for d in all_exp_dirs:
     try:
       print(f'Summarizing data in {d}')
-      all_exps = load_exp_dir(d)
+      with open(os.path.join(d, pickle_name), 'r') as f:
+        all_exps = jsonpickle.decode(f.read())
       if not all_exps:
         print(f'  No experiments.')
       else:
@@ -606,21 +507,6 @@ def XXsummarize_all_dprimes(all_exp_dirs: List[str]):
         # break
     except Exception as e:
       print(f'  Could not load mouse data for {d} because of {e}')
-
-
-def XXload_dprime_data(data_dir: str) -> Dict[str, Tuple[np.ndarray,  # d' data
-                                                       List[float], # freqs
-                                                       List[float], # levels
-                                                       List[int]]]: # Channels
-  pickle_file = os.path.join(data_dir, 'all_dprimes.pkl')
-  with open(pickle_file, 'r') as f:
-    return jsonpickle.decode( f.read())
-
-
-def XXsummarize_dprime_data(all_dprimes):
-  for k in all_dprimes:
-    dprimes, all_exp_freqs, all_exp_levels, all_exp_channels = all_dprimes[k]
-    print(f'{dprimes.shape}: {k}')
 
 
 ###############  Main program, so we can run this offline ######################
