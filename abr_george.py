@@ -78,7 +78,7 @@ def read_mouse_exp(filename: str) -> MouseExp:
     eegreader = csv.reader(csvfile, delimiter=',')
     all_data_rows = []
     for row in eegreader:
-      if len(row) > 10: # Arbitrary
+      if len(row) > 9: # Arbitrary
         row_vals = [float(r.replace('\0', '')) for r in row if r]
         all_data_rows.append(row_vals)
 
@@ -89,7 +89,7 @@ def read_mouse_exp(filename: str) -> MouseExp:
                  freq=float(header['Freq(Hz)']),
                  level=float(header['Level(dB)']),
                  description=header['subject'],
-                 single_trials=np.array(all_data_rows)
+                 single_trials=np.array(all_data_rows).T
                  )
   return exp
 
@@ -296,7 +296,7 @@ class DPrime_Result(object):
   channels: List[int]
 
 
-def calculate_all_dprimes(all_exps) -> Dict[str, DPrime_Result]:
+def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrime_Result]:
   """Calculate the dprime for each type of experiment within this list of 
   results.  Each result is for one experiment, at one frequency, level and 
   channel. This code groups the experiments together that share the same type,
@@ -387,13 +387,13 @@ def plot_dprimes(dp: DPrime_Result):
   colors = prop_cycle.by_key()['color']
   plt.figure(figsize=(10, 8))
 
-  for i, freqs in enumerate(dp.all_exp_freqs):
-    for k, channel in enumerate(dp.all_exp_channels):
+  for i, freqs in enumerate(dp.freqs):
+    for k, channel in enumerate(dp.channels):
       if channel == 2:
         linestyle = '--'
       else:
         linestyle = '-'
-      plt.plot(dp.all_exp_levels, dp.dprimes[i, :, k],
+      plt.plot(dp.levels, dp.dprimes[i, :, k],
               label=f'freq={freqs}, channel={channel}',
               linestyle=linestyle,
               color=colors[i])
