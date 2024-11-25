@@ -71,11 +71,9 @@ class ABRGeorgeTests(absltest.TestCase):
     exps = george.find_exp(all_exps, channel=1)
     self.assertLen(exps, 2)
 
-    print('All_exps:', all_exps)
     exp = george.find_noise_exp(all_exps)
-    print('noise_exp:', exp)
     self.assertIsInstance(exp, george.MouseExp)
-    self.assertEqual(exps[0].level, 10)
+    self.assertEqual(exp.level, 10)
 
     exps = george.group_experiments(all_exps)
     self.assertIsInstance(exps, dict)
