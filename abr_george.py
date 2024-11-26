@@ -51,7 +51,7 @@ class MouseExp:
   channel: int # which electrode, probably 1 or 2
   sgi: int # TDT Stimulus generation index (i.e. freq and level)
   description: str = ''
-  single_trials: np.ndarray = None # num_trials x num_waveform_samples
+  single_trials: np.ndarray = None # num_waveforms x num_trials
   paired_trials: np.ndarray = None
 
 mouse_sample_rate = 24414 # From George's Experimental Notes
@@ -66,8 +66,9 @@ def read_mouse_exp(filename: str) -> MouseExp:
     filename:
 
   Returns:
-    A MouseExp structure that describes the experiment and the single_trials
-    field has the data (num_trials x num_waveform_sanples)
+    A MouseExp structure that describes the experiment. The single_trials
+    field has the data (num_waveform_samples x num_trials), which is transposed
+    from the CSV files.
   """
   with open(filename, 'r', encoding='latin-1',
             newline='', errors='replace') as csvfile:
