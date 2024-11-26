@@ -184,22 +184,20 @@ def preprocess_mouse_data(data: np.ndarray,
   applying a bandpass filter.
 
   Args:
-    data: A matrix of shape num_trials num_samples, opposite of what the rest
+    data: A matrix of shape num_samples x num_trials, opposite of what the rest
       of the routines that follow need.
 
   Returns:
     A matrix of shape num_samples x num_trials, transposed from the original.
   """
   if remove_dc:
-    data = remove_offset(data.T)  # Now data is time x num_trials
-  else:
-    data = data.T
+    data = remove_offset(data)  # Now data is time x num_trials
   if remove_artifacts:
     data = reject_artifacts(data)
   if bandpass_filter:
     #Bidelman used 90-2000?
     data = butterworth_filter(data, lowcut=low_filter, highcut=high_filter, 
-                              fs=mouse_sample_rate)
+                              fs=mouse_sample_rate, order=6, axis=0)
   return data
 
 

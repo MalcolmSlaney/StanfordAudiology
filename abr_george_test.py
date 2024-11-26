@@ -101,6 +101,44 @@ class ABRGeorgeTests(absltest.TestCase):
     self.assertLen(set(data[:, 1]), 10) # Make sure nothing is lost
     self.assertNotEqual(list(data[:, 1]), list(data2[:, 0]))
 
+  def test_preprocess(self):
+    """Test the various pieces of the preprocessing filter."""
+    data = np.array([[1, 2], [3, 10], [5, 12]]) # 3 times in 2 trials.
+    filtered = george.preprocess_mouse_data(data, remove_dc=True, 
+                                            remove_artifacts=False)
+    np.testing.assert_allclose(np.mean(filtered, axis=0), 
+                               0.0) # Time is along the 1st axis
+    
+    filtered = george.preprocess_mouse_data(data, remove_dc=False, 
+                                            remove_artifacts=True)
+    self.assertEqual(filtered.shape, (3, 1))
+    np.testing.assert_equal(filtered, [[1], [3], [5]])
+
+    num_points = 512
+    data = np.zeros((num_points, 1))
+    data[100, 0] = 1.0 # Results are bad if first point (due to filtfilt?)
+    low_cutoff = 2000
+    high_cutoff = 4000
+    filtered = george.preprocess_mouse_data(data, remove_dc=False, 
+                                            remove_artifacts=False,
+                                            bandpass_filter=True,
+                                            low_filter=low_cutoff,
+                                            high_filter=high_cutoff)
+    spectrum = 20*np.log10(np.abs(np.fft.fft(filtered, axis=0)))
+    freqs = np.fft.fftfreq(num_points, d=1/george.mouse_sample_rate)
+    plt.clf()
+    plt.plot(freqs[:num_points//2-1], spectrum[:num_points//2-1])
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Response (dB)')
+    plt.title('Preprocessing Test Filter Frequency Spectrum')
+    plt.xlim(0, 8000)
+    plt.savefig('test_preprocess_spectrum.png')
+
+    passband_freqs = freqs[np.where(spectrum[:num_points//2] > -6.02)[0]]
+    self.assertAlmostEqual(np.min(passband_freqs), low_cutoff, delta=10)
+    self.assertAlmostEqual(np.max(passband_freqs), high_cutoff, delta=50)
+
+
   def test_dprime(self):
     data = []
     num_points = 20

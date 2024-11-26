@@ -132,7 +132,7 @@ def design_butterworth_filter(lowcut: float, highcut: float,
 
 def butterworth_filter(data: np.ndarray, lowcut: float, highcut: float, 
                        fs: float, order: int=5, axis=-1) -> np.ndarray:
-  """FIlter an array of signals with a Butterworth (smooth passband) 
+  """Filter an array of signals with a Butterworth (smooth passband) 
   filter with the given low-frequency and high-frequency cutoffs.  All 
   frequencies are in Hz.
 

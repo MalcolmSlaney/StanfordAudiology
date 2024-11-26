@@ -58,6 +58,7 @@ class TestProcessingModules(absltest.TestCase):
       freqs = np.arange(n)/float(n)*fs
       with open(f'test_filter_spectrum_{lower_cutoff}_{upper_cutoff}_'
                 f'{order}.png', 'wb') as fp:
+        plt.clf()
         plt.semilogx(freqs, spectrum)
         plt.xlim(1, fs/2)
         plt.ylim(-13, 1)
