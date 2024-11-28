@@ -290,6 +290,7 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
 @dataclasses.dataclass
 class DPrimeResult(object):
   dprimes: np.ndarray # 3d array indexed by frequency, level and channel
+  fit: Optional[np.ndarray]
   freqs: List[float]
   levels: List[float]
   channels: List[int]
