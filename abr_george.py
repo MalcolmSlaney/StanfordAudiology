@@ -296,6 +296,7 @@ class DPrimeResult(object):
   levels: List[float]
   channels: List[int]
   spl_threshold: Optional[np.ndarray] = None # db SPL for frequency by channel
+  smooth_dprimes: Optional[nd.ndarray] = None # Like dprimes, but from poly fit
 
 
 def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
