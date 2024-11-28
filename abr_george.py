@@ -293,7 +293,7 @@ class DPrimeResult(object):
   freqs: List[float]
   levels: List[float]
   channels: List[int]
-  fit: Optional[np.ndarray] = None
+  threshold: Optional[np.ndarray] = None # frequency by channel
 
 
 def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
