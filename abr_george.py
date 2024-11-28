@@ -289,6 +289,8 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
 ###############  Compute all the d-primes for our data #######################
 @dataclasses.dataclass
 class DPrimeResult(object):
+  """Consolidate all the d' results for one preparation, across frequency,
+  level and channel."""
   dprimes: np.ndarray # 3d array indexed by frequency, level and channel
   freqs: List[float]
   levels: List[float]
