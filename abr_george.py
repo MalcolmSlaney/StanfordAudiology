@@ -289,13 +289,13 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
 ###############  Compute all the d-primes for our data #######################
 @dataclasses.dataclass
 class DPrimeResult(object):
-  """Consolidate all the d' results for one preparation, across frequency,
+  """Consolidate all the d' results for one preparation, across frequency.
   level and channel."""
   dprimes: np.ndarray # 3d array indexed by frequency, level and channel
   freqs: List[float]
   levels: List[float]
   channels: List[int]
-  threshold: Optional[np.ndarray] = None # frequency by channel
+  spl_threshold: Optional[np.ndarray] = None # db SPL for frequency by channel
 
 
 def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
