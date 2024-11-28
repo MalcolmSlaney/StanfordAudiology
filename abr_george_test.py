@@ -180,7 +180,7 @@ class ABRGeorgeTests(absltest.TestCase):
 
     all_dprimes = george.calculate_all_dprimes(all_exps)
     self.assertLen(all_dprimes, 1)
-    self.assertIsInstance(all_dprimes['cnqx1_pre'], george.DPrime_Result)
+    self.assertIsInstance(all_dprimes['cnqx1_pre'], george.DPrimeResult)
     dp = all_dprimes['cnqx1_pre'] 
     self.assertEqual(dp.freqs, [16000])
     self.assertEqual(dp.levels, [10, 30, 50])

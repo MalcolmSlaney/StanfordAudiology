@@ -288,14 +288,14 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
 
 ###############  Compute all the d-primes for our data #######################
 @dataclasses.dataclass
-class DPrime_Result(object):
-  dprimes: np.ndarray
+class DPrimeResult(object):
+  dprimes: np.ndarray # 3d array indexed by frequency, level and channel
   freqs: List[float]
   levels: List[float]
   channels: List[int]
 
 
-def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrime_Result]:
+def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
   """Calculate the dprime for each type of experiment within this list of 
   results.  Each result is for one experiment, at one frequency, level and 
   channel. This code groups the experiments together that share the same type,
@@ -312,7 +312,7 @@ def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrime_Result]:
   all_groups = group_experiments(all_exps)
   all_dprimes = {}
   for t, exps in all_groups.items():
-    result = DPrime_Result(*calculate_dprimes(exps))
+    result = DPrimeResult(*calculate_dprimes(exps))
     all_dprimes[t] = result
   return all_dprimes
 
@@ -374,7 +374,7 @@ def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
   return dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
 
 
-def plot_dprimes(dp: DPrime_Result):
+def plot_dprimes(dp: DPrimeResult):
   """Create a plot summarizing the d' collected by the calculate_all_dprimes
   routine above.  Show d' versus level, for each frequency and channel pair.
 
@@ -402,7 +402,7 @@ def plot_dprimes(dp: DPrime_Result):
 
 
 def cache_dprime_data(d: str, 
-                      dprimes: DPrime_Result,
+                      dprimes: DPrimeResult,
                       dprime_pickle_name: str, 
                       load_data: bool = False):
   """
