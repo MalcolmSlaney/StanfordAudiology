@@ -362,9 +362,11 @@ def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
       for j, level in enumerate(all_exp_levels):
         exps = find_exp(all_exps, freq=freq, level=level, channel=channel)
         if len(exps) == 0:
-          print(f'Found ZERO examples for freq={freq}, level={level}, '
+          print(f' Found ZERO examples for freq={freq}, level={level}, '
                 f'channel={channel}: {len(exps)}')
           continue
+        elif len(exps) > 1:
+          print(f'  Found {len(exps), processing all.}')
         all_data = []
         for exp in exps:
           all_data.append(preprocess_mouse_data(exp.single_trials))
