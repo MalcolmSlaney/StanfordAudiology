@@ -490,7 +490,7 @@ def cache_waveform_data(d: str,
         f.write(jsonpickle.encode(all_trials))
         print(f'  Cached {len(all_trials)} experiments')
     except Exception as e:
-      print(f'  **** Could not read {d} because of {repr(e)}. Skipping')
+      print(f'  **** Could not read {pickle_file} because of {repr(e)}. Skipping')
       return None
   if load_data:
     with open(pickle_file, 'r') as f:
