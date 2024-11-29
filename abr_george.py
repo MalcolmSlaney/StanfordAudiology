@@ -512,6 +512,176 @@ def summarize_all_data(all_exp_dirs: List[str], pickle_name):
       print(f'  Could not load mouse data for {d} because of {e}')
 
 
+###############  Analyze all the d' data ##############################
+
+
+def get_all_dprime_data(dirs):
+  all_dprimes = {}
+  for d in dirs:
+    animal_date = os.path.basename(d)
+    pickle_file = os.path.join(d, 'mouse_dprimes.pkl')
+    if os.path.exists(pickle_file):
+      with open(pickle_file, 'rb') as fp:
+        mouse_dprime = jsonpickle.decode(fp.read())
+      mouse_dprime2 = {}
+      for k in mouse_dprime.keys():
+        mouse_dprime2[f'{animal_date}_{k}'] = mouse_dprime[k]
+      all_dprimes.update(mouse_dprime2)
+  return all_dprimes
+
+
+class PositivePolynomial(object):
+  """A class that lets us fit a quadratic function with all positive
+  coefficients to some d' data.
+  """
+  def __init__(self):
+    self._a = 0
+    self._b = 0
+    self._c = 0
+
+  def quadratic(_, x, a, b, c):
+    return a + b*x + c*x**2 
+
+  def fit(self, xdata, ydata, bounds=([0, 0, 0], [np.inf, np.inf, np.inf])):
+    (self._a, self._b, self._c), _ = curve_fit(self.quadratic, xdata, ydata, 
+                                               bounds=bounds)
+  
+  def eval(self, x):
+    return self.quadratic(x, self._a, self._b, self._c)
+
+  def threshold(self, threshold, debug=False):
+    """Find the level when the quadratic function passes the threshold."""
+    a = self._a - threshold
+    b = self._b
+    c = self._c
+    if debug:
+      xdata = np.linspace(-4, 4, 100)
+      plt.plot(xdata, a + b*xdata + c*xdata**2)
+      plt.axhline(0, ls='--')
+      
+    roots = [(-b + math.sqrt(b**2-4*a*c))/(2*c),
+             (-b - math.sqrt(b**2-4*a*c))/(2*c)]
+     # Filter for positive roots and select minimum
+    positive_roots = [r for r in roots if r > 0]
+    
+    if positive_roots:
+        root = np.min(positive_roots)
+        return root  # Return the single root value
+    return np.nan  # Or any other appropriate value for no positive roots
+
+
+def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2, 
+                  plot=False) -> None:
+  """Add the SPL threshold to a DPrimeResult.  This is done by fitting a
+  positive-coeffifient polynomial to the d' data at each frequency and channel,
+  and then using this smooth model to predict the level where d' exceeds the
+  desired level.
+  Args:
+    dprimes_result: Consolidated estimate of the d' for each frequency, level
+      and channel
+    dp_criteria: Desired d' threshold
+    plot: Generate plot showing curve fits
+  Returns:
+    Nothing.  dprimes_result is modified in place.
+  """
+  if len(dprimes_result.channels) != 2:
+    return np.zeros((0, 2))
+  spl_threshold = np.zeros((len(dprimes_result.freqs),
+                            len(dprimes_result.channels)))
+  min_level = min(dprimes_result.levels)
+  max_level = max(dprimes_result.levels)
+  plot_levels = np.linspace(min_level, max_level, 100)
+  channel_names = ['', 'ABR', 'ECoG']
+
+  color_list = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+  smoothed = np.zeros((len(dprimes_result.freqs),
+                       len(dprimes_result.levels),
+                       len(dprimes_result.channels)))
+  dprimes = dprimes_result.dprimes
+  for i, freq in enumerate(dprimes_result.freqs):
+    for j, channel in enumerate(dprimes_result.channels):
+      levels = dprimes_result.levels
+      dprimes = dprimes_result.dprimes[i, :, j]
+      cp = None
+      try:
+        cp = PositivePolynomial()
+        cp.fit(levels, dprimes)
+        r = cp.threshold(dp_criteria)
+        # Check if r is a list and take the first element if it is
+        # This ensures we store a single numeric value in db_at_threshold
+        if isinstance(r, list):
+            r = r[0] if r else np.nan
+      except Exception:
+        print('Could not fit polynomial')
+        r = np.nan
+      spl_threshold[i, j] = r
+      smoothed[i, :, j] = cp.eval(np.asarray(dprimes_result.levels))
+      if cp and plot:
+        if channel == 1:
+          ls = '--'
+        else:
+          ls = '-'
+        plt.plot(plot_levels, [cp.eval(l) for l in plot_levels], 
+                label=f'{channel_names[channel]} at {freq}Hz',
+                color=color_list[i], ls=ls)
+        plt.plot(levels, dprimes, 'x', 
+                color=color_list[i])
+  if plot:
+    plt.legend()
+    plt.xlabel('Sound Level (dB)')
+    plt.ylabel('d\'')
+  dprimes_result.spl_threshold = spl_threshold
+  dprimes_result.smooth_dprimes = smoothed
+
+
+def add_all_thresholds(all_dprimes: Dict[str, DPrimeResult], dp_criteria=2):
+  for k in all_dprimes.keys():
+    add_threshold(all_dprimes[k], dp_criteria=dp_criteria)
+
+
+def accumulate_thresholds(all_dprimes: Dict[str, DPrimeResult],
+                          freqs: Optional[List[float]] = None,
+                          max_spl=120) -> Tuple[List[float], 
+                                                                 List[float]]:
+  all_abr = []
+  all_ecog = []
+  for k in all_dprimes.keys():
+    dp = all_dprimes[k]
+    if dp.spl_threshold is None:
+      continue
+    if freqs is not None:
+      if not isinstance(freqs, list):
+        freqs = [freqs,]
+      freq_indices = [dp.freqs.index(f) for f in freqs if f in dp.freqs]
+    else:
+      freq_indices = range(len(dp.freqs))
+    # print(freq_indices, dp.spl_threshold.shape)
+    all_abr.append(dp.spl_threshold[freq_indices, 0].flatten())
+    all_ecog.append(dp.spl_threshold[freq_indices, 1].flatten())  
+  all_abr = np.concatenate(all_abr)
+  all_ecog = np.concatenate(all_ecog)
+  good = np.logical_and(np.logical_and(np.isfinite(all_abr), all_abr < max_spl),
+                        np.logical_and(np.isfinite(all_ecog), all_ecog < max_spl))
+  abr_thresh = all_abr[good]
+  ecog_thresh = all_ecog[good]
+  pearson_r = spstats.pearsonr(abr_thresh, ecog_thresh).statistic
+  return all_abr, all_ecog, pearson_r
+
+
+def plot_threshold_scatter(abr_thresh, ecog_thresh, min_abr_threshold=np.nan,
+                           color='b', draw_unit=True):
+  plt.plot(abr_thresh, ecog_thresh, 'x', color=color)
+  plt.xlabel('ABR (Channel 1) Threshold (dB)')
+  plt.ylabel('ECoG (Channel 2) Threshold (dB)')
+  plt.title(f'Comparison of Threshold at d\'={min_abr_threshold}')
+  plt.xlim(0, 120)
+  plt.ylim(0, 120)
+  if draw_unit:
+    a=max(plt.axis())
+    plt.plot([0, a], [0, a], '--');
+
+
 ###############  Main program, so we can run this offline ######################
 
 FLAGS = flags.FLAGS
