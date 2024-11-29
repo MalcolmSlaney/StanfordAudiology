@@ -59,7 +59,7 @@ class MouseExp:
 mouse_sample_rate = 24414 # From George's Experimental Notes
 # Existing hardware filtering from 2.2-7500Hz.
 
-def read_mouse_exp(filenames: Union[str, List[str]) -> MouseExp:
+def read_mouse_exp(filename: str) -> MouseExp:
   """
   Read a CSV file containing data about one ABR experiment.  Parse the header
   lines, and then read in the table of data.
@@ -72,22 +72,18 @@ def read_mouse_exp(filenames: Union[str, List[str]) -> MouseExp:
     field has the data (num_waveform_samples x num_trials), which is transposed
     from the CSV files.
   """
-  if isinstance(filenames, str):
-    filenames = [filenames,]
-
   all_data_rows = []
-  for filename in filenames:
-    with open(filename, 'r', encoding='latin-1',
-              newline='', errors='replace') as csvfile:
-      header_names = csvfile.readline().strip().split(',')
-      header_data = csvfile.readline().strip().split(',')
-      header = dict(zip(header_names, header_data))
+  with open(filename, 'r', encoding='latin-1',
+            newline='', errors='replace') as csvfile:
+    header_names = csvfile.readline().strip().split(',')
+    header_data = csvfile.readline().strip().split(',')
+    header = dict(zip(header_names, header_data))
 
-      eegreader = csv.reader(csvfile, delimiter=',')
-      for row in eegreader:
-        if len(row) > 9: # Arbitrary
-          row_vals = [float(r.replace('\0', '')) for r in row if r]
-          all_data_rows.append(row_vals)
+    eegreader = csv.reader(csvfile, delimiter=',')
+    for row in eegreader:
+      if len(row) > 9: # Arbitrary
+        row_vals = [float(r.replace('\0', '')) for r in row if r]
+        all_data_rows.append(row_vals)
 
   exp = MouseExp(filename=filename,
                  basename=os.path.basename(filename),
