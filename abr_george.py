@@ -366,7 +366,7 @@ def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
                 f'channel={channel}: {len(exps)}')
           continue
         elif len(exps) > 1:
-          print(f'  Found {len(exps), processing all.}')
+          print(f'  Processing {len(exps)} segments for the same preparation.')
         all_data = []
         for exp in exps:
           all_data.append(preprocess_mouse_data(exp.single_trials))
