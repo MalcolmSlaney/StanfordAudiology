@@ -349,6 +349,8 @@ def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
   dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
                              len(all_exp_channels)))
   # Now loop through all the frequencies, channels, and levels.
+  all_processed = 0
+  all_multiprocessed = 0
   for i, freq in enumerate(all_exp_freqs):
     for k, channel in enumerate([1, 2]):
       # Find the noisy data for this combination of frequency and channel
@@ -367,8 +369,10 @@ def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
           continue
         elif len(exps) > 1:
           print(f'  Processing {len(exps)} segments for the same preparation.')
+          all_multiprocessed += 1
         all_data = []
         for exp in exps:
+          all_processed += 1
           all_data.append(preprocess_mouse_data(exp.single_trials))
         signal_data = np.concatenate(all_data, axis=1)
 
@@ -379,6 +383,7 @@ def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
         dprimes[i, j, k] = calculate_dprime(signal_data, noise_data, debug)
         if debug:
           plt.title(f'freq={int(freq)}, level={int(level)}, channel={int(channel)}')
+  print(f'  Processed {all_processed} CSV files, {all_multiprocessed} part of a group.')
   return dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
 
 
