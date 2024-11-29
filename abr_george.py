@@ -696,6 +696,20 @@ flags.DEFINE_string('dprimes_cache', 'mouse_dprimes.pkl',
                     'Where to cache the dprimes in this directory')
 flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 
+def process_one_dir(dir, waveform_cache, dprime_cache):
+  if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
+    os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
+    print(f'Skipping waveforms and dprimes in {dir} because they are '
+          'already cached.')
+    return
+  print(f'Processing waveforms in {dir}')
+  all_exps = cache_waveform_data(dir, FLAGS.waveforms_cache, True)
+  if all_exps:
+    dprimes = calculate_all_dprimes(all_exps)
+    cache_dprime_data(dir, dprimes, FLAGS.dprimes_cache)
+  else:
+    print(f'  No waveform data to process for dprimes.')
+
 def main(_):
   all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
   all_dprimes = {}
@@ -703,19 +717,7 @@ def main(_):
     if FLAGS.filter in dir:
       waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
       dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
-      if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
-          os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
-        print(f'Skipping waveforms and dprimes in {dir} because they are '
-              'already cached.')
-        continue
-      print(f'Processing waveforms in {dir}')
-      all_exps = cache_waveform_data(dir, FLAGS.waveforms_cache, True)
-      if all_exps:
-        dprimes = calculate_all_dprimes(all_exps)
-        cache_dprime_data(dir, dprimes, FLAGS.dprimes_cache)
-        all_dprimes.update(dprimes)
-      else:
-        print(f'  No waveform data to process for dprimes.')
+      process_one_dir(dir, waveform_cache, dprime_cache)
 
 if __name__ == '__main__':
   app.run(main)
