@@ -12,6 +12,8 @@ import scipy.signal as spsig
 import scipy.fft as spfft
 import scipy.stats as spstats
 from scipy.stats import linregress
+from scipy.optimize import curve_fit
+
 
 from abr import *
 
