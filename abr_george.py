@@ -703,10 +703,10 @@ def process_one_dir(dir, waveform_cache, dprime_cache):
           'already cached.')
     return
   print(f'Processing waveforms in {dir}')
-  all_exps = cache_waveform_data(dir, FLAGS.waveforms_cache, True)
+  all_exps = cache_waveform_data(dir, waveform_cache, True)
   if all_exps:
     dprimes = calculate_all_dprimes(all_exps)
-    cache_dprime_data(dir, dprimes, FLAGS.dprimes_cache)
+    cache_dprime_data(dir, dprimes, dprime_cache)
   else:
     print(f'  No waveform data to process for dprimes.')
 
