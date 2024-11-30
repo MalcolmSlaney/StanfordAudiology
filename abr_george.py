@@ -3,6 +3,7 @@
 # https://colab.research.google.com/drive/1wtTeslQa8BQIk9QxUfOJawU6AuhvmaDf
 import csv
 import dataclasses
+import glob
 import math
 import os
 import sys
@@ -96,7 +97,8 @@ def read_mouse_exp(filename: str) -> MouseExp:
                  )
   return exp
 
-def read_all_mouse_dir(expdir: str, debug=False, max_files=0) -> List[MouseExp]:
+def read_all_mouse_dir(expdir: str, debug=False, 
+                       max_files=0, max_bytes=1e9) -> List[MouseExp]:
   """
   Read in all the mouse experiments in the given directory. Each experiment
   is stored in a single CSV file.  This routine reads all the csv files and 
@@ -108,11 +110,15 @@ def read_all_mouse_dir(expdir: str, debug=False, max_files=0) -> List[MouseExp]:
   Returns:
     List of MouseExp structures.
   """
+  def cache_size(all_trials: List[MouseExp]):
+    return sum([exp.single_trials.nbytes for exp in all_exps])/1e9
+                 
   all_exp_files = [f for f in os.listdir(expdir)
                      if os.path.isfile(os.path.join(expdir, f)) and
                      f.endswith('.csv')]
 
   all_exps = []
+  cache_file_count = 0
   total_file_count = len(all_exp_files)
   for f in all_exp_files:
     if 'saline' in f:
@@ -124,8 +130,13 @@ def read_all_mouse_dir(expdir: str, debug=False, max_files=0) -> List[MouseExp]:
     if max_files and len(all_exps) >= max_files:
       print('  Reached maximum limit of {max_files} files to process.')
       break
+    if max_bytes and cache_size(all_exps) > max_bytes:
+      save_waveform_cache(all_exps, expdir, cache_file_count)
+      cache_file_count += 1
+      all_exps = []
+  if all_exps:
+    save_waveform_cache(all_exps, expdir, cache_file_count)
   return all_exps
-
 
 def find_exp(all_exps: List[MouseExp],
              freq: Optional[float]=None,
@@ -470,8 +481,7 @@ def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
 def cache_waveform_data(d: str, 
                         waveform_pickle_name: str, 
                         load_data: bool = False,
-                        max_files:int = 0) -> Optional[Dict[str, 
-                                                                  MouseExp]]:
+                        max_files:int = 0) -> Optional[List[MouseExp]]:
   """
   Cache all the CSV files in one of George's mouse recording folders.
   If we don't have the cache file, parse all the CSV files and create
@@ -505,6 +515,30 @@ def cache_waveform_data(d: str,
       else:
         print(f'  Found empty pickle file in {pickle_file}')
   return all_trials
+
+
+def save_waveform_cache(all_exps, dir, number: int, waveform_pickle_name='mouse_exp.pkl'):
+  new_filename = waveform_pickle_name.replace('.pkl', f'{number:02d}.pkl')
+  filename = os.path.join(dir, new_filename)
+  with open(filename, 'w') as f:
+    f.write(jsonpickle.encode(all_exps))
+  print(f'Saved {len(all_exps)} MouseExp to {new_filename}.')
+
+
+def load_waveform_cache(
+    dir: str,
+    waveform_pickle_name: str = mouse_data_pickle_name) -> List[MouseExp]:
+  filename = os.path.join(dir, waveform_pickle_name)
+  wild_filename = filename.replace('.pkl', '*.pkl')
+  filenames = glob.glob(wild_filename)
+  all_exps = []
+  for filename in filenames:
+    with open(filename, 'rb') as f:
+      new_data = jsonpickle.decode(f.read())
+      all_exps += new_data
+    print(f'  Got {len(new_data)} MouseExp from {filename}')
+  print(f'  Got a total of {len(all_exps)} MouseExp from {dir}')
+  return all_exps
 
 
 def summarize_all_data(all_exp_dirs: List[str], pickle_name):
