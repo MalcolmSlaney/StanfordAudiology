@@ -722,9 +722,9 @@ def main(_):
   all_dprimes = {}
   for dir in all_mouse_dirs:
     if FLAGS.filter in dir:
-      waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
-      dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
-      process_one_dir(dir, waveform_cache, dprime_cache)
+      # waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
+      # dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
+      process_one_dir(dir, FLAGS.waveform_cache, FLAGS.dprime_cache)
 
 if __name__ == '__main__':
   app.run(main)
