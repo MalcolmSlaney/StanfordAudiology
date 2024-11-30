@@ -47,7 +47,8 @@ class ABRGeorgeTests(absltest.TestCase):
     self.assertEqual(george.exp_type_from_name(exp.basename), 'control1_pre4')
 
   def test_read_csv_dir(self):
-    all_exps = george.read_all_mouse_dir('/tmp')
+    george.cache_all_mouse_dir('/tmp')
+    all_exps = george.load_waveform_cache('/tmp')
     self.assertLen(all_exps, 2)
     for exp in all_exps:
       if exp.filename == ABRGeorgeTests.csv_name_2:
