@@ -155,7 +155,8 @@ def XXcache_waveform_data(d: str,
             'Skipping')
 
 
-def waveform_cache_present(dir:str, waveform_pickle_name='mouse_waveforms.pkl'):
+def waveform_cache_present(dir:str, 
+                           waveform_pickle_name=mouse_data_pickle_name):
   if os.path.exists(os.path.join(dir, waveform_pickle_name)):
     return True
   new_filename = waveform_pickle_name.replace('.pkl', f'00.pkl')
@@ -766,7 +767,7 @@ def process_one_dir(dir, waveform_cache, dprime_cache, max_files=0,
           'already cached.')
     return
   print(f'Processing waveforms in {dir}')
-  all_exps = cache_all_mouse_dir(dir, waveform_cache, True, 
+  all_exps = cache_all_mouse_dir(dir, True, waveform_cache,
                                  max_files=max_files, max_bytes=max_bytes)
   if all_exps:
     dprimes = calculate_all_dprimes(all_exps)
