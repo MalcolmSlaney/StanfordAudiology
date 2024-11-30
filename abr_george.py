@@ -111,7 +111,7 @@ def read_all_mouse_dir(expdir: str, debug=False,
     List of MouseExp structures.
   """
   def cache_size(all_trials: List[MouseExp]):
-    return sum([exp.single_trials.nbytes for exp in all_exps])/1e9
+    return sum([exp.single_trials.nbytes for exp in all_exps])
 
   print(f'Read_all_mouse_dir:', expdir, max_files, max_bytes)            
   all_exp_files = [f for f in os.listdir(expdir)
