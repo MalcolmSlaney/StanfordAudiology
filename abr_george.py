@@ -98,7 +98,7 @@ def read_mouse_exp(filename: str) -> MouseExp:
   return exp
 
 def read_all_mouse_dir(expdir: str, debug=False, 
-                       max_files=0, max_bytes=1e9) -> List[MouseExp]:
+                       max_files=0, max_bytes=10e9) -> List[MouseExp]:
   """
   Read in all the mouse experiments in the given directory. Each experiment
   is stored in a single CSV file.  This routine reads all the csv files and 
@@ -483,7 +483,7 @@ def cache_waveform_data(d: str,
                         waveform_pickle_name: str, 
                         load_data: bool = False,
                         max_files:int = 0,
-                        max_bytes: float = 1e9) -> Optional[List[MouseExp]]:
+                        max_bytes: float = 10e9) -> Optional[List[MouseExp]]:
   """
   Cache all the CSV files in one of George's mouse recording folders.
   If we don't have the cache file, parse all the CSV files and create
@@ -744,15 +744,19 @@ flags.DEFINE_string('waveforms_cache', 'mouse_exp.pkl',
 flags.DEFINE_string('dprimes_cache', 'mouse_dprimes.pkl',
                     'Where to cache the dprimes in this directory')
 flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
+flags.DEFINE_integer('max_cache_gbytes', 1, 
+                     'Maximum size of one cache file (GBytes).')
 
-def process_one_dir(dir, waveform_cache, dprime_cache, max_files=0):
+def process_one_dir(dir, waveform_cache, dprime_cache, max_files=0,
+                    max_bytes=10e9):
   if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
     os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
     print(f'Skipping waveforms and dprimes in {dir} because they are '
           'already cached.')
     return
   print(f'Processing waveforms in {dir}')
-  all_exps = cache_waveform_data(dir, waveform_cache, True, max_files=max_files)
+  all_exps = cache_waveform_data(dir, waveform_cache, True, 
+                                 max_files=max_files, max_bytes=max_bytes)
   if all_exps:
     dprimes = calculate_all_dprimes(all_exps)
     cache_dprime_data(dir, dprimes, dprime_cache)
@@ -766,7 +770,8 @@ def main(_):
     if FLAGS.filter in dir:
       # waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
       # dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
-      process_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache)
+      process_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache, 
+                      max_bytes=FLAGS.max_cache_gbytes*1e9)
 
 if __name__ == '__main__':
   app.run(main)
