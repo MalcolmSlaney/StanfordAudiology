@@ -197,9 +197,8 @@ class ABRGeorgeTests(absltest.TestCase):
       os.remove(os.path.join(basedir, pickle_name))
     except OSError as error:
       pass
-    all_trials = george.cache_waveform_data(basedir,
-                                            waveform_pickle_name=pickle_name, 
-                                            load_data=True)
+    george.cache_all_mouse_dir(basedir, waveform_pickle_name=pickle_name)
+    all_trials = george.load_waveform_cache(basedir, pickle_name)
     self.assertLen(all_trials, 2)
     george.summarize_all_data([basedir], pickle_name)
  

@@ -97,7 +97,124 @@ def read_mouse_exp(filename: str) -> MouseExp:
                  )
   return exp
 
+
+###############  Cache all the Mouse CSV files ###########################
+
+mouse_data_pickle_name = 'mouse_waveforms.pkl'
+mouse_dprime_pickle_name = 'mouse_dprime.pkl'
+
+
+def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
+  """Look for all the directories that seem to contain George's mouse data. Walk
+  the directory tree starting at the given directory, looking for all 
+  directories names that do not contain the following words: 
+    analyze, bad and traces
+
+  Args:
+    mouse_data_dir: where to start looking for George's mouse data
+  
+  Returns:
+    A list of file paths.
+  """
+  all_exp_dirs = [x[0] for x in os.walk(mouse_data_dir)
+                  if 'analyze' not in x[0] and 'bad' not in x[0] and
+                     'traces' not in x[0]]
+  return all_exp_dirs
+
+
+def XXcache_waveform_data(d: str, 
+                        waveform_pickle_name: str, 
+                        load_data: bool = False,
+                        max_files:int = 0,
+                        max_bytes: float = 10e9) -> Optional[List[MouseExp]]:
+  """
+  Cache all the CSV files in one of George's mouse recording folders.
+  If we don't have the cache file, parse all the CSV files and create
+  a new cache file.  If return_data is true, return the dictionary of waveform
+  data, reading it back in if we didn't compute it here.
+
+  Args:
+    exp_dir: Which data directory to read and cache.
+    waveform_pickle_name: The name of the waveform cache file.
+    load_data: Whether to return the cached data if it is there.
+
+  Returns:
+    A list of MouseExp structures.
+  """
+  pickle_file = os.path.join(d, waveform_pickle_name)
+  if not os.path.exists(pickle_file):
+    try:
+      print(f'  Reading mouse waveforms from {d}')
+      all_trials = cache_all_mouse_dir(d, debug=True, 
+                                       max_files=max_files, max_bytes=max_bytes)
+      with open(pickle_file, 'w') as f:
+        f.write(jsonpickle.encode(all_trials))
+        print(f'  Cached {len(all_trials)} experiments')
+    except Exception as e:
+      print(f'  **** Could not read {pickle_file} because of {repr(e)}. '
+            'Skipping')
+
+
+def waveform_cache_present(dir:str, waveform_pickle_name='mouse_waveforms.pkl'):
+  if os.path.exists(os.path.join(dir, waveform_pickle_name)):
+    return True
+  new_filename = waveform_pickle_name.replace('.pkl', f'00.pkl')
+  return os.path.exists(os.path.join(dir, new_filename))
+
+
+def save_waveform_cache(all_exps: List[MouseExp], dir: str, number: int, 
+                        waveform_pickle_name='mouse_waveforms.pkl'):
+  """Save some of the MouseExp's objects into a cache file.  We store all the
+  data from one directory into multiple cache files since they get to large to
+  decode (with a single read).
+  
+  The cache file will be of the form mouse_waveformsXX.pkl, where XX is the 
+  cache file number.
+  """
+  new_filename = waveform_pickle_name.replace('.pkl', f'{number:02d}.pkl')
+  filename = os.path.join(dir, new_filename)
+  with open(filename, 'w') as f:
+    f.write(jsonpickle.encode(all_exps))
+  print(f'Saved {len(all_exps)} MouseExp to {new_filename}.')
+
+
+def load_waveform_cache(
+    dir: str,
+    waveform_pickle_name: str = mouse_data_pickle_name) -> List[MouseExp]:
+  filename = os.path.join(dir, waveform_pickle_name)
+  wild_filename = filename.replace('.pkl', '*.pkl')
+  filenames = glob.glob(wild_filename)
+  all_exps = []
+  for filename in filenames:
+    with open(filename, 'rb') as f:
+      new_data = jsonpickle.decode(f.read())
+      all_exps += new_data
+    print(f'  Got {len(new_data)} MouseExp\'s from {filename}')
+  print(f'  Got a total of {len(all_exps)} MouseExp from {dir}')
+  return all_exps
+
+
+def summarize_all_data(all_exp_dirs: List[str], 
+                       pickle_name=mouse_data_pickle_name):
+  for d in all_exp_dirs:
+    try:
+      print(f'Summarizing data in {d}')
+      all_exps = load_waveform_cache(d, pickle_name)
+      if not all_exps:
+        print(f'  No experiments.')
+      else:
+        all_sizes = [str(e.single_trials.shape) for e in all_exps]
+        all_sizes = ', '.join(all_sizes)
+        print(f'  Sizes: {all_sizes}')
+        print(f'  Channels: {sorted(list(set([e.channel for e in all_exps])))}')
+        print(f'  Frequencies: {sorted(list(set([e.freq for e in all_exps])))}')
+        # break
+    except Exception as e:
+      print(f'  Could not load mouse data for {d} because of {e}')
+
+
 def cache_all_mouse_dir(expdir: str, debug=False, 
+                        waveform_pickle_name: str = mouse_data_pickle_name,
                         max_files=0, max_bytes=10e9) -> None:
   """
   Read and cache the CSV mouse experiments in the given directory. Each 
@@ -132,11 +249,13 @@ def cache_all_mouse_dir(expdir: str, debug=False,
       print('  Reached maximum limit of {max_files} files to process.')
       break
     if max_bytes and cache_size(all_exps) > max_bytes:
-      save_waveform_cache(all_exps, expdir, cache_file_count)
+      save_waveform_cache(all_exps, expdir, cache_file_count, 
+                          waveform_pickle_name=waveform_pickle_name)
       cache_file_count += 1
       all_exps = []
   if all_exps:
-    save_waveform_cache(all_exps, expdir, cache_file_count)
+    save_waveform_cache(all_exps, expdir, cache_file_count, 
+                        waveform_pickle_name=waveform_pickle_name)
 
 
 def find_exp(all_exps: List[MouseExp],
@@ -454,120 +573,6 @@ def cache_dprime_data(d: str,
     print(f'  Cached data for {len(dprimes)} types of dprime experiments.')
 
 
-###############  Cache all the Mouse CSV files ###########################
-
-mouse_data_pickle_name = 'mouse_waveforms.pkl'
-mouse_dprime_pickle_name = 'mouse_dprime.pkl'
-
-
-def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
-  """Look for all the directories that seem to contain George's mouse data. Walk
-  the directory tree starting at the given directory, looking for all 
-  directories names that do not contain the following words: 
-    analyze, bad and traces
-
-  Args:
-    mouse_data_dir: where to start looking for George's mouse data
-  
-  Returns:
-    A list of file paths.
-  """
-  all_exp_dirs = [x[0] for x in os.walk(mouse_data_dir)
-                  if 'analyze' not in x[0] and 'bad' not in x[0] and
-                     'traces' not in x[0]]
-  return all_exp_dirs
-
-
-def cache_waveform_data(d: str, 
-                        waveform_pickle_name: str, 
-                        load_data: bool = False,
-                        max_files:int = 0,
-                        max_bytes: float = 10e9) -> Optional[List[MouseExp]]:
-  """
-  Cache all the CSV files in one of George's mouse recording folders.
-  If we don't have the cache file, parse all the CSV files and create
-  a new cache file.  If return_data is true, return the dictionary of waveform
-  data, reading it back in if we didn't compute it here.
-
-  Args:
-    exp_dir: Which data directory to read and cache.
-    waveform_pickle_name: The name of the waveform cache file.
-    load_data: Whether to return the cached data if it is there.
-
-  Returns:
-    A list of MouseExp structures.
-  """
-  pickle_file = os.path.join(d, waveform_pickle_name)
-  if not os.path.exists(pickle_file):
-    try:
-      print(f'  Reading mouse waveforms from {d}')
-      all_trials = cache_all_mouse_dir(d, debug=True, 
-                                       max_files=max_files, max_bytes=max_bytes)
-      with open(pickle_file, 'w') as f:
-        f.write(jsonpickle.encode(all_trials))
-        print(f'  Cached {len(all_trials)} experiments')
-    except Exception as e:
-      print(f'  **** Could not read {pickle_file} because of {repr(e)}. '
-            'Skipping')
-
-
-def waveform_cache_present(dir:str, waveform_pickle_name='mouse_waveforms.pkl'):
-  if os.path.exists(os.path.join(dir, waveform_pickle_name)):
-    return True
-  new_filename = waveform_pickle_name.replace('.pkl', f'00.pkl')
-  return os.path.exists(os.path.join(dir, new_filename))
-
-
-def save_waveform_cache(all_exps: List[MouseExp], dir: str, number: int, 
-                        waveform_pickle_name='mouse_waveforms.pkl'):
-  """Save some of the MouseExp's objects into a cache file.  We store all the
-  data from one directory into multiple cache files since they get to large to
-  decode (with a single read).
-  
-  The cache file will be of the form mouse_waveformsXX.pkl, where XX is the 
-  cache file number.
-  """
-  new_filename = waveform_pickle_name.replace('.pkl', f'{number:02d}.pkl')
-  filename = os.path.join(dir, new_filename)
-  with open(filename, 'w') as f:
-    f.write(jsonpickle.encode(all_exps))
-  print(f'Saved {len(all_exps)} MouseExp to {new_filename}.')
-
-
-def load_waveform_cache(
-    dir: str,
-    waveform_pickle_name: str = mouse_data_pickle_name) -> List[MouseExp]:
-  filename = os.path.join(dir, waveform_pickle_name)
-  wild_filename = filename.replace('.pkl', '*.pkl')
-  filenames = glob.glob(wild_filename)
-  all_exps = []
-  for filename in filenames:
-    with open(filename, 'rb') as f:
-      new_data = jsonpickle.decode(f.read())
-      all_exps += new_data
-    print(f'  Got {len(new_data)} MouseExp from {filename}')
-  print(f'  Got a total of {len(all_exps)} MouseExp from {dir}')
-  return all_exps
-
-
-def summarize_all_data(all_exp_dirs: List[str], pickle_name):
-  for d in all_exp_dirs:
-    try:
-      print(f'Summarizing data in {d}')
-      with open(os.path.join(d, pickle_name), 'r') as f:
-        all_exps = jsonpickle.decode(f.read())
-      if not all_exps:
-        print(f'  No experiments.')
-      else:
-        all_sizes = [str(e.single_trials.shape) for e in all_exps]
-        all_sizes = ', '.join(all_sizes)
-        print(f'  Sizes: {all_sizes}')
-        print(f'  Channels: {sorted(list(set([e.channel for e in all_exps])))}')
-        print(f'  Frequencies: {sorted(list(set([e.freq for e in all_exps])))}')
-        # break
-    except Exception as e:
-      print(f'  Could not load mouse data for {d} because of {e}')
-
 
 ###############  Analyze all the d' data ##############################
 
@@ -761,7 +766,7 @@ def process_one_dir(dir, waveform_cache, dprime_cache, max_files=0,
           'already cached.')
     return
   print(f'Processing waveforms in {dir}')
-  all_exps = cache_waveform_data(dir, waveform_cache, True, 
+  all_exps = cache_all_mouse_dir(dir, waveform_cache, True, 
                                  max_files=max_files, max_bytes=max_bytes)
   if all_exps:
     dprimes = calculate_all_dprimes(all_exps)
