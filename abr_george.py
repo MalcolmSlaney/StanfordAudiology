@@ -724,7 +724,7 @@ def main(_):
     if FLAGS.filter in dir:
       # waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
       # dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
-      process_one_dir(dir, FLAGS.waveforims_cache, FLAGS.dprimes_cache)
+      process_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache)
 
 if __name__ == '__main__':
   app.run(main)
