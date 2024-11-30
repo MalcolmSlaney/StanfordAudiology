@@ -96,7 +96,7 @@ def read_mouse_exp(filename: str) -> MouseExp:
                  )
   return exp
 
-def read_all_mouse_dir(expdir: str, debug=False) -> List[MouseExp]:
+def read_all_mouse_dir(expdir: str, debug=False, max_files=0) -> List[MouseExp]:
   """
   Read in all the mouse experiments in the given directory. Each experiment
   is stored in a single CSV file.  This routine reads all the csv files and 
@@ -120,6 +120,9 @@ def read_all_mouse_dir(expdir: str, debug=False) -> List[MouseExp]:
       print(f'    Reading {f}')
     exp = read_mouse_exp(os.path.join(expdir, f))
     all_exps.append(exp)
+    if max_files and len(all_exps) >= max_files:
+      print('  Reached maximum limit of {max_files} files to process.')
+      break
   return all_exps
 
 
@@ -465,7 +468,8 @@ def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
 
 def cache_waveform_data(d: str, 
                         waveform_pickle_name: str, 
-                        load_data: bool = False) -> Optional[Dict[str, 
+                        load_data: bool = False,
+                        max_files:int = 0) -> Optional[Dict[str, 
                                                                   MouseExp]]:
   """
   Cache all the CSV files in one of George's mouse recording folders.
@@ -485,7 +489,7 @@ def cache_waveform_data(d: str,
   if not os.path.exists(pickle_file):
     try:
       print(f'  Reading mouse waveforms from {d}')
-      all_trials = read_all_mouse_dir(d, debug=True)
+      all_trials = read_all_mouse_dir(d, debug=True, max_files=max_files)
       with open(pickle_file, 'w') as f:
         f.write(jsonpickle.encode(all_trials))
         print(f'  Cached {len(all_trials)} experiments')
@@ -703,14 +707,14 @@ flags.DEFINE_string('dprimes_cache', 'mouse_dprimes.pkl',
                     'Where to cache the dprimes in this directory')
 flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 
-def process_one_dir(dir, waveform_cache, dprime_cache):
+def process_one_dir(dir, waveform_cache, dprime_cache, max_files=0):
   if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
     os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
     print(f'Skipping waveforms and dprimes in {dir} because they are '
           'already cached.')
     return
   print(f'Processing waveforms in {dir}')
-  all_exps = cache_waveform_data(dir, waveform_cache, True)
+  all_exps = cache_waveform_data(dir, waveform_cache, True, max_files=max_files)
   if all_exps:
     dprimes = calculate_all_dprimes(all_exps)
     cache_dprime_data(dir, dprimes, dprime_cache)
