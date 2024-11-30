@@ -113,11 +113,12 @@ def read_all_mouse_dir(expdir: str, debug=False, max_files=0) -> List[MouseExp]:
                      f.endswith('.csv')]
 
   all_exps = []
+  total_file_count = len(all_exp_files)
   for f in all_exp_files:
     if 'saline' in f:
       continue
     if debug:
-      print(f'    Reading {f}')
+      print(f'    Reading {f} ({len(all_exps)}/{total_file_count})')
     exp = read_mouse_exp(os.path.join(expdir, f))
     all_exps.append(exp)
     if max_files and len(all_exps) >= max_files:
