@@ -788,7 +788,7 @@ def cache_waveform_one_dir(dir:str, waveform_pickle_name:str,
   """Read all the CSV files and convert them into pickled numpy arrays.  CSV
   files take a long time to read and parse, so this is an important speedup.
   """
-  num_good = waveform_caches_present(dir, waveform_pickle_name):
+  num_good = waveform_caches_present(dir, waveform_pickle_name)
   if num_good:
     print(f'Skipping waveforms and dprimes in {dir} because they are '
           f'{num_good} cached files.')
