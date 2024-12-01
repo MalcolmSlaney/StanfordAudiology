@@ -767,7 +767,7 @@ flags.DEFINE_integer('max_cache_gbytes', 10,
                      'Maximum size of one cache file (GBytes).')
 
 
-def waveform_caches_present(dir:str, waveform_pickle_name:str) -> bool:
+def waveform_caches_present(dir:str, waveform_pickle_name:str) -> int:
   """Check to make sure that all the waveform cache files in this directory
   are not emoty and there is at least one good one.
   """
@@ -780,7 +780,7 @@ def waveform_caches_present(dir:str, waveform_pickle_name:str) -> bool:
       good_files += 1
     else:
       print(f'Found a zero length waveform cache file: {filename}')
-  return good_files > 0
+  return good_files
  
 
 def cache_waveform_one_dir(dir:str, waveform_pickle_name:str, 
@@ -788,9 +788,10 @@ def cache_waveform_one_dir(dir:str, waveform_pickle_name:str,
   """Read all the CSV files and convert them into pickled numpy arrays.  CSV
   files take a long time to read and parse, so this is an important speedup.
   """
-  if waveform_caches_present(dir, waveform_pickle_name):
+  num_good = waveform_caches_present(dir, waveform_pickle_name):
+  if num_good:
     print(f'Skipping waveforms and dprimes in {dir} because they are '
-          'already cached.')
+          f'{num_good} cached files.')
     return
   print(f'Processing CSV waveforms in {dir}')
   all_exps = cache_all_mouse_dir(dir, True, waveform_pickle_name,
