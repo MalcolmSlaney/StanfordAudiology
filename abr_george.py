@@ -189,8 +189,11 @@ def load_waveform_cache(
   for filename in filenames:
     with open(filename, 'rb') as f:
       new_data = jsonpickle.decode(f.read())
-      all_exps += new_data
-    print(f'  Got {len(new_data)} MouseExp\'s from {filename}')
+      if new_data:
+        all_exps += new_data
+        print(f'  Got {len(new_data)} MouseExp\'s from {filename}')
+      else:
+        print(f'  ** Found an empty Pickle file: {filename}')
   print(f'  Got a total of {len(all_exps)} MouseExp from {dir}')
   return all_exps
 
@@ -459,10 +462,12 @@ def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
   return all_dprimes
 
 
-def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
-                                                         List[float],
-                                                         List[float],
-                                                         List[int]]:
+def calculate_dprimes(all_exps: List[MouseExp],
+                      debug_channel: Optional[int] = None
+                      ) -> Tuple[np.ndarray,
+                                 List[float],
+                                 List[float],
+                                 List[int]]:
   """
   Calculate the d-prime for all the experiments.  Preprocess each experiment
   using the preprocess_mouse_data function.  Then calculate the d' for each
@@ -512,7 +517,8 @@ def calculate_dprimes(all_exps: List[MouseExp]) -> Tuple[np.ndarray,
           all_data.append(preprocess_mouse_data(exp.single_trials))
         signal_data = np.concatenate(all_data, axis=1)
 
-        debug = channel==2 and freq==16000 and level in [0.0, 30.0, 60.0, 90.0]
+        debug = (debug_channel is not None and channel==debug_channel and 
+                 freq==16000 and level in [0.0, 30.0, 60.0, 90.0])
         if debug:
           plt.subplot(2, 2, plot_num)
           plot_num += 1
@@ -760,18 +766,22 @@ flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 flags.DEFINE_integer('max_cache_gbytes', 10, 
                      'Maximum size of one cache file (GBytes).')
 
-def cache_waveform_one_dir(dir, waveform_cache, max_files=0, max_bytes=10e9):
-  if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
-    os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
+def cache_waveform_one_dir(dir:str, waveform_cache:str, 
+                           max_files:int = 0, max_bytes:float = 10e9):
+  """Read all the CSV files and convert them into pickled numpy arrays.  CSV
+  files take a long time to read and parse, so this is an important speedup.
+  """
+  if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache)):
     print(f'Skipping waveforms and dprimes in {dir} because they are '
           'already cached.')
     return
-  print(f'Processing waveforms in {dir}')
+  print(f'Processing CSV waveforms in {dir}')
   all_exps = cache_all_mouse_dir(dir, True, waveform_cache,
                                  max_files=max_files, max_bytes=max_bytes)
 
 
-def cache_dprime_one_dir(dir, waveform_cache_name, dprime_cache_name):
+def cache_dprime_one_dir(dir:str, 
+                         waveform_cache_name:str, dprime_cache_name:str):
   all_exps = load_waveform_cache(dir, waveform_cache_name)
   if all_exps:
     dprimes = calculate_all_dprimes(all_exps)
@@ -793,7 +803,6 @@ def main(_):
     for dir in all_mouse_dirs:
       if FLAGS.filter in dir:
         cache_dprime_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache)
-
   else:
     print(f'Unknown processing mode: {FLAGS.mode}')
 
