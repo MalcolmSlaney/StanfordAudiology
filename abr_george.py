@@ -776,7 +776,7 @@ def waveform_caches_present(dir:str, waveform_pickle_name:str) -> bool:
   filenames = glob.glob(wild_filename)
   good_files = 0
   for filename in filenames:
-    if os.path.eists(filename) and os.path.getsize(filename) > 0:
+    if os.path.exists(filename) and os.path.getsize(filename) > 0:
       good_files += 1
     else:
       print(f'Found a zero length waveform cache file: {filename}')
