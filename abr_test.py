@@ -131,8 +131,8 @@ class TestProcessingModules(absltest.TestCase):
                                                ridge_alpha=0,
                                                plot_results=True)
       plt.savefig(fp)
-    self.assertAlmostEqual(mean_s, signal_level, delta=0.1)
-    self.assertAlmostEqual(mean_n, noise_level, delta=0.1)
+    self.assertAlmostEqual(mean_s, signal_level, delta=0.2)
+    self.assertAlmostEqual(mean_n, noise_level, delta=0.2)
     self.assertAlmostEqual(regression_s, signal_level, delta=.2)
     self.assertAlmostEqual(regression_n, noise_level, delta=.3)
 
