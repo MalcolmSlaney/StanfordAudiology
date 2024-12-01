@@ -100,7 +100,7 @@ def read_mouse_exp(filename: str) -> MouseExp:
 
 ###############  Cache all the Mouse CSV files ###########################
 
-mouse_data_pickle_name = 'mouse_waveforms.pkl'
+mouse_waveforms_pickle_name = 'mouse_waveforms.pkl'
 mouse_dprime_pickle_name = 'mouse_dprime.pkl'
 
 
@@ -123,7 +123,7 @@ def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
 
 
 def waveform_cache_present(dir:str, 
-                           waveform_pickle_name=mouse_data_pickle_name):
+                           waveform_pickle_name=mouse_waveforms_pickle_name):
   if os.path.exists(os.path.join(dir, waveform_pickle_name)):
     return True
   new_filename = waveform_pickle_name.replace('.pkl', f'00.pkl')
@@ -131,7 +131,7 @@ def waveform_cache_present(dir:str,
 
 
 def save_waveform_cache(all_exps: List[MouseExp], dir: str, number: int, 
-                        waveform_pickle_name='mouse_waveforms.pkl'):
+                        waveform_pickle_name=mouse_waveforms_pickle_name):
   """Save some of the MouseExp's objects into a cache file.  We store all the
   data from one directory into multiple cache files since they get to large to
   decode (with a single read).
@@ -148,7 +148,7 @@ def save_waveform_cache(all_exps: List[MouseExp], dir: str, number: int,
 
 def load_waveform_cache(
     dir: str,
-    waveform_pickle_name: str = mouse_data_pickle_name) -> List[MouseExp]:
+    waveform_pickle_name: str = mouse_waveforms_pickle_name) -> List[MouseExp]:
   filename = os.path.join(dir, waveform_pickle_name)
   wild_filename = filename.replace('.pkl', '*.pkl')
   filenames = glob.glob(wild_filename)
@@ -166,7 +166,7 @@ def load_waveform_cache(
 
 
 def summarize_all_data(all_exp_dirs: List[str], 
-                       pickle_name=mouse_data_pickle_name):
+                       pickle_name=mouse_waveforms_pickle_name):
   for d in all_exp_dirs:
     try:
       print(f'Summarizing data in {d}')
@@ -185,7 +185,7 @@ def summarize_all_data(all_exp_dirs: List[str],
 
 
 def cache_all_mouse_dir(expdir: str, 
-                        waveform_pickle_name: str = mouse_data_pickle_name,
+                        waveform_pickle_name: str = mouse_waveforms_pickle_name,
                         max_files:int = 0, max_bytes:float = 10e9, 
                         debug:bool = False) -> None:
   """
@@ -555,7 +555,7 @@ def get_all_dprime_data(dirs):
   all_dprimes = {}
   for d in dirs:
     animal_date = os.path.basename(d)
-    pickle_file = os.path.join(d, 'mouse_dprimes.pkl')
+    pickle_file = os.path.join(d, mouse_waveforms_pickle_name)
     if os.path.exists(pickle_file):
       with open(pickle_file, 'rb') as fp:
         mouse_dprime = jsonpickle.decode(fp.read())
@@ -726,9 +726,9 @@ flags.DEFINE_enum('mode', 'waveforms', ('waveforms', 'dprimes', 'check'),
 flags.DEFINE_string('basedir',
                     'drive/Shareddrives/StanfordAudiology/GeorgeMouseABR/CAP_ABR',
                     'Base directory to find the ABRPresto mouse data')
-flags.DEFINE_string('waveforms_cache', 'mouse_waveforms.pkl',
+flags.DEFINE_string('waveforms_cache', mouse_waveforms_pickle_name,
                     'Where to cache all the waveforms in this directory')
-flags.DEFINE_string('dprimes_cache', 'mouse_dprimes.pkl',
+flags.DEFINE_string('dprimes_cache', mouse_dprime_pickle_name,
                     'Where to cache the dprimes in this directory')
 flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 flags.DEFINE_integer('max_cache_gbytes', 10, 
