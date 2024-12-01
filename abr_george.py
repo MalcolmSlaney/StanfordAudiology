@@ -551,9 +551,8 @@ def plot_dprimes(dp: DPrimeResult):
 
 
 def cache_dprime_data(d: str, 
-                      dprimes: DPrimeResult,
-                      dprime_pickle_name: str, 
-                      load_data: bool = False):
+                      dprimes: Dict[str, DPrimeResult],
+                      dprime_pickle_name: str):
   """
   Cache all the dprime data in one of George's mouse recording folders.
   If we don't have the cache file, calculate the dprime data
@@ -748,6 +747,8 @@ def plot_threshold_scatter(abr_thresh, ecog_thresh, min_abr_threshold=np.nan,
 ###############  Main program, so we can run this offline ######################
 
 FLAGS = flags.FLAGS
+flags.DEFINE_enum('mode', 'waveforms', ('waveforms', 'dprimes', 'check'),
+                  'Which processing to do on this basedir.')
 flags.DEFINE_string('basedir',
                     'drive/Shareddrives/StanfordAudiology/GeorgeMouseABR/CAP_ABR',
                     'Base directory to find the ABRPresto mouse data')
@@ -759,8 +760,7 @@ flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 flags.DEFINE_integer('max_cache_gbytes', 10, 
                      'Maximum size of one cache file (GBytes).')
 
-def process_one_dir(dir, waveform_cache, dprime_cache, max_files=0,
-                    max_bytes=10e9):
+def cache_waveform_one_dir(dir, waveform_cache, max_files=0, max_bytes=10e9):
   if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache) and
     os.path.exists(dprime_cache) and os.path.getsize(dprime_cache)):
     print(f'Skipping waveforms and dprimes in {dir} because they are '
@@ -769,21 +769,33 @@ def process_one_dir(dir, waveform_cache, dprime_cache, max_files=0,
   print(f'Processing waveforms in {dir}')
   all_exps = cache_all_mouse_dir(dir, True, waveform_cache,
                                  max_files=max_files, max_bytes=max_bytes)
+
+
+def cache_dprime_one_dir(dir, waveform_cache_name, dprime_cache_name):
+  all_exps = load_waveform_cache(dir, waveform_cache_name)
   if all_exps:
     dprimes = calculate_all_dprimes(all_exps)
-    cache_dprime_data(dir, dprimes, dprime_cache)
+    cache_dprime_data(dir, dprimes, dprime_cache_name)
   else:
     print(f'  No waveform data to process for dprimes.')
 
 def main(_):
-  all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
-  all_dprimes = {}
-  for dir in all_mouse_dirs:
-    if FLAGS.filter in dir:
-      # waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
-      # dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
-      process_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache, 
-                      max_bytes=FLAGS.max_cache_gbytes*1e9)
+  if FLAGS.mode == 'waveforms':
+    all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
+    for dir in all_mouse_dirs:
+      if FLAGS.filter in dir:
+        # waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
+        # dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
+        cache_waveform_one_dir(dir, FLAGS.waveforms_cache, 
+                        max_bytes=FLAGS.max_cache_gbytes*1e9)
+  elif FLAGS.mode == 'dprimes':
+    all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
+    for dir in all_mouse_dirs:
+      if FLAGS.filter in dir:
+        cache_dprime_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache)
+
+  else:
+    print(f'Unknown processing mode: {FLAGS.mode}')
 
 if __name__ == '__main__':
   app.run(main)
