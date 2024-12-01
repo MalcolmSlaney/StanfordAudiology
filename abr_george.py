@@ -766,17 +766,34 @@ flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 flags.DEFINE_integer('max_cache_gbytes', 10, 
                      'Maximum size of one cache file (GBytes).')
 
-def cache_waveform_one_dir(dir:str, waveform_cache:str, 
+
+def waveform_caches_present(dir:str, waveform_pickle_name:str) -> bool:
+  """Check to make sure that all the waveform cache files in this directory
+  are not emoty and there is at least one good one.
+  """
+  filepath = os.path.join(dir, waveform_pickle_name)
+  wild_filename = filepath.replace('.pkl', '*.pkl')
+  filenames = glob.glob(wild_filename)
+  good_files = 0
+  for filename in filenames:
+    if os.path.eists(filename) and os.path.getsize(filename) > 0:
+      good_files += 1
+    else:
+      print(f'Found a zero length waveform cache file: {filename}')
+  return good_files > 0
+ 
+
+def cache_waveform_one_dir(dir:str, waveform_pickle_name:str, 
                            max_files:int = 0, max_bytes:float = 10e9):
   """Read all the CSV files and convert them into pickled numpy arrays.  CSV
   files take a long time to read and parse, so this is an important speedup.
   """
-  if (os.path.exists(waveform_cache) and os.path.getsize(waveform_cache)):
+  if waveform_caches_present(dir, waveform_pickle_name):
     print(f'Skipping waveforms and dprimes in {dir} because they are '
           'already cached.')
     return
   print(f'Processing CSV waveforms in {dir}')
-  all_exps = cache_all_mouse_dir(dir, True, waveform_cache,
+  all_exps = cache_all_mouse_dir(dir, True, waveform_pickle_name,
                                  max_files=max_files, max_bytes=max_bytes)
 
 
