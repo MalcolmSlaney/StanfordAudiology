@@ -122,39 +122,6 @@ def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
   return all_exp_dirs
 
 
-def XXcache_waveform_data(d: str, 
-                        waveform_pickle_name: str, 
-                        load_data: bool = False,
-                        max_files:int = 0,
-                        max_bytes: float = 10e9) -> Optional[List[MouseExp]]:
-  """
-  Cache all the CSV files in one of George's mouse recording folders.
-  If we don't have the cache file, parse all the CSV files and create
-  a new cache file.  If return_data is true, return the dictionary of waveform
-  data, reading it back in if we didn't compute it here.
-
-  Args:
-    exp_dir: Which data directory to read and cache.
-    waveform_pickle_name: The name of the waveform cache file.
-    load_data: Whether to return the cached data if it is there.
-
-  Returns:
-    A list of MouseExp structures.
-  """
-  pickle_file = os.path.join(d, waveform_pickle_name)
-  if not os.path.exists(pickle_file):
-    try:
-      print(f'  Reading mouse waveforms from {d}')
-      all_trials = cache_all_mouse_dir(d, debug=True, 
-                                       max_files=max_files, max_bytes=max_bytes)
-      with open(pickle_file, 'w') as f:
-        f.write(jsonpickle.encode(all_trials))
-        print(f'  Cached {len(all_trials)} experiments')
-    except Exception as e:
-      print(f'  **** Could not read {pickle_file} because of {repr(e)}. '
-            'Skipping')
-
-
 def waveform_cache_present(dir:str, 
                            waveform_pickle_name=mouse_data_pickle_name):
   if os.path.exists(os.path.join(dir, waveform_pickle_name)):
@@ -217,9 +184,10 @@ def summarize_all_data(all_exp_dirs: List[str],
       print(f'  Could not load mouse data for {d} because of {e}')
 
 
-def cache_all_mouse_dir(expdir: str, debug=False, 
+def cache_all_mouse_dir(expdir: str, 
                         waveform_pickle_name: str = mouse_data_pickle_name,
-                        max_files=0, max_bytes=10e9) -> None:
+                        max_files:int = 0, max_bytes:float = 10e9, 
+                        debug:bool = False) -> None:
   """
   Read and cache the CSV mouse experiments in the given directory. Each 
   trial experiment is stored in a single CSV file.  This routine reads all the 
@@ -794,7 +762,7 @@ def cache_waveform_one_dir(dir:str, waveform_pickle_name:str,
           f'{num_good} cached files.')
     return
   print(f'Processing CSV waveforms in {dir}')
-  all_exps = cache_all_mouse_dir(dir, True, waveform_pickle_name,
+  all_exps = cache_all_mouse_dir(dir, waveform_pickle_name, debug=True,
                                  max_files=max_files, max_bytes=max_bytes)
 
 
