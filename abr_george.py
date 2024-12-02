@@ -564,6 +564,7 @@ def get_all_dprime_data(
       mouse_dprime2 = {}
       for k in mouse_dprime.keys():
         mouse_dprime2[f'{animal_date}_{k}'] = mouse_dprime[k]
+      print(f'Added {len(mouse_dprime2)} d\' results added from {pickle_file}')
       all_dprimes.update(mouse_dprime2)
   return all_dprimes
 
