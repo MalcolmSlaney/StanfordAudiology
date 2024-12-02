@@ -551,11 +551,10 @@ def cache_dprime_data(d: str,
 ###############  Analyze all the d' data ##############################
 
 
-def get_all_dprime_data(dirs):
-  all_dprimes = {}
+def get_all_dprime_data(dirs, pickle_name: str = mouse_dprimes_pickle_name):
   for d in dirs:
     animal_date = os.path.basename(d)
-    pickle_file = os.path.join(d, mouse_waveforms_pickle_name)
+    pickle_file = os.path.join(d, pickle_name)
     if os.path.exists(pickle_file):
       with open(pickle_file, 'rb') as fp:
         mouse_dprime = jsonpickle.decode(fp.read())
