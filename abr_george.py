@@ -497,6 +497,55 @@ def calculate_dprimes(all_exps: List[MouseExp],
   return dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
 
 
+def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
+                          keep_list: List[str] = [],
+                          drop_list: List[str] = [],
+                          min_abr_thresh: float = 0.0,
+                          max_abr_thresh: float = 1e9,
+                          min_ecog_thresh: float = 0.0,
+                          max_ecog_thresh: float = 1e9,
+                          ) -> Tuple[List[float], 
+                                     List[float]]:
+  """Filter a DPrime dictionary, looking for good preparations and dropping the
+  bad ones.  And setting limits on the calculate thresholds, looking for good
+  and bad data.
+  
+  Args:
+    all_dprimes: A dictionary pointing to dprime results
+    keep_list: A list of strings with words from the date_preparation_name keys
+      that we want to keep
+    drop_list: Like keep list, but overrules with keys to drop
+    min_abr_thresh: Keep preps where all thresholds are *above* this limit
+    max_abr_thresh: Keep preps where all thresholds are *below* this limit
+    min_ecog_thresh: Like min_abr_thresh, but using ECoG data
+    max_ecog_thresh: Like max_abr_thresh, but using ECoG data
+    """
+  filtered_dprimes = {}
+  for k in all_dprimes.keys():
+    if any([l in k for l in drop_list]):
+      continue
+    if len(keep_list) and not any([l in k for l in keep_list]):
+      continue
+    
+    dp = all_dprimes[k]
+    if dp.spl_threshold is None:
+      continue
+    if not isinstance(dp.spl_threshold, np.ndarray) or dp.spl_threshold.ndim < 2:
+      continue
+
+    if np.min(dp.spl_threshold[:, 0]) < min_abr_thresh:
+      continue
+    if np.max(dp.spl_threshold[:, 0]) > max_abr_thresh:
+      continue
+    if np.min(dp.spl_threshold[:, 1]) < min_ecog_thresh:
+      continue
+    if np.max(dp.spl_threshold[:, 1]) > max_ecog_thresh:
+      continue
+
+    filtered_dprimes[k] = dp
+  return filtered_dprimes
+
+
 def plot_dprimes(dp: DPrimeResult):
   """Create a plot summarizing the d' collected by the calculate_all_dprimes
   routine above.  Show d' versus level, for each frequency and channel pair.
@@ -621,7 +670,11 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
     dp_criteria: Desired d' threshold
     plot: Generate plot showing curve fits
   Returns:
-    Nothing.  dprimes_result is modified in place.
+    Nothing.  dprimes_result is modified in place, adding:
+      1) the spl_threshold where d' gets above the dp_criteria, and 
+      2) smoothed_dprimes, which gives the d' estimate, after polynomial 
+         smoothing at the same frequencies, levels, and channels as the incoming
+         dprime array.
   """
   if len(dprimes_result.channels) != 2:
     return np.zeros((0, 2))
@@ -675,6 +728,8 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
 
 
 def add_all_thresholds(all_dprimes: Dict[str, DPrimeResult], dp_criteria=2):
+  """Process all the dprime structures we have, using the add_threshold function.
+  """
   for k in all_dprimes.keys():
     add_threshold(all_dprimes[k], dp_criteria=dp_criteria)
 
@@ -682,7 +737,25 @@ def add_all_thresholds(all_dprimes: Dict[str, DPrimeResult], dp_criteria=2):
 def accumulate_thresholds(all_dprimes: Dict[str, DPrimeResult],
                           freqs: Optional[List[float]] = None,
                           max_spl=120) -> Tuple[List[float], 
-                                                                 List[float]]:
+                                                List[float], float]:
+  """Accumulate all the thresholds for ABR and ECoG data, across all the data
+  we have.  Filter out the preparation names we do and don't want.  And remove
+  remove any preparations where the computed threshold is greater than max_spl,
+  indicating that we got no data for this prep.
+
+  Args:
+    all_dprimes: Dictionary keyed by the date_prep_name and pointing to the 
+      d' data for this preparation.  In particular we look at the spl_threshold,
+      which should already be calculated by add_threshold() and the 
+    freqs: List of frequencies to keep. The default is to return the d' 
+      regardless of test frequency.
+    max_spl: Filter results using this threshold before computing the Pearson
+      correlation.
+  Returns:
+    1) List of ABR thresholds
+    2) List of corresponding ECoG thresholds
+    3) the Pearson correlation between the ABR and ECoG thresholds
+  """
   all_abr = []
   all_ecog = []
   for k in all_dprimes.keys():
@@ -697,30 +770,77 @@ def accumulate_thresholds(all_dprimes: Dict[str, DPrimeResult],
       freq_indices = range(len(dp.freqs))
     # print(freq_indices, dp.spl_threshold.shape)
     all_abr.append(dp.spl_threshold[freq_indices, 0].flatten())
-    all_ecog.append(dp.spl_threshold[freq_indices, 1].flatten())  
+    all_ecog.append(dp.spl_threshold[freq_indices, 1].flatten())
+  if len(all_abr) == 0:
+    print(f'Found no data for frequency list: {",".join(freqs)}')
+    return [], [], 0.0
   all_abr = np.concatenate(all_abr)
   all_ecog = np.concatenate(all_ecog)
+
+  # Calculate the Pearson correlation using hte "good" data.
   good = np.logical_and(np.logical_and(np.isfinite(all_abr), all_abr < max_spl),
                         np.logical_and(np.isfinite(all_ecog), all_ecog < max_spl))
   abr_thresh = all_abr[good]
   ecog_thresh = all_ecog[good]
   pearson_r = spstats.pearsonr(abr_thresh, ecog_thresh).statistic
+
   return all_abr, all_ecog, pearson_r
 
 
-def plot_threshold_scatter(abr_thresh, ecog_thresh, min_abr_threshold=np.nan,
-                           color='b', draw_unit=True):
+def plot_threshold_scatter(abr_thresh: np.ndarray, ecog_thresh: np.ndarray, 
+                           title:str = 'Comparson of Threshold', 
+                           axis_limit: float = 120,
+                           color:str = 'b', draw_unit:bool = True):
+  """Plot a comparison of ABR and ECoG thresholds.
+  Args:
+    abr_thresh: A 1d array of ABR thresholds for different preparations.
+    ecog_thresh: A array of ECoG thresholds corresponding to abr_thresh
+    title: The title to place on the graph.
+    axis_limit: The maximum x and y limits on the axis, but no bigger than the
+      actual data.
+    color: Which plot color to use for this data
+    draw_unit: Draw the 1:1 line for comparison.
+  """
+  good = np.logical_and(np.isfinite(abr_thresh), np.isfinite(ecog_thresh))
+  abr_thresh = abr_thresh[good]
+  ecog_thresh = ecog_thresh[good]
+
   plt.plot(abr_thresh, ecog_thresh, 'x', color=color)
   plt.xlabel('ABR (Channel 1) Threshold (dB)')
   plt.ylabel('ECoG (Channel 2) Threshold (dB)')
-  plt.title(f'Comparison of Threshold at d\'={min_abr_threshold}')
-  plt.xlim(0, 120)
-  plt.ylim(0, 120)
+  if title:
+    plt.title(title)
+  axis_limit = min(min(np.max(abr_thresh), np.max(ecog_thresh)), axis_limit)
+  plt.xlim(0, axis_limit)
+  plt.ylim(0, axis_limit)
   if draw_unit:
     a=max(plt.axis())
     plt.plot([0, a], [0, a], '--');
 
 
+def find_dprime(all_dprimes: Dict[str, DPrimeResult], 
+                spl: float) -> Tuple[np.ndarray, np.ndarray]:
+  """Find the d' for all data in this dictionary of preparations. 
+  Args:
+    all_dprimes: Dictionary mapping preparation name to d' results.
+    spl: Which sound pressure level (SPL) to query the d'.  Must be one of the
+      measured SPLs, as computed by the smooth polynomial.
+  Returns:
+    Matched ABR and ECoG arrays with the d' at the given SPL.
+  """
+  abr_90s = []
+  ecog_90s = []
+  spl = 90
+  for k in all_dprimes:
+    dp = all_dprimes[k]
+    if dp.smooth_dprimes is None or spl not in dp.levels or dp.smooth_dprimes.shape[2] < 2:
+      continue
+    index = dp.levels.index(spl)
+    abr_90s.append(dp.smooth_dprimes[:, index, 0])
+    ecog_90s.append(dp.smooth_dprimes[:, index, 1])
+
+  return np.concatenate(abr_90s), np.concatenate(ecog_90s)
+  
 ###############  Main program, so we can run this offline ######################
 
 FLAGS = flags.FLAGS
