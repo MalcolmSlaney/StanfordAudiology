@@ -830,7 +830,6 @@ def find_dprime(all_dprimes: Dict[str, DPrimeResult],
   """
   abr_90s = []
   ecog_90s = []
-  spl = 90
   for k in all_dprimes:
     dp = all_dprimes[k]
     if dp.smooth_dprimes is None or spl not in dp.levels or dp.smooth_dprimes.shape[2] < 2:
