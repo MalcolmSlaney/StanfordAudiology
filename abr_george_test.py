@@ -288,6 +288,9 @@ class EnsembleTests(absltest.TestCase):
     print('RMS\'s are:', rmses)
     print('DPrimes for RMS are:', dprimes)
                     
+    expectations = np.sqrt((np.arange(1, 5)**2*np.sqrt(1/2.0))**2 + 1)
 
+    np.testing.assert_almost_equal(rmses[0, :, 0], expectations, decimal=3)
+  
 if __name__ == "__main__":
   absltest.main()
