@@ -202,5 +202,92 @@ class ABRGeorgeTests(absltest.TestCase):
     self.assertLen(all_trials, 2)
     george.summarize_all_data([basedir], pickle_name)
  
+
+class FittingTests(absltest.TestCase):
+  def test_polynomial(self):
+    x = np.array([1, 2, 3, 4])
+    y = x**2 + 3*x
+    pp = george.PositivePolynomial()
+    pp.fit(x, y)
+    new_x = 3.5
+    self.assertAlmostEqual(pp.eval(3.5), new_x**2 + 3*new_x, delta=1e-4)
+
+  def test_binlinear(self):
+    x = [1, 2, 3, 4]
+    y = [2, 4, 4, 5]
+    bp = george.BilinearInterpolation()
+    bp.fit(x, y)
+    self.assertAlmostEqual(bp.eval(1), 2)
+    self.assertAlmostEqual(bp.eval(1.5), 3)
+    self.assertAlmostEqual(bp.eval(2.5), 4)
+    self.assertAlmostEqual(bp.eval(4), 5)
+    # Test extrapolation
+    self.assertAlmostEqual(bp.eval(0), 0)
+    self.assertAlmostEqual(bp.eval(5), 6)
+    # Threshold
+    self.assertAlmostEqual(bp.threshold(0), 0)
+    self.assertAlmostEqual(bp.threshold(3), 1.5)
+    self.assertAlmostEqual(bp.threshold(4), 3)
+    self.assertAlmostEqual(bp.threshold(4.5), 3.5)
+    self.assertAlmostEqual(bp.threshold(5.5), 4.5)
+
+class EnsembleTests(absltest.TestCase):
+  def create_experiments(self, count, freq, level, channel):
+    exps = []
+    mouse_sample_rate = 24414.0
+    num_points = int(mouse_sample_rate/50) # 20ms
+    # Want array of num_waveform samples x num_trials
+    t = np.arange(num_points).reshape((-1, 1))/mouse_sample_rate
+    t = np.concatenate(count*[t], axis=1)
+    data = (level**2)*np.sin(2*np.pi*t*freq) + np.random.standard_normal(t.shape)
+    print(f'freq={freq}, level={level}, channel={channel} RMS is:',
+          np.sqrt(np.mean(data**2)))
+
+    exp = george.MouseExp(filename=f'Filename {level}',
+                          basename=f'Base {level}',
+                          sgi=level,
+                          channel=channel,
+                          freq=freq,
+                          level=level,
+                          description=f'Test {level}',
+                          single_trials=data)
+    return [exp]
+
+  def test_rms_calculation(self):
+    # num_samples x num_trials
+    data = np.array([[1, 2], [1, 2], [1, 2], [1, 2]])
+    np.testing.assert_almost_equal(george.calculate_rms(data),
+                                   np.array([1, 2]))
+
+  def test_ensemble(self):
+    all_exps = []
+    freqs = [500] # Preprocessing filter goes from 200Hz to 1kHz
+    levels = [1, 2, 3, 4]
+    channels = [1, 2]
+    for freq in freqs:
+      for level in levels:
+        for channel in channels:
+          # Create a lot of experiments so histograms are smooth.
+          all_exps += self.create_experiments(10000, freq, level, channel)
+
+    plt.clf()
+    (all_dprimes, all_freqs, 
+     all_levels, all_channels) = george.calculate_dprimes(all_exps,
+                                                          debug_freq=freq,
+                                                          debug_levels=levels,
+                                                          debug_channel=1)
+    print('Covariance d\'s are:', all_dprimes)
+    print('all_freqs, levels, channels:', all_freqs, all_levels, all_channels)
+    plt.savefig('test_ensemble_dprime.png')
+    
+    # Result is indexed by frequency, level, and channel, d' goes up with level
+    self.assertLess(all_dprimes[0, 0, 0], 20.0)
+    self.assertGreater(all_dprimes[0, 3, 0], 64.0)
+
+    rmses, dprimes = george.calculate_rms_measures(all_exps)
+    print('RMS\'s are:', rmses)
+    print('DPrimes for RMS are:', dprimes)
+                    
+
 if __name__ == "__main__":
   absltest.main()

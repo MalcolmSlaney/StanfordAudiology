@@ -54,7 +54,7 @@ class MouseExp:
   channel: int # which electrode, probably 1 or 2
   sgi: int # TDT Stimulus generation index (i.e. freq and level)
   description: str = ''
-  single_trials: np.ndarray = None # num_waveforms x num_trials
+  single_trials: np.ndarray = None # num_waveform samples x num_trials
   paired_trials: np.ndarray = None
 
 mouse_sample_rate = 24414 # From George's Experimental Notes
@@ -328,6 +328,19 @@ def shuffle_data(data: np.ndarray) -> np.ndarray:
   return data
 
 
+def calculate_rms(data: np.ndarray):
+  """Calculate the RMS power for a set of waveform measurements.
+  Note, because of the root, this is now in the amplitude domain.  Average
+  over all time, returning the RMS for each trial.
+
+  Args:
+    data: an array of num_samples x num_trials
+  Returns:
+    An array of length num_trials.
+  """
+  return np.sqrt(np.mean(data**2, axis=0))
+
+
 def calculate_dprime(data: np.ndarray,
                      noise_data: Optional[np.ndarray] = None,
                      debug=False) -> float:
@@ -356,12 +369,14 @@ def calculate_dprime(data: np.ndarray,
   h2_response = np.sum(h2, axis=0) # Sum response over time
   dprime = (np.mean(h1_response) - np.mean(h2_response)) / np.sqrt(np.std(h1_response)*np.std(h2_response))
   if debug:
-    counts, bins = np.histogram(h1_response, bins=40)
+    range = (min(np.min(h1_response), np.min(h2_response)),
+             max(np.max(h1_response), np.max(h2_response)))
+    counts, bins = np.histogram(h1_response, bins=40, range=range)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='signal_trial')
-    counts, bins = np.histogram(h2_response)
+    counts, bins = np.histogram(h2_response, bins=40, range=range)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
     plt.legend()
-    plt.title('Histogram of covariance of channel 2')
+    plt.title('Histogram of covariance')
     a = plt.axis()
     plt.text(a[0], a[2], 
              f' H1: {np.mean(h1_response):4.3G} +/- {np.std(h1_response):4.3G}\n'
@@ -405,7 +420,10 @@ class DPrimeResult(object):
   levels: List[float]
   channels: List[int]
   spl_threshold: Optional[np.ndarray] = None # db SPL for frequency by channel
-  smooth_dprimes: Optional[np.ndarray] = None # Like dprimes, but from poly fit
+  smooth_dprimes: Optional[np.ndarray] = None # Like dprimes, but smoothed fit
+
+  rms_energies: Optional[np.ndarray] = None # Like dprimes
+  rms_dprimes: Optional[np.ndarray] = None # Like dprimes
 
 
 def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
@@ -431,7 +449,9 @@ def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
 
 
 def calculate_dprimes(all_exps: List[MouseExp],
-                      debug_channel: Optional[int] = None
+                      debug_freq: Optional[float] = None,
+                      debug_levels: List[float] = [],
+                      debug_channel: Optional[int] = None,
                       ) -> Tuple[np.ndarray,
                                  List[float],
                                  List[float],
@@ -467,6 +487,7 @@ def calculate_dprimes(all_exps: List[MouseExp],
       if noise_exp is None:
         print(f'Found no noise data for freq={freq}, channel={channel}')
         continue
+      print(f'Found noise exp with {noise_exp.freq}Hz, {noise_exp.level}dB, channel {noise_exp.channel}')
       
       noise_data = preprocess_mouse_data(noise_exp.single_trials)
 
@@ -485,8 +506,8 @@ def calculate_dprimes(all_exps: List[MouseExp],
           all_data.append(preprocess_mouse_data(exp.single_trials))
         signal_data = np.concatenate(all_data, axis=1)
 
-        debug = (debug_channel is not None and channel==debug_channel and 
-                 freq==16000 and level in [0.0, 30.0, 60.0, 90.0])
+        debug = (channel == debug_channel and freq == debug_freq and 
+                 level in debug_levels)
         if debug:
           plt.subplot(2, 2, plot_num)
           plot_num += 1
@@ -495,6 +516,63 @@ def calculate_dprimes(all_exps: List[MouseExp],
           plt.title(f'freq={int(freq)}, level={int(level)}, channel={int(channel)}')
   print(f'  Processed {all_processed} CSV files, {all_multiprocessed} part of a group.')
   return dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
+
+
+
+def calculate_rms_measures(all_exps: List[MouseExp],
+                           ) -> Tuple[np.ndarray, np.ndarray]:
+  """
+  Calculate the RMS statistics for all experiments in a preparation.
+  This routine is similar to calculate_dprimes, but we assume that function 
+  was called first, so we don't have to keep track of the levels and such.
+
+  Args:
+    all_exps: a list containing experiments in MouseExp format, before
+      preprocessing.
+
+  Returns:
+    Two 3d arrays: Ome containing the per-sample average RMS energy in the 
+    recordings, and the other representing a d' calculation using the RMS
+    energy.
+  """
+  all_exp_levels = sorted(list(set([exp.level for exp in all_exps])))
+  all_exp_freqs = sorted(list(set([exp.freq for exp in all_exps])))
+  all_exp_channels = sorted(list(set([exp.channel for exp in all_exps])))
+
+  rmses = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels), 
+                           len(all_exp_channels)))
+  dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels), 
+                             len(all_exp_channels)))
+  # Now loop through all the frequencies, channels, and levels.
+  for i, freq in enumerate(all_exp_freqs):
+    for k, channel in enumerate([1, 2]):
+      # Find the noisy data for this combination of frequency and channel
+      noise_exp = find_noise_exp(all_exps, freq=freq, channel=channel)
+      if noise_exp is None:
+        print(f'Found no noise data for freq={freq}, channel={channel}')
+        continue
+      
+      noise_data = preprocess_mouse_data(noise_exp.single_trials)
+      noise_rms = calculate_rms(noise_data)
+
+      for j, level in enumerate(all_exp_levels):
+        exps = find_exp(all_exps, freq=freq, level=level, channel=channel)
+        if len(exps) == 0:
+          print(f' Found ZERO examples for freq={freq}, level={level}, '
+                f'channel={channel}: {len(exps)}')
+          continue
+        elif len(exps) > 1:
+          print(f'  Processing {len(exps)} segments for the same preparation.')
+          all_multiprocessed += 1
+        all_data = []
+        for exp in exps:
+          all_data.append(preprocess_mouse_data(exp.single_trials))
+
+        signal_data = np.concatenate(all_data, axis=1)
+        signal_rms = calculate_rms(signal_data)
+        rmses[i, j, k] = np.sqrt(np.mean(signal_rms**2))
+        dprimes[i, j, k] = (np.mean(signal_rms) - np.mean(noise_rms)) / np.sqrt(np.std(signal_rms)*np.std(noise_rms))
+  return rmses, dprimes
 
 
 def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
@@ -618,6 +696,36 @@ def get_all_dprime_data(
   return all_dprimes
 
 
+class BilinearInterpolation(object):
+  def __init__(self):
+    self._xdata = []
+    self._ydata = []
+
+  def fit(self, xdata, ydata):
+    i = np.argsort(xdata)
+    self._xdata = np.asarray(xdata)[i]
+    self._ydata = np.asarray(ydata)[i]
+
+  def eval(self, x):
+    if x <= self._xdata[0]: 
+      i = 0
+    elif x >= self._xdata[-2]:
+      i = len(self._xdata)-2
+    else:
+      i = np.nonzero(x > self._xdata)[0][-1]
+    delta = (x - self._xdata[i])/(self._xdata[i+1]-self._xdata[i])
+    return self._ydata[i]*(1-delta) + self._ydata[i+1]*delta
+
+  def threshold(self, y):
+    if y <= self._ydata[0]:
+      i = 0
+    elif y >= self._ydata[-2]:
+      i = len(self._ydata)-2
+    else:
+      i = np.nonzero(y > self._ydata)[0][-1]
+    delta = (y - self._ydata[i])/(self._ydata[i+1]-self._ydata[i])
+    return self._xdata[i]*(1-delta) + self._xdata[i+1]*delta
+  
 class PositivePolynomial(object):
   """A class that lets us fit a quadratic function with all positive
   coefficients to some d' data.
@@ -659,15 +767,17 @@ class PositivePolynomial(object):
 
 
 def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2, 
+                  fit_method: str = 'bilinear',
                   plot=False) -> None:
   """Add the SPL threshold to a DPrimeResult.  This is done by fitting a
-  positive-coeffifient polynomial to the d' data at each frequency and channel,
-  and then using this smooth model to predict the level where d' exceeds the
-  desired level.
+  either a polynomial or bilinear model to the d' data at each frequency and 
+  channel, and then using this smooth model to predict the level where d' 
+  exceeds the desired level.
   Args:
     dprimes_result: Consolidated estimate of the d' for each frequency, level
       and channel
     dp_criteria: Desired d' threshold
+    fit_method: Either 'bilinear' or 'polynomial'
     plot: Generate plot showing curve fits
   Returns:
     Nothing.  dprimes_result is modified in place, adding:
@@ -697,9 +807,12 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
       dprimes = dprimes_result.dprimes[i, :, j]
       cp = None
       try:
-        cp = PositivePolynomial()
-        cp.fit(levels, dprimes)
-        r = cp.threshold(dp_criteria)
+        if fit_method == 'binlinear':
+          interp = BilinearInterpolation()
+        elif fit_method == 'polynomial':
+          interp = PositivePolynomial()
+        interp.fit(levels, dprimes)
+        r = interp.threshold(dp_criteria)
         # Check if r is a list and take the first element if it is
         # This ensures we store a single numeric value in db_at_threshold
         if isinstance(r, list):
@@ -727,11 +840,13 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
   dprimes_result.smooth_dprimes = smoothed
 
 
-def add_all_thresholds(all_dprimes: Dict[str, DPrimeResult], dp_criteria=2):
+def add_all_thresholds(all_dprimes: Dict[str, DPrimeResult], dp_criteria=2,
+                       fit_method='binlinear'):
   """Process all the dprime structures we have, using the add_threshold function.
   """
   for k in all_dprimes.keys():
-    add_threshold(all_dprimes[k], dp_criteria=dp_criteria)
+    add_threshold(all_dprimes[k], dp_criteria=dp_criteria, 
+                  fit_method=fit_method)
 
 
 def accumulate_thresholds(all_dprimes: Dict[str, DPrimeResult],
