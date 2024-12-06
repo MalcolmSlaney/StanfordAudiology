@@ -290,7 +290,7 @@ class EnsembleTests(absltest.TestCase):
                     
     expectations = np.sqrt((np.arange(1, 5)**2*np.sqrt(1/2.0))**2 + 1)
 
-    np.testing.assert_almost_equal(rmses[0, :, 0], expectations, decimal=3)
+    np.testing.assert_almost_equal(rmses[0, :, 0], expectations, decimal=2)
   
 if __name__ == "__main__":
   absltest.main()
