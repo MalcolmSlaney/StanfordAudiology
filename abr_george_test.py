@@ -278,13 +278,18 @@ class EnsembleTests(absltest.TestCase):
                                                           debug_channel=1)
     print('Covariance d\'s are:', all_dprimes)
     print('all_freqs, levels, channels:', all_freqs, all_levels, all_channels)
-    plt.savefig('test_ensemble_dprime.png')
+    plt.savefig('test_ensemble_cov_dprime.png')
     
     # Result is indexed by frequency, level, and channel, d' goes up with level
     self.assertLess(all_dprimes[0, 0, 0], 20.0)
     self.assertGreater(all_dprimes[0, 3, 0], 64.0)
 
-    rmses, dprimes = george.calculate_rms_measures(all_exps)
+    plt.clf()
+    rmses, dprimes = george.calculate_rms_measures(all_exps,
+                                                   debug_freq=freq,
+                                                   debug_levels=levels,
+                                                   debug_channel=1)
+    plt.savefig('test_ensemble_rms_dprime.png')
     print('RMS\'s are:', rmses)
     print('DPrimes for RMS are:', dprimes)
                     

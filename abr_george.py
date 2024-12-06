@@ -520,6 +520,9 @@ def calculate_dprimes(all_exps: List[MouseExp],
 
 
 def calculate_rms_measures(all_exps: List[MouseExp],
+                           debug_freq: Optional[float] = None,
+                           debug_levels: List[float] = [],
+                           debug_channel: Optional[int] = None,
                            ) -> Tuple[np.ndarray, np.ndarray]:
   """
   Calculate the RMS statistics for all experiments in a preparation.
@@ -544,6 +547,7 @@ def calculate_rms_measures(all_exps: List[MouseExp],
   dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels), 
                              len(all_exp_channels)))
   # Now loop through all the frequencies, channels, and levels.
+  plot_num = 1
   for i, freq in enumerate(all_exp_freqs):
     for k, channel in enumerate([1, 2]):
       # Find the noisy data for this combination of frequency and channel
@@ -572,6 +576,26 @@ def calculate_rms_measures(all_exps: List[MouseExp],
         signal_rms = calculate_rms(signal_data)
         rmses[i, j, k] = np.sqrt(np.mean(signal_rms**2))
         dprimes[i, j, k] = (np.mean(signal_rms) - np.mean(noise_rms)) / np.sqrt(np.std(signal_rms)*np.std(noise_rms))
+
+        debug = (channel == debug_channel and freq == debug_freq and 
+                 level in debug_levels)
+        if debug:
+          plt.subplot(2, 2, plot_num)
+          plot_num += 1
+          range = (min(np.min(signal_rms), np.min(noise_rms)),
+                  max(np.max(signal_rms), np.max(noise_rms)))
+          counts, bins = np.histogram(signal_rms, bins=40, range=range)
+          plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='signal_trial')
+          counts, bins = np.histogram(noise_rms, bins=40, range=range)
+          plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
+          plt.legend()
+          plt.title('Histogram of covariance')
+          a = plt.axis()
+          plt.text(a[0], a[2], 
+                  f' H1: {np.mean(signal_rms):4.3G} +/- {np.std(signal_rms):4.3G}\n'
+                  f' H2: {np.mean(noise_rms):4.3G} +/-{np.std(noise_rms):4.3G}\n'
+                  f' d\'={dprimes[i, j, k]:4.3G}\n\n\n')
+          
   return rmses, dprimes
 
 
