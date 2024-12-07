@@ -726,12 +726,16 @@ class BilinearInterpolation(object):
 
   def fit(self, xdata, ydata):
     i = np.argsort(xdata)
+    if len(xdata) != len(ydata):
+      raise ValueError('Unequal array sizes passed to fit')
     self._xdata = np.asarray(xdata)[i]
     self._ydata = np.asarray(ydata)[i]
 
   def eval(self, x):
     if isinstance(x, list) or (isinstance(x, np.ndarray) and x.size > 1):
       return [self.eval(f) for f in x]
+    if len(self._xdata) < 2:  # Not enough data for interpolation
+      return self._ydata
     if x <= self._xdata[0]: 
       i = 0
     elif x >= self._xdata[-2]:
@@ -764,6 +768,8 @@ class PositivePolynomial(object):
     return a + b*x + c*x**2 
 
   def fit(self, xdata, ydata, bounds=([0, 0, 0], [np.inf, np.inf, np.inf])):
+    if len(xdata) != len(ydata):
+      raise ValueError('Unequal array sizes passed to fit')
     (self._a, self._b, self._c), _ = curve_fit(self.quadratic, xdata, ydata, 
                                                bounds=bounds)
   

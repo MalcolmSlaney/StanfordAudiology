@@ -231,6 +231,16 @@ class FittingTests(absltest.TestCase):
     self.assertAlmostEqual(bp.threshold(4.5), 3.5)
     self.assertAlmostEqual(bp.threshold(5.5), 4.5)
 
+  def test_short_data(self):
+    x = [1]
+    y = [2, 3]
+    bp = george.BilinearInterpolation()
+    self.assertRaises(ValueError, bp.fit, x, y)
+
+    y = [2]
+    bp.fit(x, y)
+    self.assertAlmostEqual(bp.eval(5), y[0])
+
 class EnsembleTests(absltest.TestCase):
   def create_experiments(self, count, freq, level, channel):
     exps = []
