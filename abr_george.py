@@ -7,6 +7,8 @@ import glob
 import math
 import os
 import sys
+import traceback
+
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as spsig
@@ -851,7 +853,8 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
         if isinstance(r, list):
             r = r[0] if r else np.nan
       except Exception as error:
-        print(f'Could not fit polynomial: {error}')
+        print(f'Could not fit levels: {error}')
+        print(traceback.format_exc())
         r = np.nan
       spl_threshold[i, j] = r
       smoothed[i, :, j] = interp.eval(np.asarray(dprimes_result.levels))

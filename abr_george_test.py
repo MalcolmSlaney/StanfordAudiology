@@ -239,7 +239,7 @@ class FittingTests(absltest.TestCase):
 
     y = [2]
     bp.fit(x, y)
-    self.assertAlmostEqual(bp.eval(5), y[0])
+    self.assertAlmostEqual(bp.eval(5), y[0])  # Only one point to fit, return it
 
 class EnsembleTests(absltest.TestCase):
   def create_experiments(self, count, freq, level, channel):
