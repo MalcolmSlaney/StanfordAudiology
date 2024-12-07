@@ -844,8 +844,8 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
         # This ensures we store a single numeric value in db_at_threshold
         if isinstance(r, list):
             r = r[0] if r else np.nan
-      except Exception:
-        print('Could not fit polynomial')
+      except Exception as error:
+        print(f'Could not fit polynomial: {error}')
         r = np.nan
       spl_threshold[i, j] = r
       smoothed[i, :, j] = interp.eval(np.asarray(dprimes_result.levels))
