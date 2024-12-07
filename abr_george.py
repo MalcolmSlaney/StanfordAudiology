@@ -846,13 +846,13 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
         print('Could not fit polynomial')
         r = np.nan
       spl_threshold[i, j] = r
-      smoothed[i, :, j] = cp.eval(np.asarray(dprimes_result.levels))
-      if cp and plot:
+      smoothed[i, :, j] = interp.eval(np.asarray(dprimes_result.levels))
+      if interp and plot:
         if channel == 1:
           ls = '--'
         else:
           ls = '-'
-        plt.plot(plot_levels, [cp.eval(l) for l in plot_levels], 
+        plt.plot(plot_levels, [interp.eval(l) for l in plot_levels], 
                 label=f'{channel_names[channel]} at {freq}Hz',
                 color=color_list[i], ls=ls)
         plt.plot(levels, dprimes, 'x', 
