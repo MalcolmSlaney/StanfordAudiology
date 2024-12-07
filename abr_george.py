@@ -487,7 +487,6 @@ def calculate_dprimes(all_exps: List[MouseExp],
       if noise_exp is None:
         print(f'Found no noise data for freq={freq}, channel={channel}')
         continue
-      print(f'Found noise exp with {noise_exp.freq}Hz, {noise_exp.level}dB, channel {noise_exp.channel}')
       
       noise_data = preprocess_mouse_data(noise_exp.single_trials)
 
@@ -831,10 +830,12 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
       dprimes = dprimes_result.dprimes[i, :, j]
       cp = None
       try:
-        if fit_method == 'binlinear':
+        if fit_method == 'bilinear':
           interp = BilinearInterpolation()
         elif fit_method == 'polynomial':
           interp = PositivePolynomial()
+        else:
+          assert ValueError(f'Unknown fit method: {fit_method}')
         interp.fit(levels, dprimes)
         r = interp.threshold(dp_criteria)
         # Check if r is a list and take the first element if it is

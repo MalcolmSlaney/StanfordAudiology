@@ -239,9 +239,9 @@ class EnsembleTests(absltest.TestCase):
     # Want array of num_waveform samples x num_trials
     t = np.arange(num_points).reshape((-1, 1))/mouse_sample_rate
     t = np.concatenate(count*[t], axis=1)
-    data = (level**2)*np.sin(2*np.pi*t*freq) + np.random.standard_normal(t.shape)
-    print(f'freq={freq}, level={level}, channel={channel} RMS is:',
-          np.sqrt(np.mean(data**2)))
+    data = (level**2)*np.sin(2*np.pi*t*freq) + 4*np.random.standard_normal(t.shape)
+    # print(f'freq={freq}, level={level}, channel={channel} RMS is:',
+    #       np.sqrt(np.mean(data**2)))
 
     exp = george.MouseExp(filename=f'Filename {level}',
                           basename=f'Base {level}',
@@ -276,8 +276,6 @@ class EnsembleTests(absltest.TestCase):
                                                           debug_freq=freq,
                                                           debug_levels=levels,
                                                           debug_channel=1)
-    print('Covariance d\'s are:', all_dprimes)
-    print('all_freqs, levels, channels:', all_freqs, all_levels, all_channels)
     plt.savefig('test_ensemble_cov_dprime.png')
     
     # Result is indexed by frequency, level, and channel, d' goes up with level
@@ -290,12 +288,11 @@ class EnsembleTests(absltest.TestCase):
                                                    debug_levels=levels,
                                                    debug_channel=1)
     plt.savefig('test_ensemble_rms_dprime.png')
-    print('RMS\'s are:', rmses)
-    print('DPrimes for RMS are:', dprimes)
                     
-    expectations = np.sqrt((np.arange(1, 5)**2*np.sqrt(1/2.0))**2 + 1)
+    # Expectation is sqrt(level**2 * RMS(sin) + RMS(noise))
+    expectations = np.sqrt((np.arange(1, 5)**2*np.sqrt(1/2.0))**2 + 16)
 
-    np.testing.assert_almost_equal(rmses[0, :, 0], expectations, decimal=2)
+    np.testing.assert_allclose(rmses[0, :, 0], expectations, rtol=.01)
   
 if __name__ == "__main__":
   absltest.main()
