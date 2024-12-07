@@ -868,7 +868,7 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
 
 
 def add_all_thresholds(all_dprimes: Dict[str, DPrimeResult], dp_criteria=2,
-                       fit_method='binlinear'):
+                       fit_method='bilinear'):
   """Process all the dprime structures we have, using the add_threshold function.
   """
   for k in all_dprimes.keys():
