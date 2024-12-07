@@ -748,6 +748,8 @@ class BilinearInterpolation(object):
     return self._ydata[i]*(1-delta) + self._ydata[i+1]*delta
 
   def threshold(self, y):
+    if len(self._xdata) < 2:
+      return self._xdata[0]
     if y <= self._ydata[0]:
       i = 0
     elif y >= self._ydata[-2]:
