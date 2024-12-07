@@ -730,6 +730,8 @@ class BilinearInterpolation(object):
     self._ydata = np.asarray(ydata)[i]
 
   def eval(self, x):
+    if isinstance(x, list) or (isinstance(x, np.ndarray) and x.size > 1):
+      return [self.eval(f) for f in x]
     if x <= self._xdata[0]: 
       i = 0
     elif x >= self._xdata[-2]:
