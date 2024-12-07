@@ -17,13 +17,10 @@ import scipy.stats as spstats
 from scipy.stats import linregress
 from scipy.optimize import curve_fit
 
-
-from abr import *
-
-from typing import Dict, List, Optional, Union, Tuple
-
 from absl import app
 from absl import flags
+from abr import *
+from typing import Dict, List, Optional, Union, Tuple
 
 # We save the raw data with Pickle because raw JSON doesn't support Numpy
 # https://jsonpickle.github.io/
@@ -44,9 +41,9 @@ class MouseExp:
     freq: At what frequency was the animal stimulated
     level: At what level (in dB) was the animal stimulated
     channel: Which electrode, probably 1 or 2, was recorded
-    sgi: ???
+    sgi: Signal generation index (TDT status)
     description: ??
-    single_trials: ???
+    single_trials: Array of waveform data for one preparation.
     paired_trials: ????
   """
   filename: str  # Full filename of the CSV mouse waveform data
@@ -216,7 +213,8 @@ def cache_all_mouse_dir(expdir: str,
     if 'saline' in f:
       continue
     if debug:
-      print(f'    Reading {f} ({len(all_exps)}/{total_file_count} totaling {cache_size(all_exps)} bytes)')
+      print(f'    Reading {f} ({len(all_exps)}/{total_file_count} '
+            f'totaling {cache_size(all_exps)} bytes)')
     exp = read_mouse_exp(os.path.join(expdir, f))
     all_exps.append(exp)
     if max_files and len(all_exps) >= max_files:
@@ -330,6 +328,45 @@ def shuffle_data(data: np.ndarray) -> np.ndarray:
   return data
 
 
+def exp_type_from_name(name: str) -> str:
+  """Return the experiment type from a full pathname.  For example 
+    20230810_control2_post60-0-30-2-1
+  becomes control2_post60
+  """
+  return name.split('-', 1)[0].split('_', 1)[1]
+
+def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
+  """Group all the experiments in a directory, based on the experiment type.
+  The experiment type is the first part of the filename, after the date.
+  Args:
+    all_exps: A list of all the MouseExps (in a directory)
+    
+  Returns:
+    A dictionary of groups of MouseExps.  The key is the experiment type and the
+    value is a list of MouseExps.
+  """
+  types = set([exp_type_from_name(exp.basename) for exp in all_exps])
+  exp_groups = {}
+  for exp_type in types:
+    this_exps = [exp for exp in all_exps 
+                 if exp_type_from_name(exp.basename) == exp_type]
+    exp_groups[exp_type] = this_exps
+  return exp_groups
+
+
+###############  Compute all the d-primes for our data #######################
+@dataclasses.dataclass
+class DPrimeResult(object):
+  """Consolidate all the d' results for one preparation, across frequency.
+  level and channel."""
+  cov_dprimes: np.ndarray # 3d array indexed by frequency, level and channel
+  rmses: np.ndarray # Correspomding RMS values for each group
+  rms_dprimes: np.ndarray # Corresponding d' for the RMS calculations.
+  freqs: List[float]
+  levels: List[float]
+  channels: List[int]
+
+
 def calculate_rms(data: np.ndarray):
   """Calculate the RMS power for a set of waveform measurements.
   Note, because of the root, this is now in the amplitude domain.  Average
@@ -343,16 +380,16 @@ def calculate_rms(data: np.ndarray):
   return np.sqrt(np.mean(data**2, axis=0))
 
 
-def calculate_dprime(data: np.ndarray,
-                     noise_data: Optional[np.ndarray] = None,
-                     debug=False) -> float:
+def calculate_cov_dprime(data: np.ndarray,
+                         noise_data: Optional[np.ndarray] = None,
+                         debug=False) -> float:
   """
-  Calculate the d-prime of the average response.  Form a model of the ABR signal
-  by averaging all the trials together.  Cross correlate each trial with the
-  model.  That forms a histogram we call H1.  Then shuffle each trial in time,
-  and perform the same calculation to form the null hypothesis, H2.  Calculate
-  the difference between these two empirical distributions, and normalize by
-  the geometric mean of their standard deviations.
+  Calculate the d-prime of the covariance response.  Form a model of the ABR 
+  signal by averaging all the trials together.  Cross correlate each trial with 
+  the model.  That forms a histogram we call H1.  Then shuffle each trial in 
+  time, and perform the same calculation to form the null hypothesis, H2.  
+  Calculate the difference between these two empirical distributions, and 
+  normalize by the geometric mean of their standard deviations.
 
   Args:
     data: A matrix of shape num_samples x num_trials
@@ -386,53 +423,37 @@ def calculate_dprime(data: np.ndarray,
              f' d\'={dprime:4.3G}\n\n\n')
   return dprime
 
-def exp_type_from_name(name: str) -> str:
-  """Return the experiment type from a full pathname.  For example 
-    20230810_control2_post60-0-30-2-1
-  becomes control2_post60
-  """
-  return name.split('-', 1)[0].split('_', 1)[1]
 
-def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
-  """Group all the experiments in a directory, based on the experiment type.
-  The experiment type is the first part of the filename, after the date.
-  Args:
-    all_exps: A list of all the MouseExps (in a directory)
-    
-  Returns:
-    A dictionary of groups of MouseExps.  The key is the experiment type and the
-    value is a list of MouseExps.
-  """
-  types = set([exp_type_from_name(exp.basename) for exp in all_exps])
-  exp_groups = {}
-  for exp_type in types:
-    this_exps = [exp for exp in all_exps 
-                 if exp_type_from_name(exp.basename) == exp_type]
-    exp_groups[exp_type] = this_exps
-  return exp_groups
+def calculate_rmses(signal_data, noise_data, debug):
+  noise_rms = calculate_rms(noise_data)
+  signal_rms = calculate_rms(signal_data)
+  rms = np.sqrt(np.mean(signal_rms**2))
+  dprime = (np.mean(signal_rms) - np.mean(noise_rms)) / np.sqrt(np.std(signal_rms)*np.std(noise_rms))
 
-
-###############  Compute all the d-primes for our data #######################
-@dataclasses.dataclass
-class DPrimeResult(object):
-  """Consolidate all the d' results for one preparation, across frequency.
-  level and channel."""
-  dprimes: np.ndarray # 3d array indexed by frequency, level and channel
-  freqs: List[float]
-  levels: List[float]
-  channels: List[int]
-  spl_threshold: Optional[np.ndarray] = None # db SPL for frequency by channel
-  smooth_dprimes: Optional[np.ndarray] = None # Like dprimes, but smoothed fit
-
-  rms_energies: Optional[np.ndarray] = None # Like dprimes
-  rms_dprimes: Optional[np.ndarray] = None # Like dprimes
+  if debug:
+    range = (min(np.min(signal_rms), np.min(noise_rms)),
+            max(np.max(signal_rms), np.max(noise_rms)))
+    counts, bins = np.histogram(signal_rms, bins=40, range=range)
+    plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='signal_trial')
+    counts, bins = np.histogram(noise_rms, bins=40, range=range)
+    plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
+    plt.legend()
+    plt.title('Histogram of covariance')
+    a = plt.axis()
+    plt.text(a[0], a[2], 
+            f' H1: {np.mean(signal_rms):4.3G} +/- {np.std(signal_rms):4.3G}\n'
+            f' H2: {np.mean(noise_rms):4.3G} +/-{np.std(noise_rms):4.3G}\n'
+            f' d\'={dprime:4.3G}\n\n\n')
+          
+  return rms, dprime
 
 
-def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
-  """Calculate the dprime for each type of experiment within this list of 
-  results.  Each result is for one experiment, at one frequency, level and 
-  channel. This code groups the experiments together that share the same type,
-  based on the second component of the file name, and then computes the
+def calculate_all_summaries(all_exps: List[MouseExp]) -> Dict[str, 
+                                                              DPrimeResult]:
+  """Calculate the waveform summaries for each type of experiment within this 
+  list of results.  Each result is for one experiment, at one frequency, level 
+  and channel. This code groups the experiments together that share the same 
+  type, based on the second component of the file name, and then computes the
   d' as a function of frequency, level and channel.
 
   Arg:
@@ -445,110 +466,56 @@ def calculate_all_dprimes(all_exps: List[MouseExp]) -> Dict[str, DPrimeResult]:
   all_groups = group_experiments(all_exps)
   all_dprimes = {}
   for t, exps in all_groups.items():
-    result = DPrimeResult(*calculate_dprimes(exps))
+    result = DPrimeResult(*calculate_waveform_summaries(exps))
     all_dprimes[t] = result
   return all_dprimes
 
 
-def calculate_dprimes(all_exps: List[MouseExp],
-                      debug_freq: Optional[float] = None,
-                      debug_levels: List[float] = [],
-                      debug_channel: Optional[int] = None,
-                      ) -> Tuple[np.ndarray,
-                                 List[float],
-                                 List[float],
-                                 List[int]]:
+def calculate_waveform_summaries(all_exps: List[MouseExp],
+                                 debug_cov_not_rms: bool = True,
+                                 debug_freq: Optional[float] = None,
+                                 debug_levels: List[float] = [],
+                                 debug_channel: Optional[int] = None,
+                                 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray,
+                                           List[float],
+                                           List[float],
+                                           List[int]]:
   """
-  Calculate the d-prime for all the experiments.  Preprocess each experiment
-  using the preprocess_mouse_data function.  Then calculate the d' for each
-  set of experiments with the same frequency, level and channel.  Returns a
-  3d array index by frequency, level, and channel.
+  Calculate the covariance and RMS d' for all trial preparations.  First gather 
+  the waveforms by frequency, level and channel.  And then for each preparation
+  preprocess the waveforms.  The calcuate the covariance and its d', and then
+  do the same thing for RMS.
 
   Args:
     all_exps: a list containing experiments in MouseExp format, before
       preprocessing.
+    debug_cov_not_rms: If true plot the covariance results, otherwise RMS
+    debug_freq: Which frequency from this preparation to plot
+    debug_levels: Which levels from this preparation to plot (a list)
+    debug_channel: Which channel to plot
 
   Returns:
-    A tuple consisting of: a 3d array of dprimes, for each experiment, and
-    the corresponding frequences, levels, and channels for each array dimension.
+    A tuple consisting of: 
+      a 3d array of d' for the covariance measure, for each experiment,
+      a 3d array of RMS values,
+      a 3d array of d' for the RMS measure
+      Then lists of the found the corresponding frequences, levels, and channels
+    The arrays are 3d and are indexed by frequency, level, and channel.
   """
   all_exp_levels = sorted(list(set([exp.level for exp in all_exps])))
   all_exp_freqs = sorted(list(set([exp.freq for exp in all_exps])))
   all_exp_channels = sorted(list(set([exp.channel for exp in all_exps])))
 
   plot_num = 1
-  dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
-                             len(all_exp_channels)))
+  cov_dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
+                                len(all_exp_channels)))
+  rmses = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
+                          len(all_exp_channels)))
+  rms_dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
+                                len(all_exp_channels)))
   # Now loop through all the frequencies, channels, and levels.
   all_processed = 0
   all_multiprocessed = 0
-  for i, freq in enumerate(all_exp_freqs):
-    for k, channel in enumerate([1, 2]):
-      # Find the noisy data for this combination of frequency and channel
-      noise_exp = find_noise_exp(all_exps, freq=freq, channel=channel)
-      if noise_exp is None:
-        print(f'Found no noise data for freq={freq}, channel={channel}')
-        continue
-      
-      noise_data = preprocess_mouse_data(noise_exp.single_trials)
-
-      for j, level in enumerate(all_exp_levels):
-        exps = find_exp(all_exps, freq=freq, level=level, channel=channel)
-        if len(exps) == 0:
-          print(f' Found ZERO examples for freq={freq}, level={level}, '
-                f'channel={channel}: {len(exps)}')
-          continue
-        elif len(exps) > 1:
-          print(f'  Processing {len(exps)} segments for the same preparation.')
-          all_multiprocessed += 1
-        all_data = []
-        for exp in exps:
-          all_processed += 1
-          all_data.append(preprocess_mouse_data(exp.single_trials))
-        signal_data = np.concatenate(all_data, axis=1)
-
-        debug = (channel == debug_channel and freq == debug_freq and 
-                 level in debug_levels)
-        if debug:
-          plt.subplot(2, 2, plot_num)
-          plot_num += 1
-        dprimes[i, j, k] = calculate_dprime(signal_data, noise_data, debug)
-        if debug:
-          plt.title(f'freq={int(freq)}, level={int(level)}, channel={int(channel)}')
-  print(f'  Processed {all_processed} CSV files, {all_multiprocessed} part of a group.')
-  return dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
-
-
-
-def calculate_rms_measures(all_exps: List[MouseExp],
-                           debug_freq: Optional[float] = None,
-                           debug_levels: List[float] = [],
-                           debug_channel: Optional[int] = None,
-                           ) -> Tuple[np.ndarray, np.ndarray]:
-  """
-  Calculate the RMS statistics for all experiments in a preparation.
-  This routine is similar to calculate_dprimes, but we assume that function 
-  was called first, so we don't have to keep track of the levels and such.
-
-  Args:
-    all_exps: a list containing experiments in MouseExp format, before
-      preprocessing.
-
-  Returns:
-    Two 3d arrays: Ome containing the per-sample average RMS energy in the 
-    recordings, and the other representing a d' calculation using the RMS
-    energy.
-  """
-  all_exp_levels = sorted(list(set([exp.level for exp in all_exps])))
-  all_exp_freqs = sorted(list(set([exp.freq for exp in all_exps])))
-  all_exp_channels = sorted(list(set([exp.channel for exp in all_exps])))
-
-  rmses = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels), 
-                           len(all_exp_channels)))
-  dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels), 
-                             len(all_exp_channels)))
-  # Now loop through all the frequencies, channels, and levels.
-  plot_num = 1
   for i, freq in enumerate(all_exp_freqs):
     for k, channel in enumerate([1, 2]):
       # Find the noisy data for this combination of frequency and channel
@@ -571,33 +538,27 @@ def calculate_rms_measures(all_exps: List[MouseExp],
           all_multiprocessed += 1
         all_data = []
         for exp in exps:
+          all_processed += 1
           all_data.append(preprocess_mouse_data(exp.single_trials))
-
         signal_data = np.concatenate(all_data, axis=1)
-        signal_rms = calculate_rms(signal_data)
-        rmses[i, j, k] = np.sqrt(np.mean(signal_rms**2))
-        dprimes[i, j, k] = (np.mean(signal_rms) - np.mean(noise_rms)) / np.sqrt(np.std(signal_rms)*np.std(noise_rms))
 
         debug = (channel == debug_channel and freq == debug_freq and 
                  level in debug_levels)
         if debug:
           plt.subplot(2, 2, plot_num)
           plot_num += 1
-          range = (min(np.min(signal_rms), np.min(noise_rms)),
-                  max(np.max(signal_rms), np.max(noise_rms)))
-          counts, bins = np.histogram(signal_rms, bins=40, range=range)
-          plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='signal_trial')
-          counts, bins = np.histogram(noise_rms, bins=40, range=range)
-          plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
-          plt.legend()
-          plt.title('Histogram of covariance')
-          a = plt.axis()
-          plt.text(a[0], a[2], 
-                  f' H1: {np.mean(signal_rms):4.3G} +/- {np.std(signal_rms):4.3G}\n'
-                  f' H2: {np.mean(noise_rms):4.3G} +/-{np.std(noise_rms):4.3G}\n'
-                  f' d\'={dprimes[i, j, k]:4.3G}\n\n\n')
-          
-  return rmses, dprimes
+        cov_dprimes[i, j, k] = calculate_cov_dprime(signal_data, noise_data, 
+                                                    debug and debug_cov_not_rms)
+        rms, dprime = calculate_rmses(signal_data, noise_data, 
+                                      debug and not debug_cov_not_rms)
+  
+        signal_rms = calculate_rms(signal_data)
+        rmses[i, j, k] = rms
+        rms_dprimes[i, j, k] = dprime
+        if debug:
+          plt.title(f'freq={int(freq)}, level={int(level)}, channel={int(channel)}')
+  print(f'  Processed {all_processed} CSV files, {all_multiprocessed} part of a group.')
+  return cov_dprimes, rmses, rms_dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
 
 
 def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
@@ -650,8 +611,9 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
 
 
 def plot_dprimes(dp: DPrimeResult):
-  """Create a plot summarizing the d' collected by the calculate_all_dprimes
-  routine above.  Show d' versus level, for each frequency and channel pair.
+  """Create a plot summarizing the d' of the covariance data collected by the 
+  calculate_all_summaries routine above.  Show d' versus level, for each 
+  frequency and channel pair.
 
   Args:
     dprimes: a 3d array of dprimes, for all experiments, as a function of
@@ -667,7 +629,7 @@ def plot_dprimes(dp: DPrimeResult):
         linestyle = '--'
       else:
         linestyle = '-'
-      plt.plot(dp.levels, dp.dprimes[i, :, k],
+      plt.plot(dp.levels, dp.cov_dprimes[i, :, k],
               label=f'freq={freqs}, channel={channel}',
               linestyle=linestyle,
               color=colors[i])
@@ -698,9 +660,7 @@ def cache_dprime_data(d: str,
     f.write(jsonpickle.encode(dprimes))
     print(f'  Cached data for {len(dprimes)} types of dprime experiments.')
 
-
-
-###############  Analyze all the d' data ##############################
+###############  Summarize and smooth the d' data ##############################
 
 
 def get_all_dprime_data(
@@ -973,7 +933,9 @@ def plot_threshold_scatter(abr_thresh: np.ndarray, ecog_thresh: np.ndarray,
 
 def find_dprime(all_dprimes: Dict[str, DPrimeResult], 
                 spl: float) -> Tuple[np.ndarray, np.ndarray]:
-  """Find the d' for all data in this dictionary of preparations. 
+  """Find the d' for all data in this dictionary of preparations at one SPL. 
+  Use the smooth d' data, which is best calculated with bilinear interpolaton.
+
   Args:
     all_dprimes: Dictionary mapping preparation name to d' results.
     spl: Which sound pressure level (SPL) to query the d'.  Must be one of the
@@ -1045,7 +1007,7 @@ def cache_dprime_one_dir(dir:str,
                          waveform_cache_name:str, dprime_cache_name:str):
   all_exps = load_waveform_cache(dir, waveform_cache_name)
   if all_exps:
-    dprimes = calculate_all_dprimes(all_exps)
+    dprimes = calculate_all_summaries(all_exps)
     cache_dprime_data(dir, dprimes, dprime_cache_name)
   else:
     print(f'  No waveform data to process for dprimes.')

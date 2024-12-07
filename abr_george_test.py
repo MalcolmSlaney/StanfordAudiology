@@ -149,7 +149,7 @@ class ABRGeorgeTests(absltest.TestCase):
       data.append(np.reshape(np.arange(num_points)/num_points*np.pi*2 + 
                              rng.normal(scale=0.1,size=num_points), (-1, 1)))
     data = np.concatenate(data, axis=1)
-    dprime = george.calculate_dprime(data)
+    dprime = george.calculate_cov_dprime(data)
     self.assertGreater(dprime, 15)
 
     # Then test with incoherent signals.
@@ -158,7 +158,7 @@ class ABRGeorgeTests(absltest.TestCase):
       data.append(np.reshape(np.arange(num_points)/num_points*np.pi*i + 
                              rng.normal(scale=1,size=num_points), (-1, 1)))
     data = np.concatenate(data, axis=1)
-    dprime = george.calculate_dprime(data)
+    dprime = george.calculate_cov_dprime(data)
     self.assertLess(dprime, 1)
 
   def test_dprime_sets(self):
@@ -179,14 +179,14 @@ class ABRGeorgeTests(absltest.TestCase):
     for level in [10, 30, 50]:
       all_exps.append(create_data(level=level, noise=1.0/level))
 
-    all_dprimes = george.calculate_all_dprimes(all_exps)
+    all_dprimes = george.calculate_all_summaries(all_exps)
     self.assertLen(all_dprimes, 1)
     self.assertIsInstance(all_dprimes['cnqx1_pre'], george.DPrimeResult)
     dp = all_dprimes['cnqx1_pre'] 
     self.assertEqual(dp.freqs, [16000])
     self.assertEqual(dp.levels, [10, 30, 50])
     self.assertEqual(dp.channels, [1])
-    self.assertEqual(dp.dprimes.shape, (1, 3, 1))
+    self.assertEqual(dp.cov_dprimes.shape, (1, 3, 1))
     george.plot_dprimes(dp)
     plt.savefig('/tmp/dprime_plot.png')
 
@@ -269,7 +269,8 @@ class EnsembleTests(absltest.TestCase):
     np.testing.assert_almost_equal(george.calculate_rms(data),
                                    np.array([1, 2]))
 
-  def test_ensemble(self):
+  def test_measures(self):
+    """Create fake data, and see if the waveform summaries work right."""
     all_exps = []
     freqs = [500] # Preprocessing filter goes from 200Hz to 1kHz
     levels = [1, 2, 3, 4]
@@ -278,30 +279,35 @@ class EnsembleTests(absltest.TestCase):
       for level in levels:
         for channel in channels:
           # Create a lot of experiments so histograms are smooth.
-          all_exps += self.create_experiments(10000, freq, level, channel)
+          all_exps += self.create_experiments(1000, freq, level, channel)
 
+    # First calculate (and plot) the Covariance measure
     plt.clf()
-    (all_dprimes, all_freqs, 
-     all_levels, all_channels) = george.calculate_dprimes(all_exps,
-                                                          debug_freq=freq,
-                                                          debug_levels=levels,
-                                                          debug_channel=1)
+    (cov_dprimes, rmses, rms_dprimes, 
+     all_freqs, all_levels, all_channels) = george.calculate_waveform_summaries(
+       all_exps, True, debug_freq=freq, debug_levels=levels, debug_channel=1)
     plt.savefig('test_ensemble_cov_dprime.png')
     
     # Result is indexed by frequency, level, and channel, d' goes up with level
-    self.assertLess(all_dprimes[0, 0, 0], 20.0)
-    self.assertGreater(all_dprimes[0, 3, 0], 64.0)
+    self.assertLess(cov_dprimes[0, 0, 0], 20.0)
+    self.assertGreater(cov_dprimes[0, 3, 0], 64.0)
+    np.testing.assert_array_less(cov_dprimes[0, :-1, 0], cov_dprimes[0, 1:, 0])
 
+    # Second, calculate again, but plot the RMS measures this time.
     plt.clf()
-    rmses, dprimes = george.calculate_rms_measures(all_exps,
-                                                   debug_freq=freq,
-                                                   debug_levels=levels,
-                                                   debug_channel=1)
+    (cov_dprimes, rmses, rms_dprimes, all_freqs, 
+     all_levels, all_channels) = george.calculate_waveform_summaries(
+       all_exps, False, debug_freq=freq, debug_levels=levels, debug_channel=1)
     plt.savefig('test_ensemble_rms_dprime.png')
+    np.testing.assert_array_less(rms_dprimes[0, :-1, 0], rms_dprimes[0, 1:, 0])
+    np.testing.assert_array_less(rmses[0, :-1, 0], rmses[0, 1:, 0])
                     
     # Expectation is sqrt(level**2 * RMS(sin) + RMS(noise))
     expectations = np.sqrt((np.arange(1, 5)**2*np.sqrt(1/2.0))**2 + 16)
 
+    print('Cov dprimes:', cov_dprimes)
+    print('RMSes:', rmses)
+    print('RMS dprimes:', rms_dprimes)
     np.testing.assert_allclose(rmses[0, :, 0], expectations, rtol=.01)
   
 if __name__ == "__main__":
