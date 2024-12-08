@@ -693,6 +693,7 @@ class BilinearInterpolation(object):
     if len(xdata) != len(ydata):
       raise ValueError('Unequal array sizes passed to fit')
     self._xdata = np.asarray(xdata)[i]
+    # Make sure ydata is monotonic increasing, not perfect but better than noise
     self._ydata = np.asarray(ydata)[i]
 
   def eval(self, x):
@@ -712,15 +713,16 @@ class BilinearInterpolation(object):
   def threshold(self, y):
     if len(self._xdata) < 2:
       return self._xdata[0]
-    if y <= self._ydata[0]:
+    ydata = np.maximum.accumulate(self._ydata)
+    if y <= ydata[0]:
       i = 0
-    elif y >= self._ydata[-2]:
-      i = len(self._ydata)-2
+    elif y >= ydata[-2]:
+      i = len(ydata)-2
     else:
-      i = np.nonzero(y > self._ydata)[0][-1]
+      i = np.nonzero(y > ydata)[0][-1]
     assert i >= 0
-    assert i <= len(self._ydata)-2, f'i too big: y={y}, self._ydata={self._ydata}, i={i}' 
-    delta = (y - self._ydata[i])/(self._ydata[i+1]-self._ydata[i])
+    assert i <= len(ydata)-2, f'i too big: y={y}, ydata={ydata}, i={i}' 
+    delta = (y - ydata[i])/(ydata[i+1]-ydata[i])
     return self._xdata[i]*(1-delta) + self._xdata[i+1]*delta
   
 class PositivePolynomial(object):
