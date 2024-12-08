@@ -717,9 +717,9 @@ class BilinearInterpolation(object):
     elif y >= self._ydata[-2]:
       i = len(self._ydata)-2
     else:
-      i = np.nonzero(y > self._ydata)[0][-2]
+      i = np.nonzero(y > self._ydata)[0][-1]
     assert i >= 0
-    assert i <= len(self._ydata)-2 
+    assert i <= len(self._ydata)-2, f'i too big: y={y}, self._ydata={self._ydata}, i={i}' 
     delta = (y - self._ydata[i])/(self._ydata[i+1]-self._ydata[i])
     return self._xdata[i]*(1-delta) + self._xdata[i+1]*delta
   
