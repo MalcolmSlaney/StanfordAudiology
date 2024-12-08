@@ -365,6 +365,8 @@ class DPrimeResult(object):
   freqs: List[float]
   levels: List[float]
   channels: List[int]
+  spl_threshold: Optional[np.ndarray] = None
+  smooth_dprimes: Optional[np.ndarray] = None
 
 
 def calculate_rms(data: np.ndarray):
@@ -795,11 +797,11 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
   smoothed = np.zeros((len(dprimes_result.freqs),
                        len(dprimes_result.levels),
                        len(dprimes_result.channels)))
-  dprimes = dprimes_result.dprimes
+  dprimes = dprimes_result.cov_dprimes
   for i, freq in enumerate(dprimes_result.freqs):
     for j, channel in enumerate(dprimes_result.channels):
       levels = dprimes_result.levels
-      dprimes = dprimes_result.dprimes[i, :, j]
+      dprimes = dprimes_result.cov_dprimes[i, :, j]
       cp = None
       try:
         if fit_method == 'bilinear':
@@ -830,6 +832,8 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
                 color=color_list[i], ls=ls)
         plt.plot(levels, dprimes, 'x', 
                 color=color_list[i])
+        plt.axhline(dp_criteria, color='r', ls=':')
+        plt.axvline(r, color='r', ls=':')
   if plot:
     plt.legend()
     plt.xlabel('Sound Level (dB)')

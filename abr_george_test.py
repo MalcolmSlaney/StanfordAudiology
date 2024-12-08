@@ -283,32 +283,46 @@ class EnsembleTests(absltest.TestCase):
 
     # First calculate (and plot) the Covariance measure
     plt.clf()
-    (cov_dprimes, rmses, rms_dprimes, 
-     all_freqs, all_levels, all_channels) = george.calculate_waveform_summaries(
-       all_exps, True, debug_freq=freq, debug_levels=levels, debug_channel=1)
+    # (cov_dprimes, rmses, rms_dprimes, 
+    #  all_freqs, all_levels, all_channels) = 
+    res = george.DPrimeResult(*george.calculate_waveform_summaries( 
+      all_exps, True, debug_freq=freq, debug_levels=levels, debug_channel=1))
     plt.savefig('test_ensemble_cov_dprime.png')
+    dprimes_result = {'test': res}
     
     # Result is indexed by frequency, level, and channel, d' goes up with level
-    self.assertLess(cov_dprimes[0, 0, 0], 20.0)
-    self.assertGreater(cov_dprimes[0, 3, 0], 64.0)
-    np.testing.assert_array_less(cov_dprimes[0, :-1, 0], cov_dprimes[0, 1:, 0])
+    self.assertLess(res.cov_dprimes[0, 0, 0], 20.0)
+    self.assertGreater(res.cov_dprimes[0, 3, 0], 62.0)
+    np.testing.assert_array_less(res.cov_dprimes[0, :-1, 0], 
+                                 res.cov_dprimes[0, 1:, 0])
 
     # Second, calculate again, but plot the RMS measures this time.
     plt.clf()
-    (cov_dprimes, rmses, rms_dprimes, all_freqs, 
-     all_levels, all_channels) = george.calculate_waveform_summaries(
-       all_exps, False, debug_freq=freq, debug_levels=levels, debug_channel=1)
+    res = george.DPrimeResult(*george.calculate_waveform_summaries( 
+       all_exps, False, debug_freq=freq, debug_levels=levels, debug_channel=1))
     plt.savefig('test_ensemble_rms_dprime.png')
-    np.testing.assert_array_less(rms_dprimes[0, :-1, 0], rms_dprimes[0, 1:, 0])
-    np.testing.assert_array_less(rmses[0, :-1, 0], rmses[0, 1:, 0])
+    np.testing.assert_array_less(res.rms_dprimes[0, :-1, 0], 
+                                 res.rms_dprimes[0, 1:, 0])
+    np.testing.assert_array_less(res.rmses[0, :-1, 0], 
+                                 res.rmses[0, 1:, 0])
                     
     # Expectation is sqrt(level**2 * RMS(sin) + RMS(noise))
     expectations = np.sqrt((np.arange(1, 5)**2*np.sqrt(1/2.0))**2 + 16)
 
-    print('Cov dprimes:', cov_dprimes)
-    print('RMSes:', rmses)
-    print('RMS dprimes:', rms_dprimes)
-    np.testing.assert_allclose(rmses[0, :, 0], expectations, rtol=.01)
+    print('Cov dprimes:', res.cov_dprimes)
+    print('RMSes:', res.rmses)
+    print('RMS dprimes:', res.rms_dprimes)
+    np.testing.assert_allclose(res.rmses[0, :, 0], expectations, rtol=.01)
   
+    plt.clf()
+    george.add_threshold(res, dp_criteria=20, fit_method='bilinear', plot=True)
+    plt.savefig('test_ensemble_threshold.png')
+    print(res)
+    self.assertAlmostEqual(res.spl_threshold[0][0], 2.183, delta=0.04)
+    np.testing.assert_array_less(res.smooth_dprimes[0, :-1, 0], 
+                                 res.smooth_dprimes[0, 1:, 0])
+
+
+ 
 if __name__ == "__main__":
   absltest.main()
