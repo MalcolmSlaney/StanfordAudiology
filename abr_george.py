@@ -392,7 +392,8 @@ def calculate_dprime(h1: Union[list, np.ndarray],
 
 def calculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
-                         debug=False) -> float:
+                         debug: bool = False,
+                         score_loc: Union[bool, Tuple] = True) -> float:
   """
   Calculate the d-prime of the covariance response.  Form a model of the ABR 
   signal by averaging all the trials together.  Cross correlate each trial with 
@@ -426,11 +427,15 @@ def calculate_cov_dprime(data: np.ndarray,
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
     plt.legend()
     plt.title('Histogram of covariance')
-    a = plt.axis()
-    plt.text(a[0], a[2], 
-             f' H1: {np.mean(h1_response):4.3G} +/- {np.std(h1_response):4.3G}\n'
-             f' H2: {np.mean(h2_response):4.3G} +/-{np.std(h2_response):4.3G}\n'
-             f' d\'={dprime:4.3G}\n\n\n')
+    if score_loc:
+      if score_loc == True:
+        xloc, _, yloc, _ = plt.axis()
+      elif isinstance(score_loc, (tuple, list)) and len(score_loc) ==2:
+        xloc, yloc = score_loc
+      plt.text(xloc, yloc,
+              f' H1: {np.mean(h1_response):4.3G} +/- {np.std(h1_response):4.3G}\n'
+              f' H2: {np.mean(h2_response):4.3G} +/-{np.std(h2_response):4.3G}\n'
+              f' d\'={dprime:4.3G}\n\n\n')
   return dprime
 
 
