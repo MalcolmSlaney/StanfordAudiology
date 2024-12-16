@@ -382,6 +382,14 @@ def calculate_rms(data: np.ndarray):
   return np.sqrt(np.mean(data**2, axis=0))
 
 
+def calculate_dprime(h1: Union[list, np.ndarray], 
+                     h2: Union[list, np.ndarray],
+                     geometric_mean: bool = False) -> float:
+  if geometric_mean:
+    return (np.mean(h1) - np.mean(h2)) / np.sqrt(np.std(h1)*np.std(h2))
+  else:
+    return (np.mean(h1) - np.mean(h2)) / ((np.std(h1)+np.std(h2))/2)
+
 def calculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
                          debug=False) -> float:
@@ -408,7 +416,7 @@ def calculate_cov_dprime(data: np.ndarray,
   h1_response = np.sum(h1, axis=0) # Sum response over time
   h2 = model * shuffled_data
   h2_response = np.sum(h2, axis=0) # Sum response over time
-  dprime = (np.mean(h1_response) - np.mean(h2_response)) / np.sqrt(np.std(h1_response)*np.std(h2_response))
+  dprime = calculate_dprime(h1_response, h2_response)
   if debug:
     range = (min(np.min(h1_response), np.min(h2_response)),
              max(np.max(h1_response), np.max(h2_response)))
@@ -430,7 +438,7 @@ def calculate_rmses(signal_data, noise_data, debug):
   noise_rms = calculate_rms(noise_data)
   signal_rms = calculate_rms(signal_data)
   rms = np.sqrt(np.mean(signal_rms**2))
-  dprime = (np.mean(signal_rms) - np.mean(noise_rms)) / np.sqrt(np.std(signal_rms)*np.std(noise_rms))
+  dprime = calculate_dprime(signal_rms, noise_rms)
 
   if debug:
     range = (min(np.min(signal_rms), np.min(noise_rms)),
