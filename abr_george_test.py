@@ -241,6 +241,25 @@ class FittingTests(absltest.TestCase):
     bp.fit(x, y)
     self.assertAlmostEqual(bp.eval(5), y[0])  # Only one point to fit, return it
 
+  def test_dprime_calculation(self):
+    h1_mean = 10
+    h1_std = 3
+    h2_mean = 1
+    h2_std = 2
+
+    num = 1000000
+    h1_data = np.random.randn(num)*h1_std + h1_mean # Should be the bigger data
+    h2_data = np.random.randn(num)*h2_std + h2_mean
+                         
+    dprime = george.calculate_dprime(h1_data, h2_data, geometric_mean = False)
+    self.assertAlmostEqual(dprime, (h1_mean - h2_mean)/((h1_std+h2_std)/2), 
+                           delta=0.01)
+
+    dprime = george.calculate_dprime(h1_data, h2_data, geometric_mean = True)
+    self.assertAlmostEqual(dprime, (h1_mean - h2_mean)/(np.sqrt(h1_std*h2_std)), 
+                           delta=0.01)
+
+
 class EnsembleTests(absltest.TestCase):
   def create_experiments(self, count, freq, level, channel):
     exps = []

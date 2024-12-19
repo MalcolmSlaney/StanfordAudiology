@@ -385,6 +385,11 @@ def calculate_rms(data: np.ndarray):
 def calculate_dprime(h1: Union[list, np.ndarray], 
                      h2: Union[list, np.ndarray],
                      geometric_mean: bool = False) -> float:
+  """Calculate the d' given two sets of (one-dimensiona) data.  The h1
+  data should be the bigger of the two data. The normalization factor either the 
+  arithmetic mean (default) of the two standard deviations, if the data is 
+  additive, or a geometric mean if the data is based on a multiplicative ratio.
+  """
   if geometric_mean:
     return (np.mean(h1) - np.mean(h2)) / np.sqrt(np.std(h1)*np.std(h2))
   else:
@@ -405,7 +410,11 @@ def calculate_cov_dprime(data: np.ndarray,
   Args:
     data: A matrix of shape num_samples x num_trials
     moise_data: A matrix like data, but with only noise, no sigal.
-    debug: Whte
+    debug: Whether to show a plot of the histogram
+    score_loc: Where to put a legend aboit the scores
+      True: automatic on the left
+      False: No score legend
+      Two-ple: x and y locations in plot coordinates
   Returns:
     A scalar representing the d-prime.
   """
