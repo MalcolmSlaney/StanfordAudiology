@@ -1,3 +1,4 @@
+import math
 import os
 
 from absl.testing import absltest
@@ -252,7 +253,9 @@ class FittingTests(absltest.TestCase):
     h2_data = np.random.randn(num)*h2_std + h2_mean
                          
     dprime = george.calculate_dprime(h1_data, h2_data, geometric_mean = False)
-    self.assertAlmostEqual(dprime, (h1_mean - h2_mean)/((h1_std+h2_std)/2), 
+    self.assertAlmostEqual(dprime, 
+                           (h1_mean - h2_mean)/(math.sqrt((h1_std**2 + 
+                                                           h2_std**2)/2)), 
                            delta=0.01)
 
     dprime = george.calculate_dprime(h1_data, h2_data, geometric_mean = True)

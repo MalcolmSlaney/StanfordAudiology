@@ -393,7 +393,9 @@ def calculate_dprime(h1: Union[list, np.ndarray],
   if geometric_mean:
     return (np.mean(h1) - np.mean(h2)) / np.sqrt(np.std(h1)*np.std(h2))
   else:
-    return (np.mean(h1) - np.mean(h2)) / ((np.std(h1)+np.std(h2))/2)
+    # Normalize by arithmetic mean of variances (not std)
+    norm = np.sqrt((np.std(h1)**2 + np.std(h2)**2)/2.0)
+    return (np.mean(h1) - np.mean(h2)) / norm
 
 def calculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
