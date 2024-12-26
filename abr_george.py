@@ -29,15 +29,19 @@ import jsonpickle.ext.numpy as jsonpickle_numpy
 jsonpickle_numpy.register_handlers()
 
 
-################### d' calculations and caching ##################
+################### Waveform Level Reading/Caching/Loading ##################
 
 @dataclasses.dataclass
 class MouseExp:
   """
-  A data structure that describes one set of ABR experimental data.
+  A data structure that describes one set of ABR experimental data, indexed by
+    frequency, level, and channel.  The basename field describes the type of 
+    experiment (pre, post, etc.)
 
   Attributes:
-    filename: Where the data came from
+    filename: Where the data came from, full path
+    basename: The date and experiment type.  For example
+      20230706_control1_ABRCAP_post10min-0-24-1-1.csv
     freq: At what frequency was the animal stimulated
     level: At what level (in dB) was the animal stimulated
     channel: Which electrode, probably 1 or 2, was recorded
@@ -65,7 +69,7 @@ def read_mouse_exp(filename: str) -> MouseExp:
   lines, and then read in the table of data.
 
   Args:
-    filename:
+    filename: The full file-system path to the CSV file we want to read.
 
   Returns:
     A MouseExp structure that describes the experiment. The single_trials
@@ -148,6 +152,8 @@ def save_waveform_cache(all_exps: List[MouseExp], dir: str, number: int,
 def load_waveform_cache(
     dir: str,
     waveform_pickle_name: str = mouse_waveforms_pickle_name) -> List[MouseExp]:
+  """The CSV files are converted into a small number of PKL files for easier 
+  loading. (CSV is slow.) """
   filename = os.path.join(dir, waveform_pickle_name)
   wild_filename = filename.replace('.pkl', '*.pkl')
   filenames = glob.glob(wild_filename)
@@ -194,9 +200,13 @@ def cache_all_mouse_dir(expdir: str,
 
   Args:
     expdir:  Where to find the experimental for this animal
+    waveform_pickle_name: The canonical name for the resulting pickle files
+      (They will be numbered later.)
+    max_files: How many files to put into one pickle file.
+    debug: Extra summary print statements.
 
   Returns:
-    List of MouseExp structures.
+    List of MouseExp structures summarizing the data in this directory.
   """
   def cache_size(all_trials: List[MouseExp]):
     return sum([exp.single_trials.nbytes for exp in all_exps])
@@ -241,7 +251,7 @@ def find_exp(all_exps: List[MouseExp],
     all_exps: a list containing experiments in MouseExp format
     freq: desired frequency (None means any freq)
     level: desired level (None means any level)
-    channel: Recording channel (1 further away, 2 closer)
+    channel: Recording channel (normal ABR, ECochG)
 
   Returns:
     A list of MouseExp's with the desired frequency and level.
