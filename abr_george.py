@@ -153,7 +153,9 @@ def load_waveform_cache(
     dir: str,
     waveform_pickle_name: str = mouse_waveforms_pickle_name) -> List[MouseExp]:
   """The CSV files are converted into a small number of PKL files for easier 
-  loading. (CSV is slow.) """
+  loading. (CSV is slow.) This routine reads in all the cached data (from 
+  multiple files) in one directory.)
+  """
   filename = os.path.join(dir, waveform_pickle_name)
   wild_filename = filename.replace('.pkl', '*.pkl')
   filenames = glob.glob(wild_filename)
@@ -997,8 +999,181 @@ def find_dprime(all_dprimes: Dict[str, DPrimeResult],
 
   return np.concatenate(abr_90s), np.concatenate(ecog_90s)
   
-###############  Main program, so we can run this offline ######################
+###############  Waveform and RMS Displays ######################
 
+def extract_animal_names(exps: List[MouseExp]) -> List[str]:
+  """From a list of mouse experiments, one trial per dataclass, extract the
+  list of unique mouse names."""
+  animal_names = []
+  for exp in exps:
+    k = exp.basename
+    animal_name = k.split('-')[0]
+    if animal_name not in animal_names:
+      animal_names.append(animal_name)
+  return animal_names
+
+def filter_animals(exps: List[MouseExp], 
+                   animal_list: List[str]) -> List[MouseExp]:
+  """Extract the MouseExp's for one or more specific mice."""
+  filtered_exps = []
+  for exp in exps:
+    k = exp.basename
+    if any([l in k for l in animal_list]):
+      filtered_exps.append(exp)
+  return filtered_exps
+
+def filter_waveform_data(exps: List[MouseExp],
+                         keep_list: List[str] = [],
+                         drop_list: List[str] = []) -> List[MouseExp]:
+  """Filter a list of Mouse experiments, keeping the types of data we
+  care about."""
+  filtered_exps = []
+  for exp in exps:
+    k = exp.basename
+    if any([l in k for l in drop_list]):
+      continue
+    if len(keep_list) and not any([l in k for l in keep_list]):
+      continue
+    filtered_exps.append(exp)
+  return filtered_exps
+
+GeorgeMouseDataDir = 'drive/Shareddrives/StanfordAudiology/GeorgeMouseABR/CAP_ABR'
+
+
+def cache_all_waveforms(base_dir: str = GeorgeMouseDataDir) -> None:
+  """Read waveforms from disk, filter out the experiments we care about
+  and store new abbreviated cache files.
+  
+  Args:
+    base_dir: Where to look for the mouse data.
+  """
+  dirs = find_all_mouse_directories(base_dir)
+  all_filtered_exps = []
+  file_num = 0
+
+  def cache_waveforms(file_num: int, all_filtered_exps: List[MouseExp]) -> int:
+    if len(all_filtered_exps) > 0:
+      good_waveform_cache = os.path.join(base_dir,
+                                          f'good_waveform_cache{file_num:02d}.pkl')
+      file_num += 1
+      with open(good_waveform_cache, 'w') as f:
+        print(f'Writing {len(all_filtered_exps)} waveforms to {good_waveform_cache}')
+        f.write(jsonpickle.encode(all_filtered_exps))
+    return file_num
+
+  for dir in dirs:
+    cached_data = load_waveform_cache(dir)
+    filtered_exps = filter_waveform_data(cached_data,
+                                        keep_list=['control'],
+                                        drop_list=['post', 'pre2', 'pre3', 'pre4', 'pre5',
+                                                    'sricontrol', 'test', 'noacqfilter', 'Rearclosed'])
+    del cached_data
+    all_filtered_exps.extend(filtered_exps)
+    print(f'Now have {len(all_filtered_exps)} trials.')
+    if len(all_filtered_exps) > 500:
+      file_num = cache_waveforms(file_num, all_filtered_exps)
+      all_filtered_exps = []
+  file_num = cache_waveforms(file_num, all_filtered_exps)  # Write out remainder
+
+
+def create_stack(exps: List[MouseExp]) -> np.ndarray:
+  """Collect all the waveform data for a list of mouse experiments into a single
+  tensor.
+  
+  Result is a 5d tensor:
+    frequency, level, channel, time, trial
+  """
+  freqs = list(set([e.freq for e in exps]))
+  levels = list(set([e.level for e in exps]))
+  channels = list(set([e.channel for e in exps]))
+  freqs.sort()
+  levels.sort()
+  channels.sort()
+  data = np.zeros((len(freqs), len(levels), len(channels),
+                   exps[0].single_trials.shape[0], exps[0].single_trials.shape[1]))
+  for i, exp in enumerate(exps):
+    data[freqs.index(exp.freq), levels.index(exp.level),
+         channels.index(exp.channel), :, :] = exp.single_trials
+  return data, freqs, levels, channels
+
+def show_mean_stack(stack, freq=1, channel=0, alpha=0.01):
+  """Display a stack of mean ABR responses for different levels."""
+  levels = list(range(0, stack.shape[1], 3))
+  for i, level in enumerate(levels):
+    plt.subplot(len(levels), 1, i+1)
+    plt.plot(np.mean(stack[freq, level, channel, ...], axis=-1),
+             alpha=alpha)
+    if i != len(levels)-1:
+      plt.gca().xaxis.set_tick_params(labelcolor='none');
+
+def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
+                   skip_levels=3):
+  """Show a stack of all ABR waveforms across levels."""
+  levels2plot = levels[::skip_levels]
+  t = np.arange(stack.shape[-2])/mouse_sample_rate
+  for i, level in enumerate(levels2plot):
+    plt.subplot(len(levels2plot), 1, i+1)
+    plt.plot(t*1000, stack[freq, levels.index(level), channel, ...], alpha=alpha)
+    mean_stack = np.mean(stack[freq, levels.index(level), channel, ...], axis=-1)
+    plt.plot(t*1000, mean_stack, color='r')
+    m = np.max(np.abs(mean_stack))
+    plt.ylim(-1.5*m, 1.5*m)
+    plt.xlabel('Time (ms)')
+    plt.ylabel(f'{level}dB')
+
+    if i == 0:
+      plt.title(title)
+    if i != len(levels2plot)-1:
+      plt.gca().xaxis.set_tick_params(labelcolor='none');
+
+
+def summarize_all_rms(exps: List[MouseExp], 
+                      all_rms: Optional[List[List[List[float]]]] = None):
+  """"Accumulate a list of RMS responses from a list of Mouse experiments.
+
+  This routine takes chunks of experiments at a time since all waveforms is too
+  big for memory.
+
+  Args:
+    exps: List of Mouse Experiments, probably from one animal.
+    all_rms: Partial accumulation of results.
+
+  Returns:
+    A 3d list of lists of RMS values
+    And three lists of the standard frequencies, levels, and channels
+  """
+  standard_freqs = [8000.0, 16000.0, 32000.0]
+  standard_levels = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0]
+  standard_channels = [1, 2]
+  if all_rms is None:
+    print(f'Creating an empty all_rms structure')
+    all_rms = [[[[] for _ in range(len(standard_channels))] 
+                for _ in range(len(standard_levels))] 
+               for _ in range(len(standard_freqs))]
+
+  all_animal_names = extract_animal_names(exps)
+  for name in all_animal_names:
+    print(f'Processing animal {name}')  
+    one_animal = filter_animals(exps, [name])
+    stack, freqs, levels, channels = create_stack(one_animal)
+    # Stack dimensions are: frequency, level, channel, time, trial
+    stack.shape, freqs, levels, channels
+
+    for fi, freq in enumerate(freqs):
+      if freq in standard_freqs:
+        sfi = standard_freqs.index(freq)
+        for li, level in enumerate(levels):
+          if level in standard_levels:
+            sli = standard_levels.index(level)
+            for ci, channel in enumerate(channels):
+              if channel in standard_channels:
+                sci = standard_channels.index(channel) 
+                abr_response = np.mean(stack[fi, li, ci, ...], axis=-1)  # Average over trial
+                rms = np.sqrt(np.mean(abr_response**2, axis=-1))  # average squared over time
+                all_rms[sfi][sli][sci].append(rms)
+  return all_rms, standard_freqs, standard_levels, standard_channels
+
+###############  Main program, so we can run this offline ######################
 FLAGS = flags.FLAGS
 flags.DEFINE_enum('mode', 'waveforms', ('waveforms', 'dprimes', 'check'),
                   'Which processing to do on this basedir.')
