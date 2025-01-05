@@ -28,7 +28,44 @@ import jsonpickle
 import jsonpickle.ext.numpy as jsonpickle_numpy
 jsonpickle_numpy.register_handlers()
 
+"""
+File progression:
 
+George's data is stored in a Google drive folder, one subfolder per recording
+date, such as 20230720.
+
+For each date, there are a number of .csv files, one per experimental condition.
+A condition is the recording circumstance (pre/post), as well as the frequency,
+level and channel number.  The CSV file contains (after the two rows of header)
+a single row per recording at 2414Hz.  There are multiple rows, one per 
+stimulus.
+
+All these trials are consolidated into one or more 
+  mouse_waveforms01.pkl
+files (since the CSV files are expensive to read).  The contents of these pickle
+files are MouseExp's.  Each of these files are stored in the corresponding date
+directory.
+
+We read all the waveforms and calculate the covariance d' and store the results,
+one per day in a 
+  mouse_dprime.pkl
+The data here is stored as a dictionary pointing to DPrimeResult classes.  One
+file per date directory.
+
+There are two types of summary files, across all dates.
+
+There are a number of files to consolidate the waveforms from "good" trials 
+together.  They are in the main directory, and have names of the form
+  good_waveform_cache00.pkl.
+These files consist of lists of MouseExp classes.
+
+Finally, all the RMS estimates from "good" experiments are stored in a file 
+called
+  rms_waveform_cache.pkl
+This data is a List (by frequency) of List (by level) of List (by channel) of
+list of RMS values (one per animal)
+
+"""
 ################### Waveform Level Reading/Caching/Loading ##################
 
 @dataclasses.dataclass
@@ -1001,6 +1038,11 @@ def find_dprime(all_dprimes: Dict[str, DPrimeResult],
   
 ###############  Waveform and RMS Displays ######################
 
+
+bad_animal_example = '20230720_control1_pre' # No ABR or ECogH Response
+good_animal_example = '20230720_control2_pre'  # No ABR but good ECogH Response
+
+
 def extract_animal_names(exps: List[MouseExp]) -> List[str]:
   """From a list of mouse experiments, one trial per dataclass, extract the
   list of unique mouse names."""
@@ -1096,6 +1138,7 @@ def create_stack(exps: List[MouseExp]) -> np.ndarray:
          channels.index(exp.channel), :, :] = exp.single_trials
   return data, freqs, levels, channels
 
+
 def show_mean_stack(stack, freq=1, channel=0, alpha=0.01):
   """Display a stack of mean ABR responses for different levels."""
   levels = list(range(0, stack.shape[1], 3))
@@ -1105,6 +1148,7 @@ def show_mean_stack(stack, freq=1, channel=0, alpha=0.01):
              alpha=alpha)
     if i != len(levels)-1:
       plt.gca().xaxis.set_tick_params(labelcolor='none');
+
 
 def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
                    skip_levels=3):
@@ -1172,6 +1216,35 @@ def summarize_all_rms(exps: List[MouseExp],
                 rms = np.sqrt(np.mean(abr_response**2, axis=-1))  # average squared over time
                 all_rms[sfi][sli][sci].append(rms)
   return all_rms, standard_freqs, standard_levels, standard_channels
+
+
+def load_rms_data(
+    base_dir: str = GeorgeMouseDataDir,
+    cache_filename: str = 'good_waveform_cache.pkl') -> List[List[List[List[float]]]]:
+
+  rms_cache_file = os.path.join(base_dir, cache_filename)
+
+  if not os.path.exists(rms_cache_file):
+    # Run through all the waveform cache files (which are just the experiments
+    # want to analyze) and accumulate the average ABR/ECochG response into a 3d 
+    # array of lists.
+    all_rms = None
+    for f in glob.glob(os.path.join(GeorgeMouseDataDir, 'good_waveform_cache*.pkl')):
+      with open(f, 'r') as f:
+        exps = jsonpickle.decode(f.read())
+        (all_rms, standard_freqs, 
+        standard_levels, standard_channels) = summarize_all_rms(exps, all_rms)
+        del exps
+
+    with open(rms_cache_file, 'w') as f:
+          print(f'Writing RMS results to {rms_cache_file}')
+          f.write(jsonpickle.encode(all_rms))
+  else:
+    with open(rms_cache_file, 'r') as f:
+          all_rms = jsonpickle.decode(f.read())
+          print(f'Read RMS results from {rms_cache_file}')
+  return all_rms
+
 
 ###############  Main program, so we can run this offline ######################
 FLAGS = flags.FLAGS
