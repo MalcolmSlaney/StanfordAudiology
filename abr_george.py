@@ -1064,13 +1064,17 @@ def filter_animals(exps: List[MouseExp],
       filtered_exps.append(exp)
   return filtered_exps
 
-def filter_waveform_data(exps: List[MouseExp],
-                         keep_list: List[str] = [],
-                         drop_list: List[str] = []) -> List[MouseExp]:
+def filter_waveform_data(all_exps: List[MouseExp],
+                         keep_list: Tuple[str] = ('control',),
+                         drop_list: Tuple[str] = ('post', 'pre2', 'pre3', 
+                                                  'pre4', 'pre5', 'sricontrol',
+                                                   'test', 'noacqfilter', 
+                                                   'Rearclosed'),
+                         ) -> List[MouseExp]:
   """Filter a list of Mouse experiments, keeping the types of data we
   care about."""
   filtered_exps = []
-  for exp in exps:
+  for exp in all_exps:
     k = exp.basename
     if any([l in k for l in drop_list]):
       continue
@@ -1170,6 +1174,9 @@ def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
     if i != len(levels2plot)-1:
       plt.gca().xaxis.set_tick_params(labelcolor='none');
 
+standard_freqs = [8000.0, 16000.0, 32000.0]
+standard_levels = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0]
+standard_channels = [1, 2]
 
 def summarize_all_rms(exps: List[MouseExp], 
                       all_rms: Optional[List[List[List[float]]]] = None):
@@ -1186,9 +1193,6 @@ def summarize_all_rms(exps: List[MouseExp],
     A 3d list of lists of RMS values
     And three lists of the standard frequencies, levels, and channels
   """
-  standard_freqs = [8000.0, 16000.0, 32000.0]
-  standard_levels = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0]
-  standard_channels = [1, 2]
   if all_rms is None:
     print(f'Creating an empty all_rms structure')
     all_rms = [[[[] for _ in range(len(standard_channels))] 
@@ -1215,6 +1219,7 @@ def summarize_all_rms(exps: List[MouseExp],
                 abr_response = np.mean(stack[fi, li, ci, ...], axis=-1)  # Average over trial
                 rms = np.sqrt(np.mean(abr_response**2, axis=-1))  # average squared over time
                 all_rms[sfi][sli][sci].append(rms)
+                  
   return all_rms, standard_freqs, standard_levels, standard_channels
 
 
