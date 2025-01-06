@@ -340,9 +340,9 @@ class EnsembleTests(absltest.TestCase):
     george.add_threshold(res, dp_criteria=20, fit_method='bilinear', plot=True)
     plt.savefig('test_ensemble_threshold.png')
     print(res)
-    self.assertAlmostEqual(res.spl_threshold[0][0], 2.183, delta=0.04)
-    np.testing.assert_array_less(res.smooth_dprimes[0, :-1, 0], 
-                                 res.smooth_dprimes[0, 1:, 0])
+    self.assertAlmostEqual(res.cov_spl_threshold[0][0], 2.183, delta=0.04)
+    np.testing.assert_array_less(res.cov_smooth_dprimes[0, :-1, 0], 
+                                 res.cov_smooth_dprimes[0, 1:, 0])
 
 
  
