@@ -414,8 +414,10 @@ class DPrimeResult(object):
   freqs: List[float]
   levels: List[float]
   channels: List[int]
-  spl_threshold: Optional[np.ndarray] = None
-  smooth_dprimes: Optional[np.ndarray] = None
+  cov_spl_threshold: Optional[np.ndarray] = None
+  cov_smooth_dprimes: Optional[np.ndarray] = None
+  rms_spl_threshold: Optional[np.ndarray] = None
+  rms_smooth_dprimes: Optional[np.ndarray] = None
 
 
 def calculate_rms(data: np.ndarray):
@@ -667,18 +669,18 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
       continue
     
     dp = all_dprimes[k]
-    if dp.spl_threshold is None:
+    if dp.cov_spl_threshold is None:
       continue
-    if not isinstance(dp.spl_threshold, np.ndarray) or dp.spl_threshold.ndim < 2:
+    if not isinstance(dp.cov_spl_threshold, np.ndarray) or dp.cov_spl_threshold.ndim < 2:
       continue
 
-    if np.min(dp.spl_threshold[:, 0]) < min_abr_thresh:
+    if np.min(dp.cov_spl_threshold[:, 0]) < min_abr_thresh:
       continue
-    if np.max(dp.spl_threshold[:, 0]) > max_abr_thresh:
+    if np.max(dp.cov_spl_threshold[:, 0]) > max_abr_thresh:
       continue
-    if np.min(dp.spl_threshold[:, 1]) < min_ecog_thresh:
+    if np.min(dp.cov_spl_threshold[:, 1]) < min_ecog_thresh:
       continue
-    if np.max(dp.spl_threshold[:, 1]) > max_ecog_thresh:
+    if np.max(dp.cov_spl_threshold[:, 1]) > max_ecog_thresh:
       continue
 
     filtered_dprimes[k] = dp
@@ -720,6 +722,38 @@ def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, title: str = ''):
   plt.xlabel('Level (dB)')
   plt.ylabel('d\'')
 
+
+def compute_and_cache_dprimes():
+  cmd = 'StanfordAudiology/abr_george.py'
+  run_local = True
+
+  mouse_dirs = [os.path.basename(m) for m in 
+                find_all_mouse_directories(GeorgeMouseDataDir)]
+  # mouse_dirs = ['20230828']
+  for dir in mouse_dirs:
+    base = os.path.basename(dir)
+    full_dir = os.path.join(GeorgeMouseDataDir, dir)
+    if not os.path.exists(full_dir):
+      continue
+    print(dir)
+    waveform_file = os.path.join(full_dir, mouse_waveforms_pickle_name)
+    dprime_file = os.path.join(full_dir, mouse_dprimes_pickle_name)
+    if (os.path.exists(waveform_file) and os.path.getsize(waveform_file) and
+        os.path.exists(dprime_file) and os.path.getsize(dprime_file)):
+      print(f'Skipping {base}')
+      continue
+    if run_local:
+      # cache_waveform_one_dir(full_dir, mouse_waveforms_pickle_name, max_bytes=5*1e9)
+      cache_dprime_one_dir(full_dir, mouse_waveforms_pickle_name, 
+                           mouse_dprimes_pickle_name)
+    else:
+      out = subprocess.run(['/usr/bin/python3', cmd, f'--filter={base}',
+                            f'--basedir={full}'],
+                    capture_output=True)
+      print(out.stdout.decode('utf-8'))
+      print(out.stderr.decode('utf-8'))
+    print()
+    
 
 def cache_dprime_data(d: str, 
                       dprimes: Dict[str, DPrimeResult],
@@ -923,8 +957,8 @@ def add_threshold(dprimes_result: DPrimeResult, dp_criteria=2,
     plt.legend()
     plt.xlabel('Sound Level (dB)')
     plt.ylabel('d\'')
-  dprimes_result.spl_threshold = spl_threshold
-  dprimes_result.smooth_dprimes = smoothed
+  dprimes_result.cov_spl_threshold = spl_threshold
+  dprimes_result.cov_smooth_dprimes = smoothed
 
 
 def add_all_thresholds(all_dprimes: Dict[str, DPrimeResult], dp_criteria=2,
@@ -962,7 +996,7 @@ def accumulate_thresholds(all_dprimes: Dict[str, DPrimeResult],
   all_ecog = []
   for k in all_dprimes.keys():
     dp = all_dprimes[k]
-    if dp.spl_threshold is None:
+    if dp.cov_spl_threshold is None:
       continue
     if freqs is not None:
       if not isinstance(freqs, list):
@@ -970,9 +1004,9 @@ def accumulate_thresholds(all_dprimes: Dict[str, DPrimeResult],
       freq_indices = [dp.freqs.index(f) for f in freqs if f in dp.freqs]
     else:
       freq_indices = range(len(dp.freqs))
-    # print(freq_indices, dp.spl_threshold.shape)
-    all_abr.append(dp.spl_threshold[freq_indices, 0].flatten())
-    all_ecog.append(dp.spl_threshold[freq_indices, 1].flatten())
+    # print(freq_indices, dp.cov_spl_threshold.shape)
+    all_abr.append(dp.cov_spl_threshold[freq_indices, 0].flatten())
+    all_ecog.append(dp.cov_spl_threshold[freq_indices, 1].flatten())
   if len(all_abr) == 0:
     print(f'Found no data for frequency list: {",".join(freqs)}')
     return [], [], 0.0
@@ -1036,11 +1070,11 @@ def find_dprime(all_dprimes: Dict[str, DPrimeResult],
   ecog_90s = []
   for k in all_dprimes:
     dp = all_dprimes[k]
-    if dp.smooth_dprimes is None or spl not in dp.levels or dp.smooth_dprimes.shape[2] < 2:
+    if dp.cov_smooth_dprimes is None or spl not in dp.levels or dp.cov_smooth_dprimes.shape[2] < 2:
       continue
     index = dp.levels.index(spl)
-    abr_90s.append(dp.smooth_dprimes[:, index, 0])
-    ecog_90s.append(dp.smooth_dprimes[:, index, 1])
+    abr_90s.append(dp.cov_smooth_dprimes[:, index, 0])
+    ecog_90s.append(dp.cov_smooth_dprimes[:, index, 1])
 
   return np.concatenate(abr_90s), np.concatenate(ecog_90s)
   
@@ -1341,12 +1375,17 @@ def cache_waveform_one_dir(dir:str, waveform_pickle_name:str,
 
 def cache_dprime_one_dir(dir:str, 
                          waveform_cache_name:str, dprime_cache_name:str):
+  if os.path.exists(os.path.join(dir, dprime_cache_name)):
+    print(f'Cache directory exists for {dir}')
+    return
+  print(f'Loading waveforms from {dir} to compute d\'s.')
   all_exps = load_waveform_cache(dir, waveform_cache_name)
   if all_exps:
     dprimes = calculate_all_summaries(all_exps)
     cache_dprime_data(dir, dprimes, dprime_cache_name)
   else:
     print(f'  No waveform data to process for dprimes.')
+
 
 def main(_):
   if FLAGS.mode == 'waveforms':
