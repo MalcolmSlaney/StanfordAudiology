@@ -1178,49 +1178,60 @@ standard_freqs = [8000.0, 16000.0, 32000.0]
 standard_levels = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0]
 standard_channels = [1, 2]
 
-def summarize_all_rms(exps: List[MouseExp], 
-                      all_rms: Optional[List[List[List[float]]]] = None):
-  """"Accumulate a list of RMS responses from a list of Mouse experiments.
 
-  This routine takes chunks of experiments at a time since all waveforms is too
-  big for memory.
-
-  Args:
-    exps: List of Mouse Experiments, probably from one animal.
-    all_rms: Partial accumulation of results.
-
-  Returns:
-    A 3d list of lists of RMS values
-    And three lists of the standard frequencies, levels, and channels
+def load_rms_data(
+    base_dir: str = GeorgeMouseDataDir,
+    cache_filename: str = 'good_waveform_cache.pkl') -> List[List[List[List[float]]]]:
+  """Read in the cached RMS data from disk.
+  
+  The returned structure is a list (by frequency) of lists (by level) of lists
+  (by channel) of results.
   """
-  if all_rms is None:
-    print(f'Creating an empty all_rms structure')
-    all_rms = [[[[] for _ in range(len(standard_channels))] 
-                for _ in range(len(standard_levels))] 
-               for _ in range(len(standard_freqs))]
 
-  all_animal_names = extract_animal_names(exps)
-  for name in all_animal_names:
-    print(f'Processing animal {name}')  
-    one_animal = filter_animals(exps, [name])
-    stack, freqs, levels, channels = create_stack(one_animal)
-    # Stack dimensions are: frequency, level, channel, time, trial
-    stack.shape, freqs, levels, channels
+  def total_size(all_rms):
+    total = 0
+    for fi, freq in enumerate(standard_freqs):
+      for li, level in enumerate(standard_levels):
+        for ci, channel in enumerate(standard_channels):
+          total += len(all_rms[fi][li][ci])
+    return total
 
-    for fi, freq in enumerate(freqs):
-      if freq in standard_freqs:
-        sfi = standard_freqs.index(freq)
-        for li, level in enumerate(levels):
-          if level in standard_levels:
-            sli = standard_levels.index(level)
-            for ci, channel in enumerate(channels):
-              if channel in standard_channels:
-                sci = standard_channels.index(channel) 
-                abr_response = np.mean(stack[fi, li, ci, ...], axis=-1)  # Average over trial
-                rms = np.sqrt(np.mean(abr_response**2, axis=-1))  # average squared over time
-                all_rms[sfi][sli][sci].append(rms)
-                  
-  return all_rms, standard_freqs, standard_levels, standard_channels
+  def concatenate(all_rms, new_rms):
+    for fi, freq in enumerate(standard_freqs):
+      for li, level in enumerate(standard_levels):
+        for ci, channel in enumerate(standard_channels):
+          all_rms[fi][li][ci].extend(new_rms[fi][li][ci])
+    return all_rms
+
+  rms_cache_file = os.path.join(base_dir, cache_filename)
+
+  if not os.path.exists(rms_cache_file):
+    # Run through all the waveform cache files (which are just the experiments
+    # want to analyze) and accumulate the average ABR/ECochG response into a 3d 
+    # array of lists.
+    global standard_freqs, standard_levels, standard_channels
+    # Initialize all_rms as an empty list with the correct dimensions
+    all_rms = [[[[] for _ in standard_channels] 
+                for _ in standard_levels] 
+               for _ in standard_freqs] 
+    for f in glob.glob(os.path.join(GeorgeMouseDataDir, 
+                                    'good_waveform_cache*.pkl')):
+      with open(f, 'r') as f:
+        exps = jsonpickle.decode(f.read())
+        (new_rms, standard_freqs, 
+        standard_levels, standard_channels) = summarize_all_rms(exps, all_rms)
+        print(f'Read {total_size(new_rms)} RMS results from {f}')
+        del exps
+        all_rms = concatenate(all_rms, new_rms)
+
+    with open(rms_cache_file, 'w') as f:
+          print(f'Writing RMS results to {rms_cache_file}')
+          f.write(jsonpickle.encode(all_rms))
+  else:
+    with open(rms_cache_file, 'r') as f:
+          all_rms = jsonpickle.decode(f.read())
+          print(f'Read {total_size(all_rms)} RMS results from {rms_cache_file}')
+  return all_rms
 
 
 def load_rms_data(
@@ -1240,6 +1251,13 @@ def load_rms_data(
           total += len(all_rms[fi][li][ci])
     return total
 
+  def concatenate(all_rms, new_rms):
+    for fi, freq in enumerate(standard_freqs):
+      for li, level in enumerate(standard_levels):
+        for ci, channel in enumerate(standard_channels):
+          all_rms[fi][li][ci] += new_rms[fi][li][ci]
+    return all_rms
+
   rms_cache_file = os.path.join(base_dir, cache_filename)
 
   if not os.path.exists(rms_cache_file):
@@ -1254,7 +1272,7 @@ def load_rms_data(
         standard_levels, standard_channels) = summarize_all_rms(exps, all_rms)
         print(f'Read {total_size(new_rms)} RMS results from {rms_cache_file}')
         del exps
-        all_rms += new_rms
+        all_rms = concatenate(all_rms, new_rms)
 
     with open(rms_cache_file, 'w') as f:
           print(f'Writing RMS results to {rms_cache_file}')
