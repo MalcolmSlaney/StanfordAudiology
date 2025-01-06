@@ -685,32 +685,40 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
   return filtered_dprimes
 
 
-def plot_dprimes(dp: DPrimeResult):
+def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, title: str = ''):
   """Create a plot summarizing the d' of the covariance data collected by the 
   calculate_all_summaries routine above.  Show d' versus level, for each 
   frequency and channel pair.
 
   Args:
     dprimes: a 3d array of dprimes, for all experiments, as a function of
-    frequences, levels, and channels.
+      frequences, levels, and channels.
+    plot_cov_dp: If true, plot covariance d', otherwise RMS d'
   """
   prop_cycle = plt.rcParams['axes.prop_cycle']
   colors = prop_cycle.by_key()['color']
-  plt.figure(figsize=(10, 8))
 
-  for i, freqs in enumerate(dp.freqs):
+  names = ['', 'ABR', 'ECochG']
+  if plot_cov_dp:
+    data = dp.cov_dprimes
+    title = title or 'Covariance D-Prime versus Presentation Level'
+  else:
+    data = dp.rms_dprimes
+    title = title or 'RMS D-Prime versus Presentation Level'
+  for i, freq in enumerate(dp.freqs):
     for k, channel in enumerate(dp.channels):
       if channel == 2:
         linestyle = '--'
       else:
         linestyle = '-'
-      plt.plot(dp.levels, dp.cov_dprimes[i, :, k],
-              label=f'freq={freqs}, channel={channel}',
+      plt.plot(dp.levels, data[i, :, k],
+              label=f'{names[channel]} {freq}Hz',
               linestyle=linestyle,
               color=colors[i])
-  plt.title('D-Prime versus Presentation Level')
+  plt.title(title)
   plt.legend()
-  plt.xlabel('Level (dB)');
+  plt.xlabel('Level (dB)')
+  plt.ylabel('d\'')
 
 
 def cache_dprime_data(d: str, 
