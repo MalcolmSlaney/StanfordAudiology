@@ -1226,6 +1226,19 @@ def summarize_all_rms(exps: List[MouseExp],
 def load_rms_data(
     base_dir: str = GeorgeMouseDataDir,
     cache_filename: str = 'good_waveform_cache.pkl') -> List[List[List[List[float]]]]:
+  """Read in the cached RMS data from disk.
+  
+  The returned structure is a list (by frequency) of lists (by level) of lists
+  (by channel) of results.
+  """
+
+  def total_size(all_rms):
+    total = 0
+    for fi, freq in enumerate(standard_freqs):
+      for li, level in enumerate(standard_levels):
+        for ci, channel in enumerate(standard_channels):
+          total += len(all_rms[fi][li][ci])
+    return total
 
   rms_cache_file = os.path.join(base_dir, cache_filename)
 
@@ -1237,9 +1250,11 @@ def load_rms_data(
     for f in glob.glob(os.path.join(GeorgeMouseDataDir, 'good_waveform_cache*.pkl')):
       with open(f, 'r') as f:
         exps = jsonpickle.decode(f.read())
-        (all_rms, standard_freqs, 
+        (new_rms, standard_freqs, 
         standard_levels, standard_channels) = summarize_all_rms(exps, all_rms)
+        print(f'Read {total_size(new_rms)} RMS results from {rms_cache_file}')
         del exps
+        all_rms += new_rms
 
     with open(rms_cache_file, 'w') as f:
           print(f'Writing RMS results to {rms_cache_file}')
@@ -1247,7 +1262,7 @@ def load_rms_data(
   else:
     with open(rms_cache_file, 'r') as f:
           all_rms = jsonpickle.decode(f.read())
-          print(f'Read RMS results from {rms_cache_file}')
+          print(f'Read {total_size(all_rms)} RMS results from {rms_cache_file}')
   return all_rms
 
 
