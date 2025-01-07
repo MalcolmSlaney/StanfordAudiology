@@ -1335,6 +1335,8 @@ def calculate_mean_std_rms_values(
   """Summarize the lists of lists of lists of lists of RMS values by calculating
   their mean and standard deviation.
   """
+  global standard_freqs, standard_levels, standard_channels
+``
   rms_means = np.zeros((len(standard_freqs), len(standard_levels), len(standard_channels)))
   rms_stds = rms_means.copy()
   for fi, freq in enumerate(standard_freqs):
