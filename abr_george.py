@@ -753,7 +753,7 @@ def compute_and_cache_dprimes():
       print(out.stdout.decode('utf-8'))
       print(out.stderr.decode('utf-8'))
     print()
-    
+
 
 def cache_dprime_data(d: str, 
                       dprimes: Dict[str, DPrimeResult],
@@ -1297,7 +1297,7 @@ def load_rms_data(
     for fi, freq in enumerate(standard_freqs):
       for li, level in enumerate(standard_levels):
         for ci, channel in enumerate(standard_channels):
-          all_rms[fi][li][ci] += new_rms[fi][li][ci]
+          all_rms[fi][li][ci].extend(new_rms[fi][li][ci])
     return all_rms
 
   rms_cache_file = os.path.join(base_dir, cache_filename)
@@ -1306,13 +1306,16 @@ def load_rms_data(
     # Run through all the waveform cache files (which are just the experiments
     # want to analyze) and accumulate the average ABR/ECochG response into a 3d 
     # array of lists.
-    all_rms = None
+    global standard_freqs, standard_levels, standard_channels
+    all_rms = [[[[] for _ in standard_channels] 
+                for _ in standard_levels] 
+               for _ in standard_freqs] # Initialize all_rms as an empty list with the correct dimensions
     for f in glob.glob(os.path.join(GeorgeMouseDataDir, 'good_waveform_cache*.pkl')):
       with open(f, 'r') as f:
         exps = jsonpickle.decode(f.read())
         (new_rms, standard_freqs, 
         standard_levels, standard_channels) = summarize_all_rms(exps, all_rms)
-        print(f'Read {total_size(new_rms)} RMS results from {rms_cache_file}')
+        print(f'Read {total_size(new_rms)} RMS results from {f}')
         del exps
         all_rms = concatenate(all_rms, new_rms)
 
@@ -1324,6 +1327,22 @@ def load_rms_data(
           all_rms = jsonpickle.decode(f.read())
           print(f'Read {total_size(all_rms)} RMS results from {rms_cache_file}')
   return all_rms
+
+
+def calculate_mean_std_rms_values(
+    all_good_rms: List[List[List[List[float]]]]) -> Tuple[np.ndarray, 
+                                                          np.ndarray]:
+  """Summarize the lists of lists of lists of lists of RMS values by calculating
+  their mean and standard deviation.
+  """
+  rms_means = np.zeros((len(standard_freqs), len(standard_levels), len(standard_channels)))
+  rms_stds = rms_means.copy()
+  for fi, freq in enumerate(standard_freqs):
+    for li, level in enumerate(standard_levels):
+      for ci, channel in enumerate(standard_channels):
+        rms_means[fi, li, ci] = np.mean(all_good_rms[fi][li][ci])
+        rms_stds[fi, li, ci] = np.std(all_good_rms[fi][li][ci])
+  return rms_means, rms_stds
 
 
 ###############  Main program, so we can run this offline ######################
