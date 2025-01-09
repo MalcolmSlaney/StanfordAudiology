@@ -97,7 +97,7 @@ class MouseExp:
   single_trials: np.ndarray = None # num_waveform samples x num_trials
   paired_trials: np.ndarray = None
 
-mouse_sample_rate = 24414 # From George's Experimental Notes
+mouse_sample_rate = 24414*8 # From George's Experimental Notes, 8x oversampling
 # Existing hardware filtering from 2.2-7500Hz.
 
 def read_mouse_exp(filename: str) -> MouseExp:
@@ -337,7 +337,7 @@ def preprocess_mouse_data(data: np.ndarray,
                           bandpass_filter: bool = False,
                           low_filter: float = 0*200,
                           high_filter: float = 1000,
-                          mouse_sample_rate: float = 24414) -> np.ndarray:
+                          mouse_sample_rate: float = 24414*8) -> np.ndarray:
   """
   Preprocess the mouse data, removing the DC offset, rejecting artifacts, and
   applying a bandpass filter.
@@ -409,7 +409,7 @@ class DPrimeResult(object):
   """Consolidate all the d' results for one preparation, across frequency.
   level and channel."""
   cov_dprimes: np.ndarray # 3d array indexed by frequency, level and channel
-  rmses: np.ndarray # Correspomding RMS values for each group
+  rmses: np.ndarray # Corresponding RMS values for each group
   rms_dprimes: np.ndarray # Corresponding d' for the RMS calculations.
   freqs: List[float]
   levels: List[float]
@@ -1208,6 +1208,8 @@ def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
     plt.plot(t*1000, mean_stack, color='r')
     m = np.max(np.abs(mean_stack))
     plt.ylim(-1.5*m, 1.5*m)
+    rms = np.sqrt(np.mean(stack[freq, levels.index(level), channel, ...]**2))
+    plt.text(np.max(t)*0.8, 1.4*m, f'RMS={rms}')
     plt.xlabel('Time (ms)')
     plt.ylabel(f'{level}dB')
 
