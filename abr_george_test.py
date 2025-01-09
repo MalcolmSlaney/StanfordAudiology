@@ -116,7 +116,7 @@ class ABRGeorgeTests(absltest.TestCase):
     self.assertEqual(filtered.shape, (3, 1))
     np.testing.assert_equal(filtered, [[1], [3], [5]])
 
-    num_points = 512
+    num_points = 4096
     data = np.zeros((num_points, 1))
     data[100, 0] = 1.0 # Results are bad if first point (due to filtfilt?)
     low_cutoff = 2000
