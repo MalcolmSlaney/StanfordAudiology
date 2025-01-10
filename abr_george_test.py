@@ -305,8 +305,6 @@ class EnsembleTests(absltest.TestCase):
 
     # First calculate (and plot) the Covariance measure
     plt.clf()
-    # (cov_dprimes, rmses, rms_dprimes, 
-    #  all_freqs, all_levels, all_channels) = 
     res = george.DPrimeResult(*george.calculate_waveform_summaries( 
       all_exps, True, debug_freq=freq, debug_levels=levels, debug_channel=1))
     plt.savefig('test_ensemble_cov_dprime.png')
@@ -325,16 +323,17 @@ class EnsembleTests(absltest.TestCase):
     plt.savefig('test_ensemble_rms_dprime.png')
     np.testing.assert_array_less(res.rms_dprimes[0, :-1, 0], 
                                  res.rms_dprimes[0, 1:, 0])
-    np.testing.assert_array_less(res.rmses[0, :-1, 0], 
-                                 res.rmses[0, 1:, 0])
+    np.testing.assert_array_less(res.rms_of_total[0, :-1, 0], 
+                                 res.rms_of_total[0, 1:, 0])
                     
     # Expectation is sqrt(level**2 * RMS(sin) + RMS(noise))
     expectations = np.sqrt((np.arange(1, 5)**2*np.sqrt(1/2.0))**2 + 16)
 
     print('Cov dprimes:', res.cov_dprimes)
-    print('RMSes:', res.rmses)
+    print('RMS of Total Signal:', res.rms_of_total)
     print('RMS dprimes:', res.rms_dprimes)
-    np.testing.assert_allclose(res.rmses[0, :, 0], expectations, rtol=.01)
+    np.testing.assert_allclose(res.rms_of_total[0, :, 0], expectations, 
+                               rtol=.01)
   
     plt.clf()
     george.add_threshold(res, dp_criteria=20, fit_method='bilinear', plot=True)

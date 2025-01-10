@@ -409,7 +409,8 @@ class DPrimeResult(object):
   """Consolidate all the d' results for one preparation, across frequency.
   level and channel."""
   cov_dprimes: np.ndarray # 3d array indexed by frequency, level and channel
-  rmses: np.ndarray # Corresponding RMS values for each group
+  rms_of_total: np.ndarray # RMS values for all signals
+  rms_of_average: np.ndarray # RMS values for average of each group
   rms_dprimes: np.ndarray # Corresponding d' for the RMS calculations.
   freqs: List[float]
   levels: List[float]
@@ -504,8 +505,10 @@ def calculate_cov_dprime(data: np.ndarray,
 def calculate_rmses(signal_data, noise_data, debug):
   noise_rms = calculate_rms(noise_data)
   signal_rms = calculate_rms(signal_data)
-  rms = np.sqrt(np.mean(signal_rms**2))
   dprime = calculate_dprime(signal_rms, noise_rms)
+
+  rms_of_signal = np.sqrt(np.mean(signal_data**2))
+  rms_of_average = np.sqrt(np.mean(np.mean(signal_data, axis=-1)**2))
 
   if debug:
     range = (min(np.min(signal_rms), np.min(noise_rms)),
@@ -522,7 +525,7 @@ def calculate_rmses(signal_data, noise_data, debug):
             f' H2: {np.mean(noise_rms):4.3G} +/-{np.std(noise_rms):4.3G}\n'
             f' d\'={dprime:4.3G}\n\n\n')
           
-  return rms, dprime
+  return rms_of_signal, rms_of_average, dprime
 
 
 def calculate_all_summaries(all_exps: List[MouseExp]) -> Dict[str, 
@@ -574,10 +577,12 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
   Returns:
     A tuple consisting of: 
       a 3d array of d' for the covariance measure, for each experiment,
-      a 3d array of RMS values,
+      a 3d array of RMS values for the total signal,
+      a 3d array of RMS values for the average of each trial type,
       a 3d array of d' for the RMS measure
       Then lists of the found the corresponding frequences, levels, and channels
-    The arrays are 3d and are indexed by frequency, level, and channel.
+    The arrays are 3d and are indexed by frequency, level, and channel.  The
+    order of these results must be the same as the fields in DPrimeExp class.
   """
   all_exp_levels = sorted(list(set([exp.level for exp in all_exps])))
   all_exp_freqs = sorted(list(set([exp.freq for exp in all_exps])))
@@ -586,8 +591,8 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
   plot_num = 1
   cov_dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
                                 len(all_exp_channels)))
-  rmses = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
-                          len(all_exp_channels)))
+  rms_of_signals = cov_dprimes.copy()
+  rms_of_averages = cov_dprimes.copy()
   rms_dprimes = np.nan*np.zeros((len(all_exp_freqs), len(all_exp_levels),
                                 len(all_exp_channels)))
   # Now loop through all the frequencies, channels, and levels.
@@ -626,16 +631,19 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
           plot_num += 1
         cov_dprimes[i, j, k] = calculate_cov_dprime(signal_data, noise_data, 
                                                     debug and debug_cov_not_rms)
-        rms, dprime = calculate_rmses(signal_data, noise_data, 
-                                      debug and not debug_cov_not_rms)
+        (rms_of_signal, rms_of_average, 
+         dprime) = calculate_rmses(signal_data, noise_data, 
+                                  debug and not debug_cov_not_rms)
   
         signal_rms = calculate_rms(signal_data)
-        rmses[i, j, k] = rms
+        rms_of_signals[i, j, k] = rms_of_signal
+        rms_of_averages[i, j, k] = rms_of_average
         rms_dprimes[i, j, k] = dprime
         if debug:
           plt.title(f'freq={int(freq)}, level={int(level)}, channel={int(channel)}')
   print(f'  Processed {all_processed} CSV files, {all_multiprocessed} part of a group.')
-  return cov_dprimes, rmses, rms_dprimes, all_exp_freqs, all_exp_levels, all_exp_channels
+  return (cov_dprimes, rms_of_signals, rms_of_averages, rms_dprimes, 
+          all_exp_freqs, all_exp_levels, all_exp_channels)
 
 
 def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
@@ -645,11 +653,11 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
                           max_abr_thresh: float = 1e9,
                           min_ecog_thresh: float = 0.0,
                           max_ecog_thresh: float = 1e9,
-                          ) -> Tuple[List[float], 
-                                     List[float]]:
+                          ) -> Dict[str, DPrimeResult]:
   """Filter a DPrime dictionary, looking for good preparations and dropping the
   bad ones.  And setting limits on the calculate thresholds, looking for good
-  and bad data.
+  and bad data.  Be sure to run add_all_thresholds() before running this filter
+  command.
   
   Args:
     all_dprimes: A dictionary pointing to dprime results
@@ -660,7 +668,9 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
     max_abr_thresh: Keep preps where all thresholds are *below* this limit
     min_ecog_thresh: Like min_abr_thresh, but using ECoG data
     max_ecog_thresh: Like max_abr_thresh, but using ECoG data
-    """
+  Returns:
+    A new dictionary containing just the selected dprime results.
+  """
   filtered_dprimes = {}
   for k in all_dprimes.keys():
     if any([l in k for l in drop_list]):
