@@ -409,8 +409,8 @@ class DPrimeResult(object):
   """Consolidate all the d' results for one preparation, across frequency.
   level and channel."""
   cov_dprimes: np.ndarray # 3d array indexed by frequency, level and channel
-  rms_of_total: np.ndarray # RMS values for all signals
-  rms_of_average: np.ndarray # RMS values for average of each group
+  rms_of_total: np.ndarray # RMS values for total signals
+  rms_of_average: np.ndarray # RMS values for the average of each group
   rms_dprimes: np.ndarray # Corresponding d' for the RMS calculations.
   freqs: List[float]
   levels: List[float]
