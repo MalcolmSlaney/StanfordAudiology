@@ -8,10 +8,6 @@
 #   Flag the patients with multiple visits
 # and then write out the new data.
 
-# To Run:
-# python3 clean_data.py --input /Users/malcolm/Downloads/3-27-2024\ raw\ data\ no\ cleaning.csv \
-# --hmac_key ReplaceMe --output 3-27-2024-clean-enhanced-data.csv
-
 import os
 from typing import List, Union, Literal
 
@@ -209,6 +205,11 @@ def main(argv):
   df = calculate_all_sii(df)
   df = add_cluster_ids(df, cluster_dir=FLAGS.cluster_dir)
   df = label_duplicates(df)
+
+  #Removing abstracted cases (VMA - 9/17/2024)
+  df = df[~df['ClinicianFullName'].str.contains('Abstracted', na=False)]
+  df = df[~df['TestLocation'].str.contains('Abstracted', na=False)]
+
   df.to_csv(FLAGS.output)
 
   num_multiples = len(set(df.loc[df.MultipleVisits]['Patients::HMAC']))
