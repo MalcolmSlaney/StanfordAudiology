@@ -1013,7 +1013,7 @@ def cache_dprime_data(d: str,
     f.write(jsonpickle.encode(dprimes))
     print(f'  Cached data for {len(dprimes)} types of dprime experiments.')
 
-def accumulate__all_thresholds(all_dprimes: Dict[str, DPrimeResult],
+def accumulate_all_thresholds(all_dprimes: Dict[str, DPrimeResult],
                                freqs: Optional[List[float]] = None,
                                max_spl=120) -> Tuple[List[float], 
                                                      List[float], float]:
