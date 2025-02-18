@@ -1125,8 +1125,8 @@ def find_dprime(all_dprimes: Dict[str, DPrimeResult],
 ###############  Waveform and RMS Displays ######################
 
 
-bad_animal_example = '20230720_control1_pre' # No ABR or ECogH Response
-good_animal_example = '20230720_control2_pre'  # No ABR but good ECogH Response
+bad_animal_example = '20230720_control1_pre' # No ABR or ECochG Response
+good_animal_example = '20230720_control2_pre'  # No ABR but good ECochG Response
 
 
 def extract_animal_names(exps: List[MouseExp]) -> List[str]:
@@ -1241,8 +1241,21 @@ def show_mean_stack(stack, freq=1, channel=0, alpha=0.01):
 
 
 def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
-                   skip_levels=3):
-  """Show a stack of all ABR waveforms across levels."""
+                   skip_levels=3) -> None:
+  """Show a stack of all ABR waveforms across levels.  The number of plots is
+  determined by the number of levels in stack, and skip_levels
+  
+  Args: 
+    stack: a 5 dimensional tensor from create_stack for one animal of shape
+      frequency, level, channel, time, trial
+    levels: which levels are defined in this stack
+    freq: Desired frequency index (into stack) to plot
+    channel: Desired channel index (into stack) to plot
+    alpha: opaqueness of waveform plot.  Usually close to zero so we can overlap
+      lots of waveforms
+    title: What title to put on top of the waveform stack
+    skip_levels: The increment (> 0) across levels for each subplot. 
+  """
   levels2plot = levels[::skip_levels]
   t = np.arange(stack.shape[-2])/mouse_sample_rate
   for i, level in enumerate(levels2plot):
@@ -1252,8 +1265,11 @@ def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
     plt.plot(t*1000, mean_stack, color='r')
     m = np.max(np.abs(mean_stack))
     plt.ylim(-1.5*m, 1.5*m)
-    rms = np.sqrt(np.mean(stack[freq, levels.index(level), channel, ...]**2))
-    plt.text(np.max(t)*0.8, 1.4*m, f'RMS={rms}')
+    wave_rms = np.sqrt(np.mean(stack[freq, levels.index(level), channel, ...]**2))
+    plt.text(np.max(t*1000)*0.75, 1.20*m, f'Waveform RMS={wave_rms:5.3g}')
+    ave_rms = np.sqrt(np.mean(mean_stack**2))
+    plt.text(0.0, 1.20*m, f'Average RMS={ave_rms:5.3g}', color='red')
+
     plt.xlabel('Time (ms)')
     plt.ylabel(f'{level}dB')
 
@@ -1261,6 +1277,7 @@ def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
       plt.title(title)
     if i != len(levels2plot)-1:
       plt.gca().xaxis.set_tick_params(labelcolor='none');
+
 
 standard_freqs = [8000.0, 16000.0, 32000.0]
 standard_levels = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0]
