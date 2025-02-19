@@ -1240,8 +1240,14 @@ def show_mean_stack(stack, freq=1, channel=0, alpha=0.01):
       plt.gca().xaxis.set_tick_params(labelcolor='none');
 
 
-def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
-                   skip_levels=3) -> None:
+def show_all_stack(stack: np.ndarray, 
+                   levels: Union[np.ndarray, List[float]], 
+                   freq: int = 1, 
+                   channel: int = 0, alpha: float = 0.01, 
+                   title: str = '',
+                   skip_levels: int = 3,
+                   relative_max: float = 1.5,
+                   absolute_max: float = 0) -> None:
   """Show a stack of all ABR waveforms across levels.  The number of plots is
   determined by the number of levels in stack, and skip_levels
   
@@ -1255,17 +1261,26 @@ def show_all_stack(stack, levels, freq=1, channel=0, alpha=0.01, title='',
       lots of waveforms
     title: What title to put on top of the waveform stack
     skip_levels: The increment (> 0) across levels for each subplot. 
+    relative_max: Limit y axis of plot to this factor of the max average 
+      waveform if the absolute value is not set.
+    absolute_max: Limit y axis of plot to this absolute value.
   """
   levels2plot = levels[::skip_levels]
   t = np.arange(stack.shape[-2])/mouse_sample_rate
   for i, level in enumerate(levels2plot):
     plt.subplot(len(levels2plot), 1, i+1)
-    plt.plot(t*1000, stack[freq, levels.index(level), channel, ...], alpha=alpha)
-    mean_stack = np.mean(stack[freq, levels.index(level), channel, ...], axis=-1)
+    plt.plot(t*1000, stack[freq, levels.index(level), channel, ...], 
+             alpha=alpha)
+    mean_stack = np.mean(stack[freq, levels.index(level), channel, ...], 
+                         axis=-1)
     plt.plot(t*1000, mean_stack, color='r')
     m = np.max(np.abs(mean_stack))
-    plt.ylim(-1.5*m, 1.5*m)
-    wave_rms = np.sqrt(np.mean(stack[freq, levels.index(level), channel, ...]**2))
+    if absolute_max > 0:
+      plt.ylim(-absolute_max, absolute_max)
+    else:
+      plt.ylim(-relative_max*m, relative_max*m)
+    wave_rms = np.sqrt(np.mean(stack[freq, levels.index(level), 
+                                     channel, ...]**2))
     plt.text(np.max(t*1000)*0.75, 1.20*m, f'Waveform RMS={wave_rms:5.3g}')
     ave_rms = np.sqrt(np.mean(mean_stack**2))
     plt.text(0.0, 1.20*m, f'Average RMS={ave_rms:5.3g}', color='red')
