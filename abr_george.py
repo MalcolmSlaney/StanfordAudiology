@@ -703,8 +703,9 @@ def calculate_cov_dprime(data: np.ndarray,
   Args:
     data: A matrix of shape num_samples x num_trials
     moise_data: A matrix like data, but with only noise, no sigal.
+      If not specified shuffle the data matrix.
     debug: Whether to show a plot of the histogram
-    score_loc: Where to put a legend aboit the scores
+    score_loc: Where to put a legend above the scores
       True: automatic on the left
       False: No score legend
       Two-ple: x and y locations in plot coordinates
@@ -1454,8 +1455,89 @@ def calculate_mean_std_rms_values(
   return rms_means, rms_stds
 
 
-###############  Main program, so we can run this offline ######################
-FLAGS = flags.FLAGS
+###############  Analzing results re. number of trials ######################
+
+def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,                          
+                                    signal_index = 9,
+                                    noise_index = 0,
+                                    freq_index = 1,
+                                    channel_index = 1,
+                                    min_count = 20,
+                                    max_count = 20000,
+                                    ) -> Tuple[np.ndarray, np.ndarray, 
+                                               np.ndarray]:
+  # The shape of the stacks array is Freqs x levels x channels x time x trials
+  assert filtered_abr_stack.ndim == 5
+  assert signal_index < filtered_abr_stack.shape[1]
+  assert noise_index < filtered_abr_stack.shape[1]
+  assert freq_index < filtered_abr_stack.shape[0]
+  assert channel_index < filtered_abr_stack.shape[2]
+
+  time_sample_count = filtered_abr_stack.shape[3]
+  trial_count = filtered_abr_stack.shape[4]
+
+  block_sizes = (trial_count / (2**np.arange(0, 10, 0.5))).astype(int)
+  block_sizes = block_sizes[(block_sizes >= min_count) & (block_sizes <= max_count)]
+  dprime_mean_by_size = np.zeros(len(block_sizes))
+  dprime_std_by_size = np.zeros(len(block_sizes))
+
+  for i, block_size in enumerate(block_sizes):
+    dps = [] 
+    for block_start in range(0, trial_count - block_size + 1, block_size):
+      block_end = block_start + block_size
+      signal_data = filtered_abr_stack[freq_index, signal_index, 
+                                       channel_index, 
+                                       :, block_start:block_end]
+      noise_data = filtered_abr_stack[freq_index, noise_index, 
+                                      channel_index, 
+                                      :, block_start:block_end]
+      dps.append(calculate_cov_dprime(signal_data, noise_data))
+    print(block_size, dps)
+    dprime_mean_by_size[i] = np.mean(dps)
+    dprime_std_by_size[i] = np.std(dps)
+  return block_sizes, dprime_mean_by_size, dprime_std_by_size
+
+# (block_sizes, dprime_mean_by_size, 
+#  dprime_std_by_size) = calculate_dprime_by_trial_count(filtered_abr_stacks[name])
+
+
+def create_synthetic_stack(noise_level=1, 
+                           num_times=1952, 
+                           num_trials=1026):
+  """Create a synthetic stack of ABR recordings so we can investigate d'
+  behaviour for really large number of trials.
+  """
+  t = np.arange(num_times)/1000
+  order = 4
+  b = 1
+  f = 5
+  gammatone = 1000*t**(order-1)*np.exp(-2*np.pi*b*t)*np.cos(2*np.pi*f*t)
+  # gammatone = np.cos(2*np.pi*f*t)*np.hamming(num_times)
+  plt.plot(t, gammatone)
+
+  # The shape of the stacks array is Freqs x levels x channels x time x trials
+  stack = noise_level*np.random.normal(size=(1, 2, 1, num_times, num_trials))
+  stack[0, 1, 0, :, :] += np.expand_dims(gammatone, axis=[1])
+  return stack
+
+if False:
+  synthetic_stack = create_synthetic_stack(noise_level=10, num_trials=16384)
+  plt.title('Synthetic ABR Waveform');
+
+  (block_sizes, dprime_mean_by_size, 
+  dprime_std_by_size) = calculate_dprime_by_trial_count(synthetic_stack, 
+                                                        signal_index = 1,
+                                                        noise_index = 0,
+                                                        freq_index = 0,
+                                                        channel_index = 0,)
+
+  plt.errorbar(block_sizes, dprime_mean_by_size, dprime_std_by_size)
+  plt.xscale('log')
+  plt.xlabel('Block Size (trials)')
+  plt.ylabel("d' Estimate")
+  plt.title("Synthetic d' vs. Trial Count");
+
+###############  Main program, so we can run this offline ######################FLAGS = flags.FLAGS
 flags.DEFINE_enum('mode', 'waveforms', ('waveforms', 'dprimes', 'check'),
                   'Which processing to do on this basedir.')
 flags.DEFINE_string('basedir',
