@@ -341,7 +341,9 @@ def preprocess_mouse_data(data: np.ndarray,
                           bandpass_filter: bool = False,
                           low_filter: float = 0*200,
                           high_filter: float = 1000,
-                          mouse_sample_rate: float = 24414*8) -> np.ndarray:
+                          mouse_sample_rate: float = 24414*8,
+                          first_sample: int = 0,
+                          last_sample: int = -1) -> np.ndarray:
   """
   Preprocess the mouse data, removing the DC offset, rejecting artifacts, and
   applying a bandpass filter.
@@ -349,6 +351,15 @@ def preprocess_mouse_data(data: np.ndarray,
   Args:
     data: A matrix of shape num_samples x num_trials, opposite of what the rest
       of the routines that follow need.
+    remove_dc: the average value of each trial, an easy low-pass filter
+    remove_artifacts: ???
+    bandpass_filter: Do we bandpass filter the data?
+    low_filter: If bandpass filtering the data, the low-frequency cutoff (Hz)
+    high_filter: If bandpass filtering the data, the high-frequency cutoff (Hz)
+    mouse_sample_rate: The sample rate for the data
+    first_sample: Extract part of the waveform data, starting with this sample
+    last_sample: Extract part of the waveform data, ending with this sample (-1
+      means all the data)
 
   Returns:
     A matrix of shape num_samples x num_trials, transposed from the original.
@@ -361,7 +372,10 @@ def preprocess_mouse_data(data: np.ndarray,
     #Bidelman used 90-2000?
     data = butterworth_filter(data, lowcut=low_filter, highcut=high_filter, 
                               fs=mouse_sample_rate, order=6, axis=0)
-  return data
+  if last_sample == -1:
+    last_sample = data.shape[0]
+  print(f'Returning {first_sample} to {last_sample} of {data.shape} giving {data[first_sample:last_sample, :].shape}')
+  return data[first_sample:last_sample, :]
 
 
 def shuffle_data(data: np.ndarray) -> np.ndarray:
@@ -753,7 +767,10 @@ def calculate_rmses(signal_data, noise_data, debug):
   return rms_of_signal, rms_of_average, dprime
 
 
-def calculate_all_summaries(all_exps: List[MouseExp]) -> Dict[str, 
+def calculate_all_summaries(all_exps: List[MouseExp],
+                            first_sample: int = 0,
+                            last_sample: int = -1,
+                            ) -> Dict[str, 
                                                               DPrimeResult]:
   """Calculate the waveform summaries for each type of experiment within this 
   list of results.  Each result is for one experiment, at one frequency, level 
@@ -764,6 +781,9 @@ def calculate_all_summaries(all_exps: List[MouseExp]) -> Dict[str,
   Arg:
     all_exps: A list of MouseExps, containing the raw waveform data for each
       condition
+    first_sample: Extract part of the waveform data, starting with this sample
+    last_sample: Extract part of the waveform data, ending with this sample (-1
+      means all the data)
 
   Returns:
     A dictionary, keyed by experiment type, containing the dprime result.
@@ -771,7 +791,9 @@ def calculate_all_summaries(all_exps: List[MouseExp]) -> Dict[str,
   all_groups = group_experiments(all_exps)
   all_dprimes = {}
   for t, exps in all_groups.items():
-    result = DPrimeResult(*calculate_waveform_summaries(exps))
+    result = DPrimeResult(*calculate_waveform_summaries(exps,
+                                                        first_sample,
+                                                        last_sample))
     all_dprimes[t] = result
   return all_dprimes
 
@@ -781,6 +803,8 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
                                  debug_freq: Optional[float] = None,
                                  debug_levels: List[float] = [],
                                  debug_channel: Optional[int] = None,
+                                 first_sample: int = 0,
+                                 last_sample: int = -1,
                                  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray,
                                            List[float],
                                            List[float],
@@ -798,6 +822,9 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
     debug_freq: Which frequency from this preparation to plot
     debug_levels: Which levels from this preparation to plot (a list)
     debug_channel: Which channel to plot
+    first_sample: Extract part of the waveform data, starting with this sample
+    last_sample: Extract part of the waveform data, ending with this sample (-1
+      means all the data)
 
   Returns:
     A tuple consisting of the following items.  They must be in the *same* 
@@ -832,7 +859,8 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
         print(f'Found no noise data for freq={freq}, channel={channel}')
         continue
       
-      noise_data = preprocess_mouse_data(noise_exp.single_trials)
+      noise_data = preprocess_mouse_data(noise_exp.single_trials, 
+                                         first_sample, last_sample)
       noise_rms = calculate_rms(noise_data)
 
       for j, level in enumerate(all_exp_levels):
@@ -847,7 +875,8 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
         all_data = []
         for exp in exps:
           all_processed += 1
-          all_data.append(preprocess_mouse_data(exp.single_trials))
+          all_data.append(preprocess_mouse_data(exp.single_trials, 
+                                                first_sample, last_sample))
         signal_data = np.concatenate(all_data, axis=1)
 
         debug = (channel == debug_channel and freq == debug_freq and 
@@ -1439,6 +1468,12 @@ flags.DEFINE_string('dprimes_cache', mouse_dprimes_pickle_name,
 flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
 flags.DEFINE_integer('max_cache_gbytes', 10, 
                      'Maximum size of one cache file (GBytes).')
+flags.DEFINE_integer('first_sample', 0, 
+                     'Start sample # of the temporal window to extract from '
+                     'each ABR waveform')
+flags.DEFINE_integer('last_sample', -1, 
+                     'End sample # of the temporal window to extract from a '
+                     'waveform, (including last sample is indicated with -1)')
 
 
 def waveform_caches_present(dir:str, waveform_pickle_name:str) -> int:
@@ -1485,7 +1520,10 @@ def cache_waveform_one_dir(dir:str, waveform_pickle_name:str,
 
 
 def cache_dprime_one_dir(dir:str, 
-                         waveform_cache_name:str, dprime_cache_name:str):
+                         waveform_cache_name:str, dprime_cache_name:str,
+                         first_sample: int = 0,
+                         last_sample: int = 0,
+                         ) -> None:
   if os.path.exists(os.path.join(dir, dprime_cache_name)):
     print(f'Cache directory exists for {dir}')
     return
@@ -1511,7 +1549,8 @@ def main(_):
     all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
     for dir in all_mouse_dirs:
       if FLAGS.filter in dir:
-        cache_dprime_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache)
+        cache_dprime_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache,
+                             FLAGS.first_sample, FLAGS.end_sample)
   else:
     print(f'Unknown processing mode: {FLAGS.mode}')
 
