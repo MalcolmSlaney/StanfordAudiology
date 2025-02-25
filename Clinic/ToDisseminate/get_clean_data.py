@@ -14,13 +14,13 @@ from absl import app
 from absl import flags
 
 import replace_MRN
-import hearingloss_classifier
+import hearing_loss_classifier
 import format_date
 
 def classify_hearing_loss(df: pd.DataFrame):
   """Assign result to a temporary dataframe, since classifier creates lots of temporary column names."""
   orig_df = df.copy()
-  new_df = hearingloss_classifier.HearingClassifier(df)
+  new_df = hearing_loss_classifier.HearingClassifier(df)
   df = orig_df
 
   # Specify columns related to bone conduction, hearing loss types, and PTA to be included in output file
