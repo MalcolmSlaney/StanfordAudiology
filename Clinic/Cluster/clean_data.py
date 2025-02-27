@@ -208,7 +208,7 @@ def main(argv):
 
   #Removing abstracted cases (VMA - 9/17/2024)
   df = df[~df['ClinicianFullName'].str.contains('Abstracted', na=False)]
-  df = df[~df['TestLocation'].str.contains('Abstracted', na=False)]
+  # df = df[~df['TestLocation'].str.contains('Abstracted', na=False)]
 
   df.to_csv(FLAGS.output)
 
