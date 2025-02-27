@@ -137,8 +137,8 @@ def read_mouse_exp(filename: str) -> MouseExp:
 
 ###############  Cache all the Mouse CSV files ###########################
 
-mouse_waveforms_pickle_name = 'mouse_waveforms.pkl'
-mouse_dprimes_pickle_name = 'mouse_dprime.pkl'
+mouse_waveforms_pickle_name = 'mouse_waveforms_v2.pkl'
+mouse_dprimes_pickle_name = 'mouse_dprime_v2.pkl'
 
 
 def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
@@ -1598,7 +1598,8 @@ flags.DEFINE_string('waveforms_cache', mouse_waveforms_pickle_name,
                     'Where to cache all the waveforms in this directory')
 flags.DEFINE_string('dprimes_cache', mouse_dprimes_pickle_name,
                     'Where to cache the dprimes in this directory')
-flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
+flags.DEFINE_string('filter', '',
+                    'Which subdirectories to process, ignore rest.')
 flags.DEFINE_integer('max_cache_gbytes', 10,
                      'Maximum size of one cache file (GBytes).')
 flags.DEFINE_integer('first_sample', 0,
