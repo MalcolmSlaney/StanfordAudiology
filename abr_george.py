@@ -19,7 +19,7 @@ from scipy.optimize import curve_fit
 
 from absl import app
 from absl import flags
-from abr import *
+# from abr import *  # Import this first by hand
 from typing import Dict, List, Optional, Union, Tuple
 
 # We save the raw data with Pickle because raw JSON doesn't support Numpy
@@ -286,7 +286,7 @@ def cache_all_mouse_dir(expdir: str,
 def find_exp(all_exps: List[MouseExp],
              freq: Optional[float]=None,
              level: Optional[float] = None,
-             channel: Optional[int] = None) -> List[MouseExp]:
+             channel: Optional[int] = None) -> List[MouseExp]: 
   """
   Find particular experiments in the list of all experiments.
 
@@ -301,7 +301,7 @@ def find_exp(all_exps: List[MouseExp],
   """
   good_ones = []
   for exp in all_exps:
-    if freq  is not None and freq != exp.freq:
+    if freq is not None and freq != exp.freq:
         continue
     if level is not None and level != exp.level:
         continue
@@ -1457,14 +1457,15 @@ def calculate_mean_std_rms_values(
 
 ###############  Analzing results re. number of trials ######################
 
-def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,                          
+
+def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
                                     signal_index = 9,
                                     noise_index = 0,
                                     freq_index = 1,
                                     channel_index = 1,
                                     min_count = 20,
                                     max_count = 20000,
-                                    ) -> Tuple[np.ndarray, np.ndarray, 
+                                    ) -> Tuple[np.ndarray, np.ndarray,
                                                np.ndarray]:
   # The shape of the stacks array is Freqs x levels x channels x time x trials
   assert filtered_abr_stack.ndim == 5
@@ -1476,29 +1477,80 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
   time_sample_count = filtered_abr_stack.shape[3]
   trial_count = filtered_abr_stack.shape[4]
 
-  block_sizes = (trial_count / (2**np.arange(0, 10, 0.5))).astype(int)
-  block_sizes = block_sizes[(block_sizes >= min_count) & (block_sizes <= max_count)]
+  block_sizes = (trial_count / (2**np.arange(0, 10, 1.0))).astype(int)
+  block_sizes = block_sizes[(block_sizes >= min_count) &
+                            (block_sizes <= max_count)]
   dprime_mean_by_size = np.zeros(len(block_sizes))
   dprime_std_by_size = np.zeros(len(block_sizes))
 
   for i, block_size in enumerate(block_sizes):
-    dps = [] 
+    dps = []
     for block_start in range(0, trial_count - block_size + 1, block_size):
       block_end = block_start + block_size
-      signal_data = filtered_abr_stack[freq_index, signal_index, 
-                                       channel_index, 
+      signal_data = filtered_abr_stack[freq_index, signal_index,
+                                       channel_index,
                                        :, block_start:block_end]
-      noise_data = filtered_abr_stack[freq_index, noise_index, 
-                                      channel_index, 
+      noise_data = filtered_abr_stack[freq_index, noise_index,
+                                      channel_index,
                                       :, block_start:block_end]
+      if i < 2:
+        print(signal_data.shape, noise_data.shape)
       dps.append(calculate_cov_dprime(signal_data, noise_data))
     print(block_size, dps)
     dprime_mean_by_size[i] = np.mean(dps)
     dprime_std_by_size[i] = np.std(dps)
   return block_sizes, dprime_mean_by_size, dprime_std_by_size
 
-# (block_sizes, dprime_mean_by_size, 
-#  dprime_std_by_size) = calculate_dprime_by_trial_count(filtered_abr_stacks[name])
+
+def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
+                                       signal_index = 9,
+                                       noise_index = 0,
+                                       freq_index = 1,
+                                       channel_index = 1,
+                                       min_count = 20,
+                                       max_count = 20000,
+                                       repetition_count: int = 20,
+                                       ) -> Tuple[np.ndarray, np.ndarray,
+                                                  np.ndarray]:
+  # The shape of the stacks array is Freqs x levels x channels x time x trials
+  # Use bootstrapping this time
+  assert filtered_abr_stack.ndim == 5
+  assert signal_index < filtered_abr_stack.shape[1]
+  assert noise_index < filtered_abr_stack.shape[1]
+  assert freq_index < filtered_abr_stack.shape[0]
+  assert channel_index < filtered_abr_stack.shape[2]
+
+  time_sample_count = filtered_abr_stack.shape[3]
+  trial_count = filtered_abr_stack.shape[4]
+
+  block_sizes = (trial_count / (2**np.arange(0, 10, 1.0))).astype(int)
+  block_sizes = block_sizes[(block_sizes >= min_count) &
+                            (block_sizes <= max_count)]
+  dprime_mean_by_size = np.zeros(len(block_sizes))
+  dprime_std_by_size = np.zeros(len(block_sizes))
+
+  for i, block_size in enumerate(block_sizes):
+    dps = []
+    for j in range(repetition_count):
+      # Transpose the resulting array slices because of this issue:
+      #  https://stackoverflow.com/a/71489304
+      signal_data = filtered_abr_stack[freq_index, signal_index,
+                                       channel_index, :,
+                                       np.random.choice(trial_count,
+                                                        block_size)].T
+      noise_data = filtered_abr_stack[freq_index, noise_index,
+                                      channel_index, :,
+                                      np.random.choice(trial_count,
+                                                       block_size)].T
+      if j < 2:
+        print(filtered_abr_stack.shape, trial_count, block_size,
+              np.random.choice(trial_count, block_size).shape,
+              signal_data.shape, noise_data.shape)
+      dps.append(calculate_cov_dprime(signal_data, noise_data))
+    print(block_size, dps)
+    dprime_mean_by_size[i] = np.mean(dps)
+    dprime_std_by_size[i] = np.std(dps)
+  return block_sizes, dprime_mean_by_size, dprime_std_by_size
 
 
 def create_synthetic_stack(noise_level=1, 
