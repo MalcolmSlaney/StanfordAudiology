@@ -1,25 +1,22 @@
 # Code to support analysis of George's mouse ABR/ECoG recordings.  This colab
-# shows how to use this code: 
+# shows how to use this code:
 # https://colab.research.google.com/drive/1wtTeslQa8BQIk9QxUfOJawU6AuhvmaDf
 import csv
 import dataclasses
 import glob
 import math
 import os
-import sys
+import subprocess
 import traceback
 
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.signal as spsig
-import scipy.fft as spfft
 import scipy.stats as spstats
-from scipy.stats import linregress
 from scipy.optimize import curve_fit
 
 from absl import app
 from absl import flags
-# from abr import *  # Import this first by hand
+from abr import *  # Import this first by hand
 from typing import Dict, List, Optional, Union, Tuple
 
 # We save the raw data with Pickle because raw JSON doesn't support Numpy
@@ -37,29 +34,29 @@ date, such as 20230720.
 For each date, there are a number of .csv files, one per experimental condition.
 A condition is the recording circumstance (pre/post), as well as the frequency,
 level and channel number.  The CSV file contains (after the two rows of header)
-a single row per recording at 2414Hz.  There are multiple rows, one per 
+a single row per recording at 2414Hz.  There are multiple rows, one per
 stimulus.
 
-All these trials are consolidated into one or more 
+All these trials are consolidated into one or more
   mouse_waveforms01.pkl
 files (since the CSV files are expensive to read).  The contents of these pickle
 files are MouseExp's.  Each of these files are stored in the corresponding date
 directory.
 
 We read all the waveforms and calculate the covariance d' and store the results,
-one per day in a 
+one per day in a
   mouse_dprime.pkl
 The data here is stored as a dictionary pointing to DPrimeResult classes.  One
 file per date directory.
 
 There are two types of summary files, across all dates.
 
-There are a number of files to consolidate the waveforms from "good" trials 
+There are a number of files to consolidate the waveforms from "good" trials
 together.  They are in the main directory, and have names of the form
   good_waveform_cache00.pkl.
 These files consist of lists of MouseExp classes.
 
-Finally, all the RMS estimates from "good" experiments are stored in a file 
+Finally, all the RMS estimates from "good" experiments are stored in a file
 called
   rms_waveform_cache.pkl
 This data is a List (by frequency) of List (by level) of List (by channel) of
@@ -72,7 +69,7 @@ list of RMS values (one per animal)
 class MouseExp:
   """
   A data structure that describes one set of ABR experimental data, indexed by
-    frequency, level, and channel.  The basename field describes the type of 
+    frequency, level, and channel.  The basename field describes the type of
     experiment (pre, post, etc.)
 
   Attributes:
@@ -122,7 +119,7 @@ def read_mouse_exp(filename: str) -> MouseExp:
 
     eegreader = csv.reader(csvfile, delimiter=',')
     for row in eegreader:
-      if len(row) > 9: # Arbitrary
+      if len(row) > 9:  # Arbitrary
         row_vals = [float(r.replace('\0', '')) for r in row if r]
         all_data_rows.append(row_vals)
 
@@ -146,13 +143,13 @@ mouse_dprimes_pickle_name = 'mouse_dprime.pkl'
 
 def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
   """Look for all the directories that seem to contain George's mouse data. Walk
-  the directory tree starting at the given directory, looking for all 
-  directories names that do not contain the following words: 
+  the directory tree starting at the given directory, looking for all
+  directories names that do not contain the following words:
     analyze, bad and traces
 
   Args:
     mouse_data_dir: where to start looking for George's mouse data
-  
+
   Returns:
     A list of file paths.
   """
@@ -162,21 +159,21 @@ def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
   return all_exp_dirs
 
 
-def waveform_cache_present(dir:str, 
+def waveform_cache_present(dir:str,
                            waveform_pickle_name=mouse_waveforms_pickle_name):
   if os.path.exists(os.path.join(dir, waveform_pickle_name)):
     return True
-  new_filename = waveform_pickle_name.replace('.pkl', f'00.pkl')
+  new_filename = waveform_pickle_name.replace('.pkl', '00.pkl')
   return os.path.exists(os.path.join(dir, new_filename))
 
 
-def save_waveform_cache(all_exps: List[MouseExp], dir: str, number: int, 
+def save_waveform_cache(all_exps: List[MouseExp], dir: str, number: int,
                         waveform_pickle_name=mouse_waveforms_pickle_name):
   """Save some of the MouseExp's objects into a cache file.  We store all the
   data from one directory into multiple cache files since they get to large to
   decode (with a single read).
-  
-  The cache file will be of the form mouse_waveformsXX.pkl, where XX is the 
+
+  The cache file will be of the form mouse_waveformsXX.pkl, where XX is the
   cache file number.
   """
   new_filename = waveform_pickle_name.replace('.pkl', f'{number:02d}.pkl')
@@ -189,8 +186,8 @@ def save_waveform_cache(all_exps: List[MouseExp], dir: str, number: int,
 def load_waveform_cache(
     dir: str,
     waveform_pickle_name: str = mouse_waveforms_pickle_name) -> List[MouseExp]:
-  """The CSV files are converted into a small number of PKL files for easier 
-  loading. (CSV is slow.) This routine reads in all the cached data (from 
+  """The CSV files are converted into a small number of PKL files for easier
+  loading. (CSV is slow.) This routine reads in all the cached data (from
   multiple files) in one directory.)
   """
   filename = os.path.join(dir, waveform_pickle_name)
@@ -209,14 +206,14 @@ def load_waveform_cache(
   return all_exps
 
 
-def summarize_all_data(all_exp_dirs: List[str], 
+def summarize_all_data(all_exp_dirs: List[str],
                        pickle_name=mouse_waveforms_pickle_name):
   for d in all_exp_dirs:
     try:
       print(f'Summarizing data in {d}')
       all_exps = load_waveform_cache(d, pickle_name)
       if not all_exps:
-        print(f'  No experiments.')
+        print('  No experiments.')
       else:
         all_sizes = [str(e.single_trials.shape) for e in all_exps]
         all_sizes = ', '.join(all_sizes)
@@ -228,22 +225,22 @@ def summarize_all_data(all_exp_dirs: List[str],
       print(f'  Could not load mouse data for {d} because of {e}')
 
 
-def cache_all_mouse_dir(expdir: str, 
+def cache_all_mouse_dir(expdir: str,
                         waveform_pickle_name: str = mouse_waveforms_pickle_name,
-                        max_files:int = 0, max_bytes:float = 10e9, 
+                        max_files:int = 0, max_bytes:float = 10e9,
                         debug:bool = False) -> None:
   """
-  Read and cache the CSV mouse experiments in the given directory. Each 
-  trial experiment is stored in a single CSV file.  This routine reads all the 
+  Read and cache the CSV mouse experiments in the given directory. Each
+  trial experiment is stored in a single CSV file.  This routine reads all the
   csv files and converts them into numpy arrays, stored as pickle files.
 
   Args:
     expdir:  Where to find the experimental for this animal
     waveform_pickle_name: The canonical name for the resulting pickle files
       (They will be numbered later.)
-    max_files: How many files to put into one pickle file, to limit for 
+    max_files: How many files to put into one pickle file, to limit for
       debugging.
-    max_bytes: How many bytes, about, to put in each file.  Will be one 
+    max_bytes: How many bytes, about, to put in each file.  Will be one
       experiment bigger than this.
     debug: Extra summary print statements.
 
@@ -253,7 +250,7 @@ def cache_all_mouse_dir(expdir: str,
   def cache_size(all_trials: List[MouseExp]):
     return sum([exp.single_trials.nbytes for exp in all_exps])
 
-  print(f'Cache_all_mouse_dir:', expdir, max_files, max_bytes)            
+  print(f'Cache_all_mouse_dir:', expdir, max_files, max_bytes)
   all_exp_files = [f for f in os.listdir(expdir)
                      if os.path.isfile(os.path.join(expdir, f)) and
                      f.endswith('.csv')]
@@ -273,20 +270,20 @@ def cache_all_mouse_dir(expdir: str,
       print('  Reached maximum limit of {max_files} files to process.')
       break
     if max_bytes and cache_size(all_exps) > max_bytes:
-      save_waveform_cache(all_exps, expdir, cache_file_count, 
+      save_waveform_cache(all_exps, expdir, cache_file_count,
                           waveform_pickle_name=waveform_pickle_name)
       cache_file_count += 1
       all_exps = []
     max_files += 1
   if all_exps:
-    save_waveform_cache(all_exps, expdir, cache_file_count, 
+    save_waveform_cache(all_exps, expdir, cache_file_count,
                         waveform_pickle_name=waveform_pickle_name)
 
 
 def find_exp(all_exps: List[MouseExp],
              freq: Optional[float]=None,
              level: Optional[float] = None,
-             channel: Optional[int] = None) -> List[MouseExp]: 
+             channel: Optional[int] = None) -> List[MouseExp]:
   """
   Find particular experiments in the list of all experiments.
 
@@ -370,7 +367,7 @@ def preprocess_mouse_data(data: np.ndarray,
     data = reject_artifacts(data)
   if bandpass_filter:
     #Bidelman used 90-2000?
-    data = butterworth_filter(data, lowcut=low_filter, highcut=high_filter, 
+    data = butterworth_filter(data, lowcut=low_filter, highcut=high_filter,
                               fs=mouse_sample_rate, order=6, axis=0)
   if last_sample == -1:
     last_sample = data.shape[0]
@@ -396,7 +393,7 @@ def shuffle_data(data: np.ndarray) -> np.ndarray:
 
 
 def exp_type_from_name(name: str) -> str:
-  """Return the experiment type from a full pathname.  For example 
+  """Return the experiment type from a full pathname.  For example
     20230810_control2_post60-0-30-2-1
   becomes control2_post60
   """
@@ -407,7 +404,7 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
   The experiment type is the first part of the filename, after the date.
   Args:
     all_exps: A list of all the MouseExps (in a directory)
-    
+
   Returns:
     A dictionary of groups of MouseExps.  The key is the experiment type and the
     value is a list of MouseExps.
@@ -415,7 +412,7 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
   types = set([exp_type_from_name(exp.basename) for exp in all_exps])
   exp_groups = {}
   for exp_type in types:
-    this_exps = [exp for exp in all_exps 
+    this_exps = [exp for exp in all_exps
                  if exp_type_from_name(exp.basename) == exp_type]
     exp_groups[exp_type] = this_exps
   return exp_groups
@@ -447,13 +444,13 @@ class DPrimeResult(object):
     assert self.rms_of_total.shape == (num_freqs, num_levels, num_channels)
     assert self.rms_of_average.shape == (num_freqs, num_levels, num_channels)
     assert self.rms_dprimes.shape == (num_freqs, num_levels, num_channels)
-  
-  def add_threshold(self, dp_criteria=2, 
+
+  def add_threshold(self, dp_criteria=2,
                   fit_method: str = 'bilinear',
                   plot=False) -> None:
     """Add the SPL threshold to a DPrimeResult.  This is done by fitting a
-    either a polynomial or bilinear model to the d' data at each frequency and 
-    channel, and then using this smooth model to predict the level where d' 
+    either a polynomial or bilinear model to the d' data at each frequency and
+    channel, and then using this smooth model to predict the level where d'
     exceeds the desired level.
     Args:
       self: Consolidated estimate of the d' for each frequency, level
@@ -463,8 +460,8 @@ class DPrimeResult(object):
       plot: Generate plot showing curve fits
     Returns:
       Nothing. This object is modified in place, adding:
-        1) the spl_threshold where d' gets above the dp_criteria, and 
-        2) smoothed_dprimes, which gives the d' estimate, after polynomial 
+        1) the spl_threshold where d' gets above the dp_criteria, and
+        2) smoothed_dprimes, which gives the d' estimate, after polynomial
           smoothing at the same frequencies, levels, and channels as the incoming
           dprime array.
     """
@@ -487,7 +484,6 @@ class DPrimeResult(object):
       for j, channel in enumerate(self.channels):
         levels = self.levels
         dprimes = self.cov_dprimes[i, :, j]
-        cp = None
         try:
           if fit_method == 'bilinear':
             interp = BilinearInterpolation()
@@ -512,10 +508,10 @@ class DPrimeResult(object):
             ls = '--'
           else:
             ls = '-'
-          plt.plot(plot_levels, [interp.eval(l) for l in plot_levels], 
+          plt.plot(plot_levels, [interp.eval(l) for l in plot_levels],
                   label=f'{channel_names[channel]} at {freq}Hz',
                   color=color_list[i], ls=ls)
-          plt.plot(levels, dprimes, 'x', 
+          plt.plot(levels, dprimes, 'x',
                   color=color_list[i])
           plt.axhline(dp_criteria, color='r', ls=':')
           plt.axvline(r, color='r', ls=':')
@@ -531,7 +527,7 @@ class DPrimeResult(object):
 
 
 def get_all_dprime_data(
-    dirs: List[str], 
+    dirs: List[str],
     pickle_name: str = mouse_dprimes_pickle_name) -> Dict[str, DPrimeResult]:
   """Get all the d' data from the list of directories of mouse ABR data.
 
@@ -540,7 +536,7 @@ def get_all_dprime_data(
     pickle_name: What is the name of the pickle file in each directory.
 
   Returns:
-    A dictionary mapping experiment name to d' data. 
+    A dictionary mapping experiment name to d' data.
   """
   all_dprimes = {}
   for d in dirs:
@@ -575,7 +571,7 @@ class BilinearInterpolation(object):
       return [self.eval(f) for f in x]
     if len(self._xdata) < 2:  # Not enough data for interpolation
       return self._ydata
-    if x <= self._xdata[0]: 
+    if x <= self._xdata[0]:
       i = 0
     elif x >= self._xdata[-2]:
       i = len(self._xdata)-2
@@ -595,10 +591,10 @@ class BilinearInterpolation(object):
     else:
       i = np.nonzero(y > ydata)[0][-1]
     assert i >= 0
-    assert i <= len(ydata)-2, f'i too big: y={y}, ydata={ydata}, i={i}' 
+    assert i <= len(ydata)-2, f'i too big: y={y}, ydata={ydata}, i={i}'
     delta = (y - ydata[i])/(ydata[i+1]-ydata[i])
     return self._xdata[i]*(1-delta) + self._xdata[i+1]*delta
-  
+
 class PositivePolynomial(object):
   """A class that lets us fit a quadratic function with all positive
   coefficients to some d' data.
@@ -609,14 +605,14 @@ class PositivePolynomial(object):
     self._c = 0
 
   def quadratic(_, x, a, b, c):
-    return a + b*x + c*x**2 
+    return a + b*x + c*x**2
 
   def fit(self, xdata, ydata, bounds=([0, 0, 0], [np.inf, np.inf, np.inf])):
     if len(xdata) != len(ydata):
       raise ValueError('Unequal array sizes passed to fit')
-    (self._a, self._b, self._c), _ = curve_fit(self.quadratic, xdata, ydata, 
+    (self._a, self._b, self._c), _ = curve_fit(self.quadratic, xdata, ydata,
                                                bounds=bounds)
-  
+
   def eval(self, x):
     return self.quadratic(x, self._a, self._b, self._c)
 
@@ -629,12 +625,12 @@ class PositivePolynomial(object):
       xdata = np.linspace(-4, 4, 100)
       plt.plot(xdata, a + b*xdata + c*xdata**2)
       plt.axhline(0, ls='--')
-      
+
     roots = [(-b + math.sqrt(b**2-4*a*c))/(2*c),
              (-b - math.sqrt(b**2-4*a*c))/(2*c)]
      # Filter for positive roots and select minimum
     positive_roots = [r for r in roots if r > 0]
-    
+
     if positive_roots:
         root = np.min(positive_roots)
         return root  # Return the single root value
@@ -647,16 +643,16 @@ def add_all_thresholds(all_dprimes: Dict[str, DPrimeResult], dp_criteria=2,
 
   Args:
     all_dprimes: Dictionary pointing to all the d' data that we have.
-    dp_criteria: How high does the d' have to be to pass this arbitrary 
+    dp_criteria: How high does the d' have to be to pass this arbitrary
       threshold level (defaults to 2)
     fit_method: How do we interpolate the d' versus level to find the point when
       the d' data crosses the threshold above.
-  
+
   Return:
     Nothing returned, all d' objects modified in place.
   """
   for k in all_dprimes.keys():
-    all_dprimes[k].add_threshold(dp_criteria=dp_criteria, 
+    all_dprimes[k].add_threshold(dp_criteria=dp_criteria,
                   fit_method=fit_method)
 
 
@@ -673,12 +669,12 @@ def calculate_rms(data: np.ndarray):
   return np.sqrt(np.mean(data**2, axis=0))
 
 
-def calculate_dprime(h1: Union[list, np.ndarray], 
+def calculate_dprime(h1: Union[list, np.ndarray],
                      h2: Union[list, np.ndarray],
                      geometric_mean: bool = False) -> float:
   """Calculate the d' given two sets of (one-dimensiona) data.  The h1
-  data should be the bigger of the two data. The normalization factor either the 
-  arithmetic mean (default) of the two standard deviations, if the data is 
+  data should be the bigger of the two data. The normalization factor either the
+  arithmetic mean (default) of the two standard deviations, if the data is
   additive, or a geometric mean if the data is based on a multiplicative ratio.
   """
   if geometric_mean:
@@ -693,11 +689,11 @@ def calculate_cov_dprime(data: np.ndarray,
                          debug: bool = False,
                          score_loc: Union[bool, Tuple] = True) -> float:
   """
-  Calculate the d-prime of the covariance response.  Form a model of the ABR 
-  signal by averaging all the trials together.  Cross correlate each trial with 
-  the model.  That forms a histogram we call H1.  Then shuffle each trial in 
-  time, and perform the same calculation to form the null hypothesis, H2.  
-  Calculate the difference between these two empirical distributions, and 
+  Calculate the d-prime of the covariance response.  Form a model of the ABR
+  signal by averaging all the trials together.  Cross correlate each trial with
+  the model.  That forms a histogram we call H1.  Then shuffle each trial in
+  time, and perform the same calculation to form the null hypothesis, H2.
+  Calculate the difference between these two empirical distributions, and
   normalize by the geometric mean of their standard deviations.
 
   Args:
@@ -760,22 +756,22 @@ def calculate_rmses(signal_data, noise_data, debug):
     plt.legend()
     plt.title('Histogram of covariance')
     a = plt.axis()
-    plt.text(a[0], a[2], 
+    plt.text(a[0], a[2],
             f' H1: {np.mean(signal_rms):4.3G} +/- {np.std(signal_rms):4.3G}\n'
             f' H2: {np.mean(noise_rms):4.3G} +/-{np.std(noise_rms):4.3G}\n'
             f' d\'={dprime:4.3G}\n\n\n')
-          
+
   return rms_of_signal, rms_of_average, dprime
 
 
 def calculate_all_summaries(all_exps: List[MouseExp],
                             first_sample: int = 0,
                             last_sample: int = -1,
-                            ) -> Dict[str, 
+                            ) -> Dict[str,
                                                               DPrimeResult]:
-  """Calculate the waveform summaries for each type of experiment within this 
-  list of results.  Each result is for one experiment, at one frequency, level 
-  and channel. This code groups the experiments together that share the same 
+  """Calculate the waveform summaries for each type of experiment within this
+  list of results.  Each result is for one experiment, at one frequency, level
+  and channel. This code groups the experiments together that share the same
   type, based on the second component of the file name, and then computes the
   d' as a function of frequency, level and channel.
 
@@ -788,7 +784,7 @@ def calculate_all_summaries(all_exps: List[MouseExp],
 
   Returns:
     A dictionary, keyed by experiment type, containing the dprime result.
-  """ 
+  """
   all_groups = group_experiments(all_exps)
   all_dprimes = {}
   for t, exps in all_groups.items():
@@ -811,7 +807,7 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
                                            List[float],
                                            List[int]]:
   """
-  Calculate the covariance and RMS d' for all trial preparations.  First gather 
+  Calculate the covariance and RMS d' for all trial preparations.  First gather
   the waveforms by frequency, level and channel.  And then for each preparation
   preprocess the waveforms.  The calcuate the covariance and its d', and then
   do the same thing for RMS.
@@ -828,9 +824,9 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
       means all the data)
 
   Returns:
-    A tuple consisting of the following items.  They must be in the *same* 
-    order as the fields in the DPrimeResult class object.  All 3d arrays have 
-    shape (freq x levels x channels): 
+    A tuple consisting of the following items.  They must be in the *same*
+    order as the fields in the DPrimeResult class object.  All 3d arrays have
+    shape (freq x levels x channels):
       a 3d array of d' for the covariance measure, for each experiment,
       a 3d array of RMS values for the total signal (rms_of_total),
       a 3d array of RMS values for the average of each trial type (rms_of_average),
@@ -859,8 +855,8 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
       if noise_exp is None:
         print(f'Found no noise data for freq={freq}, channel={channel}')
         continue
-      
-      noise_data = preprocess_mouse_data(noise_exp.single_trials, 
+
+      noise_data = preprocess_mouse_data(noise_exp.single_trials,
                                          first_sample, last_sample)
       noise_rms = calculate_rms(noise_data)
 
@@ -876,21 +872,21 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
         all_data = []
         for exp in exps:
           all_processed += 1
-          all_data.append(preprocess_mouse_data(exp.single_trials, 
+          all_data.append(preprocess_mouse_data(exp.single_trials,
                                                 first_sample, last_sample))
         signal_data = np.concatenate(all_data, axis=1)
 
-        debug = (channel == debug_channel and freq == debug_freq and 
+        debug = (channel == debug_channel and freq == debug_freq and
                  level in debug_levels)
         if debug:
           plt.subplot(2, 2, plot_num)
           plot_num += 1
-        cov_dprimes[i, j, k] = calculate_cov_dprime(signal_data, noise_data, 
+        cov_dprimes[i, j, k] = calculate_cov_dprime(signal_data, noise_data,
                                                     debug and debug_cov_not_rms)
-        (rms_of_signal, rms_of_average, 
-         dprime) = calculate_rmses(signal_data, noise_data, 
+        (rms_of_signal, rms_of_average,
+         dprime) = calculate_rmses(signal_data, noise_data,
                                   debug and not debug_cov_not_rms)
-  
+
         signal_rms = calculate_rms(signal_data)
         rms_of_signals[i, j, k] = rms_of_signal
         rms_of_averages[i, j, k] = rms_of_average
@@ -898,7 +894,7 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
         if debug:
           plt.title(f'freq={int(freq)}, level={int(level)}, channel={int(channel)}')
   print(f'  Processed {all_processed} CSV files, {all_multiprocessed} part of a group.')
-  return (cov_dprimes, rms_of_signals, rms_of_averages, rms_dprimes, 
+  return (cov_dprimes, rms_of_signals, rms_of_averages, rms_dprimes,
           all_exp_freqs, all_exp_levels, all_exp_channels)
 
 
@@ -933,7 +929,7 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
       continue
     if len(keep_list) and not any([l in k for l in keep_list]):
       continue
-    
+
     dp = all_dprimes[k]
     if dp.cov_spl_threshold is None:
       continue
@@ -954,8 +950,8 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
 
 
 def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, title: str = ''):
-  """Create a plot summarizing the d' of the covariance data collected by the 
-  calculate_all_summaries routine above.  Show d' versus level, for each 
+  """Create a plot summarizing the d' of the covariance data collected by the
+  calculate_all_summaries routine above.  Show d' versus level, for each
   frequency and channel pair.
 
   Args:
@@ -993,7 +989,7 @@ def compute_and_cache_dprimes():
   cmd = 'StanfordAudiology/abr_george.py'
   run_local = True
 
-  mouse_dirs = [os.path.basename(m) for m in 
+  mouse_dirs = [os.path.basename(m) for m in
                 find_all_mouse_directories(GeorgeMouseDataDir)]
   # mouse_dirs = ['20230828']
   for dir in mouse_dirs:
@@ -1010,7 +1006,7 @@ def compute_and_cache_dprimes():
       continue
     if run_local:
       # cache_waveform_one_dir(full_dir, mouse_waveforms_pickle_name, max_bytes=5*1e9)
-      cache_dprime_one_dir(full_dir, mouse_waveforms_pickle_name, 
+      cache_dprime_one_dir(full_dir, mouse_waveforms_pickle_name,
                            mouse_dprimes_pickle_name)
     else:
       out = subprocess.run(['/usr/bin/python3', cmd, f'--filter={base}',
@@ -1021,7 +1017,7 @@ def compute_and_cache_dprimes():
     print()
 
 
-def cache_dprime_data(d: str, 
+def cache_dprime_data(d: str,
                       dprimes: Dict[str, DPrimeResult],
                       dprime_pickle_name: str):
   """
@@ -1045,7 +1041,7 @@ def cache_dprime_data(d: str,
 
 def accumulate_all_thresholds(all_dprimes: Dict[str, DPrimeResult],
                                freqs: Optional[List[float]] = None,
-                               max_spl=120) -> Tuple[List[float], 
+                               max_spl=120) -> Tuple[List[float],
                                                      List[float], float]:
   """Accumulate all the thresholds for ABR and ECoG data, across all the data
   we have.  Filter out the preparation names we do and don't want.  And remove
@@ -1053,10 +1049,10 @@ def accumulate_all_thresholds(all_dprimes: Dict[str, DPrimeResult],
   indicating that we got no data for this prep.
 
   Args:
-    all_dprimes: Dictionary keyed by the date_prep_name and pointing to the 
+    all_dprimes: Dictionary keyed by the date_prep_name and pointing to the
       d' data for this preparation.  In particular we look at the spl_threshold,
-      which should already be calculated by add_threshold() and the 
-    freqs: List of frequencies to keep. The default is to return the d' 
+      which should already be calculated by add_threshold() and the
+    freqs: List of frequencies to keep. The default is to return the d'
       regardless of test frequency.
     max_spl: Filter results using this threshold before computing the Pearson
       correlation.
@@ -1096,8 +1092,8 @@ def accumulate_all_thresholds(all_dprimes: Dict[str, DPrimeResult],
   return all_abr, all_ecog, pearson_r
 
 
-def plot_threshold_scatter(abr_thresh: np.ndarray, ecog_thresh: np.ndarray, 
-                           title:str = 'Comparson of Threshold', 
+def plot_threshold_scatter(abr_thresh: np.ndarray, ecog_thresh: np.ndarray,
+                           title:str = 'Comparson of Threshold',
                            axis_limit: float = 120,
                            color:str = 'b', draw_unit:bool = True):
   """Plot a comparison of ABR and ECoG thresholds.
@@ -1127,9 +1123,9 @@ def plot_threshold_scatter(abr_thresh: np.ndarray, ecog_thresh: np.ndarray,
     plt.plot([0, a], [0, a], '--');
 
 
-def find_dprime(all_dprimes: Dict[str, DPrimeResult], 
+def find_dprime(all_dprimes: Dict[str, DPrimeResult],
                 spl: float) -> Tuple[np.ndarray, np.ndarray]:
-  """Find the d' for all data in this dictionary of preparations at one SPL. 
+  """Find the d' for all data in this dictionary of preparations at one SPL.
   Use the smooth d' data, which is best calculated with bilinear interpolaton.
 
   Args:
@@ -1151,7 +1147,7 @@ def find_dprime(all_dprimes: Dict[str, DPrimeResult],
     ecog_90s.append(dp.cov_smooth_dprimes[:, index, 1])
 
   return np.concatenate(abr_90s), np.concatenate(ecog_90s)
-  
+
 ###############  Waveform and RMS Displays ######################
 
 
@@ -1170,7 +1166,7 @@ def extract_animal_names(exps: List[MouseExp]) -> List[str]:
       animal_names.append(animal_name)
   return animal_names
 
-def filter_animals(exps: List[MouseExp], 
+def filter_animals(exps: List[MouseExp],
                    animal_list: List[str]) -> List[MouseExp]:
   """Extract the MouseExp's for one or more specific mice."""
   filtered_exps = []
@@ -1182,9 +1178,9 @@ def filter_animals(exps: List[MouseExp],
 
 def filter_waveform_data(all_exps: List[MouseExp],
                          keep_list: Tuple[str] = ('control',),
-                         drop_list: Tuple[str] = ('post', 'pre2', 'pre3', 
+                         drop_list: Tuple[str] = ('post', 'pre2', 'pre3',
                                                   'pre4', 'pre5', 'sricontrol',
-                                                   'test', 'noacqfilter', 
+                                                   'test', 'noacqfilter',
                                                    'Rearclosed'),
                          ) -> List[MouseExp]:
   """Filter a list of Mouse experiments, keeping the types of data we
@@ -1205,7 +1201,7 @@ GeorgeMouseDataDir = 'drive/Shareddrives/StanfordAudiology/GeorgeMouseABR/CAP_AB
 def XXcache_all_waveforms(base_dir: str = GeorgeMouseDataDir) -> None:
   """Read waveforms from disk, filter out the experiments we care about
   and store new abbreviated cache files.
-  
+
   Args:
     base_dir: Where to look for the mouse data.
   """
@@ -1241,7 +1237,7 @@ def XXcache_all_waveforms(base_dir: str = GeorgeMouseDataDir) -> None:
 def create_stack(exps: List[MouseExp]) -> np.ndarray:
   """Collect all the waveform data for a list of mouse experiments into a single
   tensor.
-  
+
   Result is a 5d tensor:
     frequency, level, channel, time, trial
   """
@@ -1270,18 +1266,18 @@ def show_mean_stack(stack, freq=1, channel=0, alpha=0.01):
       plt.gca().xaxis.set_tick_params(labelcolor='none');
 
 
-def show_all_stack(stack: np.ndarray, 
-                   levels: Union[np.ndarray, List[float]], 
-                   freq: int = 1, 
-                   channel: int = 0, alpha: float = 0.01, 
+def show_all_stack(stack: np.ndarray,
+                   levels: Union[np.ndarray, List[float]],
+                   freq: int = 1,
+                   channel: int = 0, alpha: float = 0.01,
                    title: str = '',
                    skip_levels: int = 3,
                    relative_max: float = 1.5,
                    absolute_max: float = 0) -> None:
   """Show a stack of all ABR waveforms across levels.  The number of plots is
   determined by the number of levels in stack, and skip_levels
-  
-  Args: 
+
+  Args:
     stack: a 5 dimensional tensor from create_stack for one animal of shape
       frequency, level, channel, time, trial
     levels: which levels are defined in this stack
@@ -1290,8 +1286,8 @@ def show_all_stack(stack: np.ndarray,
     alpha: opaqueness of waveform plot.  Usually close to zero so we can overlap
       lots of waveforms
     title: What title to put on top of the waveform stack
-    skip_levels: The increment (> 0) across levels for each subplot. 
-    relative_max: Limit y axis of plot to this factor of the max average 
+    skip_levels: The increment (> 0) across levels for each subplot.
+    relative_max: Limit y axis of plot to this factor of the max average
       waveform if the absolute value is not set.
     absolute_max: Limit y axis of plot to this absolute value.
   """
@@ -1299,9 +1295,9 @@ def show_all_stack(stack: np.ndarray,
   t = np.arange(stack.shape[-2])/mouse_sample_rate
   for i, level in enumerate(levels2plot):
     plt.subplot(len(levels2plot), 1, i+1)
-    plt.plot(t*1000, stack[freq, levels.index(level), channel, ...], 
+    plt.plot(t*1000, stack[freq, levels.index(level), channel, ...],
              alpha=alpha)
-    mean_stack = np.mean(stack[freq, levels.index(level), channel, ...], 
+    mean_stack = np.mean(stack[freq, levels.index(level), channel, ...],
                          axis=-1)
     plt.plot(t*1000, mean_stack, color='r')
     m = np.max(np.abs(mean_stack))
@@ -1309,7 +1305,7 @@ def show_all_stack(stack: np.ndarray,
       plt.ylim(-absolute_max, absolute_max)
     else:
       plt.ylim(-relative_max*m, relative_max*m)
-    wave_rms = np.sqrt(np.mean(stack[freq, levels.index(level), 
+    wave_rms = np.sqrt(np.mean(stack[freq, levels.index(level),
                                      channel, ...]**2))
     plt.text(np.max(t*1000)*0.75, 1.20*m, f'Waveform RMS={wave_rms:5.3g}')
     ave_rms = np.sqrt(np.mean(mean_stack**2))
@@ -1333,7 +1329,7 @@ def load_rms_data(
     base_dir: str = GeorgeMouseDataDir,
     cache_filename: str = 'good_waveform_cache.pkl') -> List[List[List[List[float]]]]:
   """Read in the cached RMS data from disk.
-  
+
   The returned structure is a list (by frequency) of lists (by level) of lists
   (by channel) of results.
   """
@@ -1357,18 +1353,18 @@ def load_rms_data(
 
   if not os.path.exists(rms_cache_file):
     # Run through all the waveform cache files (which are just the experiments
-    # want to analyze) and accumulate the average ABR/ECochG response into a 3d 
+    # want to analyze) and accumulate the average ABR/ECochG response into a 3d
     # array of lists.
     global standard_freqs, standard_levels, standard_channels
     # Initialize all_rms as an empty list with the correct dimensions
-    all_rms = [[[[] for _ in standard_channels] 
-                for _ in standard_levels] 
-               for _ in standard_freqs] 
-    for f in glob.glob(os.path.join(GeorgeMouseDataDir, 
+    all_rms = [[[[] for _ in standard_channels]
+                for _ in standard_levels]
+               for _ in standard_freqs]
+    for f in glob.glob(os.path.join(GeorgeMouseDataDir,
                                     'good_waveform_cache*.pkl')):
       with open(f, 'r') as f:
         exps = jsonpickle.decode(f.read())
-        (new_rms, standard_freqs, 
+        (new_rms, standard_freqs,
         standard_levels, standard_channels) = summarize_all_rms(exps, all_rms)
         print(f'Read {total_size(new_rms)} RMS results from {f}')
         del exps
@@ -1388,7 +1384,7 @@ def load_rms_data(
     base_dir: str = GeorgeMouseDataDir,
     cache_filename: str = 'good_waveform_cache.pkl') -> List[List[List[List[float]]]]:
   """Read in the cached RMS data from disk.
-  
+
   The returned structure is a list (by frequency) of lists (by level) of lists
   (by channel) of results.
   """
@@ -1412,16 +1408,16 @@ def load_rms_data(
 
   if not os.path.exists(rms_cache_file):
     # Run through all the waveform cache files (which are just the experiments
-    # want to analyze) and accumulate the average ABR/ECochG response into a 3d 
+    # want to analyze) and accumulate the average ABR/ECochG response into a 3d
     # array of lists.
     global standard_freqs, standard_levels, standard_channels
-    all_rms = [[[[] for _ in standard_channels] 
-                for _ in standard_levels] 
+    all_rms = [[[[] for _ in standard_channels]
+                for _ in standard_levels]
                for _ in standard_freqs] # Initialize all_rms as an empty list with the correct dimensions
     for f in glob.glob(os.path.join(GeorgeMouseDataDir, 'good_waveform_cache*.pkl')):
       with open(f, 'r') as f:
         exps = jsonpickle.decode(f.read())
-        (new_rms, standard_freqs, 
+        (new_rms, standard_freqs,
         standard_levels, standard_channels) = summarize_all_rms(exps, all_rms)
         print(f'Read {total_size(new_rms)} RMS results from {f}')
         del exps
@@ -1438,7 +1434,7 @@ def load_rms_data(
 
 
 def calculate_mean_std_rms_values(
-    all_good_rms: List[List[List[List[float]]]]) -> Tuple[np.ndarray, 
+    all_good_rms: List[List[List[List[float]]]]) -> Tuple[np.ndarray,
                                                           np.ndarray]:
   """Summarize the lists of lists of lists of lists of RMS values by calculating
   their mean and standard deviation.
@@ -1459,12 +1455,12 @@ def calculate_mean_std_rms_values(
 
 
 def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
-                                    signal_index = 9,
-                                    noise_index = 0,
-                                    freq_index = 1,
-                                    channel_index = 1,
-                                    min_count = 20,
-                                    max_count = 20000,
+                                    signal_index: int = 9,
+                                    noise_index: int = 0,
+                                    freq_index: int = 1,
+                                    channel_index: int = 1,
+                                    min_count: int = 20,
+                                    max_count: int = 20000,
                                     ) -> Tuple[np.ndarray, np.ndarray,
                                                np.ndarray]:
   # The shape of the stacks array is Freqs x levels x channels x time x trials
@@ -1503,12 +1499,12 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
 
 
 def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
-                                       signal_index = 9,
-                                       noise_index = 0,
-                                       freq_index = 1,
-                                       channel_index = 1,
-                                       min_count = 20,
-                                       max_count = 20000,
+                                       signal_index: int = 9,
+                                       noise_index: int = 0,
+                                       freq_index: int = 1,
+                                       channel_index: int = 1,
+                                       min_count: int = 20,
+                                       max_count: int = 20000,
                                        repetition_count: int = 20,
                                        ) -> Tuple[np.ndarray, np.ndarray,
                                                   np.ndarray]:
@@ -1553,8 +1549,8 @@ def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
   return block_sizes, dprime_mean_by_size, dprime_std_by_size
 
 
-def create_synthetic_stack(noise_level=1, 
-                           num_times=1952, 
+def create_synthetic_stack(noise_level=1,
+                           num_times=1952,
                            num_trials=1026):
   """Create a synthetic stack of ABR recordings so we can investigate d'
   behaviour for really large number of trials.
@@ -1576,8 +1572,8 @@ if False:
   synthetic_stack = create_synthetic_stack(noise_level=10, num_trials=16384)
   plt.title('Synthetic ABR Waveform');
 
-  (block_sizes, dprime_mean_by_size, 
-  dprime_std_by_size) = calculate_dprime_by_trial_count(synthetic_stack, 
+  (block_sizes, dprime_mean_by_size,
+  dprime_std_by_size) = calculate_dprime_by_trial_count(synthetic_stack,
                                                         signal_index = 1,
                                                         noise_index = 0,
                                                         freq_index = 0,
@@ -1589,7 +1585,10 @@ if False:
   plt.ylabel("d' Estimate")
   plt.title("Synthetic d' vs. Trial Count");
 
-###############  Main program, so we can run this offline ######################FLAGS = flags.FLAGS
+###############  Main program, so we can run this offline ######################
+ 
+FLAGS = flags.FLAGS
+
 flags.DEFINE_enum('mode', 'waveforms', ('waveforms', 'dprimes', 'check'),
                   'Which processing to do on this basedir.')
 flags.DEFINE_string('basedir',
@@ -1600,12 +1599,12 @@ flags.DEFINE_string('waveforms_cache', mouse_waveforms_pickle_name,
 flags.DEFINE_string('dprimes_cache', mouse_dprimes_pickle_name,
                     'Where to cache the dprimes in this directory')
 flags.DEFINE_string('filter', '', 'Which directories to process, ignore rest.')
-flags.DEFINE_integer('max_cache_gbytes', 10, 
+flags.DEFINE_integer('max_cache_gbytes', 10,
                      'Maximum size of one cache file (GBytes).')
-flags.DEFINE_integer('first_sample', 0, 
+flags.DEFINE_integer('first_sample', 0,
                      'Start sample # of the temporal window to extract from '
                      'each ABR waveform')
-flags.DEFINE_integer('last_sample', -1, 
+flags.DEFINE_integer('last_sample', -1,
                      'End sample # of the temporal window to extract from a '
                      'waveform, (including last sample is indicated with -1)')
 
@@ -1624,19 +1623,19 @@ def waveform_caches_present(dir:str, waveform_pickle_name:str) -> int:
     else:
       print(f'Found a zero length waveform cache file: {filename}')
   return good_files
- 
 
-def cache_waveform_one_dir(dir:str, waveform_pickle_name:str, 
-                           max_files:int = 0, 
-                           max_bytes:float = 10e9) -> None:
+
+def cache_waveform_one_dir(dir:str, waveform_pickle_name: str,
+                           max_files: int = 0,
+                           max_bytes: float = 10e9) -> None:
   """Read all the CSV files and convert them into pickled numpy arrays.  CSV
   files take a long time to read and parse, so this is an important speedup.
-  
+
   Args:
     dir: Top level directory to find all the waveform CSV files.
     waveform_pickle_name: Basic pickle file name, of the form  x.pkl.  We remove
       the .pkl name and look for files of the form x*.pkl, as the pickle files
-      are big and we had to split them into multiple pieces, indexed by a 
+      are big and we had to split them into multiple pieces, indexed by a
       number.
     max_files: For debugging.  Limit the number of CSV files we read.
     max_bytes: Maximum number of bytes, or thereabouts, to put in each pickle
@@ -1653,8 +1652,8 @@ def cache_waveform_one_dir(dir:str, waveform_pickle_name:str,
                                  max_files=max_files, max_bytes=max_bytes)
 
 
-def cache_dprime_one_dir(dir:str, 
-                         waveform_cache_name:str, dprime_cache_name:str,
+def cache_dprime_one_dir(dir:str,
+                         waveform_cache_name: str, dprime_cache_name: str,
                          first_sample: int = 0,
                          last_sample: int = 0,
                          ) -> None:
@@ -1677,7 +1676,7 @@ def main(_):
       if FLAGS.filter in dir:
         # waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
         # dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
-        cache_waveform_one_dir(dir, FLAGS.waveforms_cache, 
+        cache_waveform_one_dir(dir, FLAGS.waveforms_cache,
                         max_bytes=FLAGS.max_cache_gbytes*1e9)
   elif FLAGS.mode == 'dprimes':
     all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
@@ -1690,4 +1689,3 @@ def main(_):
 
 if __name__ == '__main__':
   app.run(main)
-
