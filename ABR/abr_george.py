@@ -266,7 +266,8 @@ def cache_all_mouse_dir(
   cache_file_count = 0
   total_file_count = len(all_exp_files)
   for f in all_exp_files:
-    if 'saline' in f:
+    if 'saline' in f or 'test' in f:
+      print(f'Skipping unneeded condition: {f}')
       continue
     if debug:
       print(f'    Reading {f} ({len(all_exps)}/{total_file_count} '
