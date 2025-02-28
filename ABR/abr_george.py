@@ -267,7 +267,7 @@ def cache_all_mouse_dir(expdir: str,
     exp = read_mouse_exp(os.path.join(expdir, f))
     all_exps.append(exp)
     if max_files and len(all_exps) >= max_files:
-      print('  Reached maximum limit of {max_files} files to process.')
+      print(f'  Reached maximum limit of {max_files} files to process.')
       break
     if max_bytes and cache_size(all_exps) > max_bytes:
       save_waveform_cache(all_exps, expdir, cache_file_count,
