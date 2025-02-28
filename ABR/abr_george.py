@@ -1648,7 +1648,7 @@ def cache_waveform_one_dir(dir:str, waveform_pickle_name: str,
     print(f'Skipping waveforms and dprimes in {dir} because they are '
           f'{num_good} cached files.')
     return
-  print(f'Processing CSV waveforms in {dir}')
+  print(f'Processing up to {max_files} files or {max_bytes/1e9} bytes of CSV waveforms in {dir}')
   all_exps = cache_all_mouse_dir(dir, waveform_pickle_name, debug=True,
                                  max_files=max_files, max_bytes=max_bytes)
 
