@@ -1726,7 +1726,7 @@ def main(_):
     for dir in all_mouse_dirs:
       if FLAGS.filter in dir:
         cache_dprime_one_dir(dir, FLAGS.waveforms_cache, FLAGS.dprimes_cache,
-                             FLAGS.first_sample, FLAGS.end_sample)
+                             FLAGS.first_sample, FLAGS.last_sample)
   else:
     print(f'Unknown processing mode: {FLAGS.mode}')
 
