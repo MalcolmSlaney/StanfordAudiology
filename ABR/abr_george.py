@@ -372,7 +372,7 @@ def preprocess_mouse_data(data: np.ndarray,
   if remove_dc:
     data = remove_offset(data)  # Now data is time x num_trials
   if remove_artifacts:
-    data = remove_artifacts(data)
+    data = reject_artifacts(data)
   if bandpass_filter:
     # Bidelman used 90-2000?
     data = butterworth_filter(data, lowcut=low_filter, highcut=high_filter,
