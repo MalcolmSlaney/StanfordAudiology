@@ -379,8 +379,8 @@ def preprocess_mouse_data(data: np.ndarray,
                               fs=mouse_sample_rate, order=6, axis=0)
   if last_sample == -1:
     last_sample = data.shape[0]
-  print(f'Returning {first_sample} to {last_sample} of {data.shape} giving '
-        '{data[first_sample:last_sample, :].shape}')
+  # print(f'Returning {first_sample} to {last_sample} of {data.shape} giving '
+  #       f'{data[first_sample:last_sample, :].shape}')
   return data[first_sample:last_sample, :]
 
 
