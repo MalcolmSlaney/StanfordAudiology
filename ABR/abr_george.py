@@ -700,6 +700,7 @@ def calculate_dprime(h1: Union[list, np.ndarray],
 
 def calculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
+                         with_self_similar: bool = True,
                          debug: bool = False,
                          score_loc: Union[bool, Tuple] = True) -> float:
   """
@@ -714,6 +715,9 @@ def calculate_cov_dprime(data: np.ndarray,
     data: A matrix of shape num_samples x num_trials
     moise_data: A matrix like data, but with only noise, no sigal.
       If not specified shuffle the data matrix.
+    with_self_similar: Whether to include the present trial in the model.
+      Originally we did this, but this inflates the d' calculation for small
+      number of trials since the self-similar component scores very well.
     debug: Whether to show a plot of the histogram
     score_loc: Where to put a legend above the scores
       True: automatic on the left
@@ -726,8 +730,16 @@ def calculate_cov_dprime(data: np.ndarray,
     noise_data = data
   shuffled_data = shuffle_data(noise_data)
   model = np.mean(data, axis=1, keepdims=True)
-  h1 = model * data
-  h1_response = np.sum(h1, axis=0)  # Sum response over time
+  if with_self_similar:
+    h1 = model * data
+    h1_response = np.sum(h1, axis=0)  # Sum response over time
+  else:
+    num_trials = data.shape[1]
+    h1_response = np.zeros(num_trials)
+    for i in num_trials:
+      model_without = (model*num_trials - data[:, i])/(num_trials-1)
+      h1_response[i] = np.sum(model_without * data[:, i])
+
   h2 = model * shuffled_data
   h2_response = np.sum(h2, axis=0)  # Sum response over time
   dprime = calculate_dprime(h1_response, h2_response)
