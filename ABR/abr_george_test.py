@@ -132,7 +132,8 @@ class ABRGeorgeTests(absltest.TestCase):
     plt.plot(freqs[:num_points//2-1], spectrum[:num_points//2-1])
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Response (dB)')
-    plt.title('Preprocessing Test Filter Frequency Spectrum')
+    plt.title('Preprocessing Spectrum'
+              f' (BP between {low_cutoff} and {high_cutoff}Hz)')
     plt.xlim(0, 8000)
     plt.savefig('test_preprocess_spectrum.png')
 
@@ -309,6 +310,7 @@ class EnsembleTests(absltest.TestCase):
       all_exps, True, debug_freq=freq, debug_levels=levels, debug_channel=1))
     plt.savefig('test_ensemble_cov_dprime.png')
     dprimes_result = {'test': res}
+    print('test_measures res are:', res)
     
     # Result is indexed by frequency, level, and channel, d' goes up with level
     self.assertLess(res.cov_dprimes[0, 0, 0], 20.0)

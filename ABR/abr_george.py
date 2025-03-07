@@ -700,8 +700,8 @@ def calculate_dprime(h1: Union[list, np.ndarray],
 
 def calculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
-                         with_self_similar: bool = False,
                          debug: bool = False,
+                         with_self_similar: bool = True,
                          score_loc: Union[bool, Tuple] = True) -> float:
   """
   Calculate the d-prime of the covariance response.  Form a model of the ABR
@@ -960,8 +960,8 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
           plt.subplot(2, 2, plot_num)
           plot_num += 1
         cov_dprimes[i, j, k] = calculate_cov_dprime(signal_data, noise_data,
-                                                    debug and
-                                                    debug_cov_not_rms)
+                                                    debug = (debug and 
+                                                             debug_cov_not_rms))
         (rms_of_signal, rms_of_average,
          dprime) = calculate_rmses(signal_data, noise_data,
                                    debug and not debug_cov_not_rms)
