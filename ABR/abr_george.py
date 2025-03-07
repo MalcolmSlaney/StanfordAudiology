@@ -385,7 +385,7 @@ def preprocess_mouse_data(data: np.ndarray,
   return data[first_sample:last_sample, :]
 
 
-def shuffle_data(data: np.ndarray) -> np.ndarray:
+def shuffle_data(data: np.ndarray, axis=0) -> np.ndarray:
   """
   Shuffle the data in time.
 
@@ -393,12 +393,12 @@ def shuffle_data(data: np.ndarray) -> np.ndarray:
     data: A matrix of shape num_samples x num_trials
 
   Returns:
-    A shuffled version of the data.
+    A shuffled copy of the data.
   """
   rng = np.random.default_rng()  # Create a random number generator instance.
   # Make sure to copy the input data because shuffle rearranges its argument.
   data = data.copy()
-  rng.shuffle(data, axis=0)  # Shuffle in time
+  rng.shuffle(data, axis=axis)  # Shuffle in time
   return data
 
 
@@ -744,11 +744,11 @@ def calculate_cov_dprime(data: np.ndarray,
   h2_response = np.sum(h2, axis=0)  # Sum response over time
   dprime = calculate_dprime(h1_response, h2_response)
   if debug:
-    range = (min(np.min(h1_response), np.min(h2_response)),
+    data_range = (min(np.min(h1_response), np.min(h2_response)),
              max(np.max(h1_response), np.max(h2_response)))
-    counts, bins = np.histogram(h1_response, bins=40, range=range)
+    counts, bins = np.histogram(h1_response, bins=40, range=data_range)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='signal_trial')
-    counts, bins = np.histogram(h2_response, bins=40, range=range)
+    counts, bins = np.histogram(h2_response, bins=40, range=data_range)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
     plt.legend()
     plt.title('Histogram of covariance')
