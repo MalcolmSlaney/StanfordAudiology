@@ -961,7 +961,7 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
           plot_num += 1
         cov_dprimes[i, j, k] = calculate_cov_dprime(signal_data, noise_data,
                                                     debug = (debug and 
-                                                             debug_cov_not_rms
+                                                             debug_cov_not_rms))
         (rms_of_signal, rms_of_average,
          dprime) = calculate_rmses(signal_data, noise_data,
                                    debug and not debug_cov_not_rms)
