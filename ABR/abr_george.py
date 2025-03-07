@@ -698,10 +698,10 @@ def calculate_dprime(h1: Union[list, np.ndarray],
     return (np.mean(h1) - np.mean(h2)) / norm
 
 
-def calculate_cov_dprime(data: np.ndarray,
+def XXcalculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
+                         with_self_similar: bool = False,
                          debug: bool = False,
-                         with_self_similar: bool = True,
                          score_loc: Union[bool, Tuple] = True) -> float:
   """
   Calculate the d-prime of the covariance response.  Form a model of the ABR
@@ -729,17 +729,17 @@ def calculate_cov_dprime(data: np.ndarray,
   if noise_data is None:
     noise_data = data
   shuffled_data = shuffle_data(noise_data)
-  model = np.mean(data, axis=1, keepdims=True)
+  model = np.mean(data, axis=1) #, keepdims=True)
   if with_self_similar:
-    h1 = model * data
+    h1 = np.reshape(model, (-1, 1)) * data
     h1_response = np.sum(h1, axis=0)  # Sum response over time
   else:
     num_trials = data.shape[1]
     h1_response = np.zeros(num_trials)
     for i in range(num_trials):
-      model_without = (model*num_trials - data[:, i:i+1])/(num_trials-1)
-      h1_response[i] = np.sum(model_without * data[:, i])
-  h2 = model * shuffled_data
+      model_without = (model*num_trials - data[:, i])/(num_trials-1)
+      h1_response[i] = np.sum(model_without * data[:, i], axis=0)
+  h2 = np.reshape(model, (-1, 1)) * shuffled_data
   h2_response = np.sum(h2, axis=0)  # Sum response over time
   dprime = calculate_dprime(h1_response, h2_response)
   if debug:
