@@ -1721,6 +1721,38 @@ def create_synthetic_stack(noise_level=1,
   return stack
 
 
+def stack_t_test(filtered_abr_stack: np.ndarray):
+  trial_count = filtered_abr_stack.shape[-1]
+  num_divisions = 10
+  min_count = 20
+  max_count = 20000
+
+  block_sizes = (trial_count / (2**np.arange(0,
+                                            num_divisions, 1.0))).astype(int)
+  block_sizes = block_sizes[(block_sizes >= min_count) &
+                            (block_sizes <= max_count)]
+
+  for signal_index in range(filtered_abr_stack.shape[1]):
+    t_stats = []
+    for block_size in block_sizes:
+      noise_response = []
+      abr_response = []
+      for signal, noise in block_waveform_stack(filtered_abr_stack,
+                                                signal_index=signal_index,
+                                                block_size=block_size):
+        abr_response.append(np.sqrt(np.mean(np.mean(signal, axis=-1)**2)))
+        noise_response.append(np.sqrt(np.mean(np.mean(noise, axis=-1)**2)))
+      t_stats.append(spstats.ttest_ind(abr_response, noise_response))
+    plt.semilogy(block_sizes, [t.pvalue for t in t_stats], 
+                label=f'Signal Level {10*signal_index}');
+    if signal_index == 0:
+      print('p values for signal level 0:', [t.pvalue for t in t_stats])
+  plt.legend()
+  plt.xlabel('Block Size (trials)')
+  plt.ylabel('p-value')
+  plt.title('p-value vs. Block Size');
+
+
 if False:
   synthetic_stack = create_synthetic_stack(noise_level=10, num_trials=16384)
   plt.title('Synthetic ABR Waveform')
