@@ -151,8 +151,11 @@ class ABRGeorgeTests(absltest.TestCase):
       data.append(np.reshape(np.arange(num_points)/num_points*np.pi*2 + 
                              rng.normal(scale=0.1,size=num_points), (-1, 1)))
     data = np.concatenate(data, axis=1)
-    dprime = george.calculate_cov_dprime(data)
-    self.assertGreater(dprime, 15)
+    dprime_self = george.calculate_cov_dprime(data)
+    self.assertGreater(dprime_self, 15)
+
+    dprime_wo_self =  george.calculate_cov_dprime(data, with_self_similar=False)
+    self.assertGreater(dprime_wo_self, 1)
 
     # Then test with incoherent signals.
     data = []
@@ -161,7 +164,9 @@ class ABRGeorgeTests(absltest.TestCase):
                              rng.normal(scale=1,size=num_points), (-1, 1)))
     data = np.concatenate(data, axis=1)
     dprime = george.calculate_cov_dprime(data)
-    self.assertLess(dprime, 1)
+    # Make sure there is a difference between dprime with and without the
+    # self point.
+    self.assertLess(dprime, 1)  
 
   def test_dprime_sets(self):
     rng = np.random.default_rng(seed=0)
