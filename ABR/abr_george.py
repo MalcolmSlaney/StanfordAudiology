@@ -1600,6 +1600,56 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
   return block_sizes, dprime_mean_by_size, dprime_std_by_size
 
 
+def block_waveform_stack(filtered_abr_stack: np.ndarray,
+                         block_size: int,
+                         signal_index = 9,
+                         noise_index = 0,
+                         freq_index = 1,
+                         channel_index = 1,
+                         repetition_count: int = 20,
+                         ) -> Tuple[np.ndarray, np.ndarray]:
+  """Yields blocks of random pieces from a waveform stack.  We choose trials
+  at random, and the noise and signal data are independently sampled, both with
+  replacement.
+
+  Args:
+    filtered_abr_stack: a num_freq x num_levels x num_channels x num_times x 
+      num_trials array of preprocessed ABR recordings.
+    block_size: Number of trials to include in the block
+    signal_index: Which signal level to return
+    noise_index: Which signal level contains noise and no signal
+    freq_index: Which stimulus frequency to return
+    channel_index: Which recording channel to return
+    repetition_count: How many block to return
+
+  Returns:
+    Tuple of signal and noise arrays, one block at a time.
+  """
+  assert filtered_abr_stack.ndim == 5
+  assert signal_index < filtered_abr_stack.shape[1]
+  assert noise_index < filtered_abr_stack.shape[1]
+  assert freq_index < filtered_abr_stack.shape[0]
+  assert channel_index < filtered_abr_stack.shape[2]
+
+  time_sample_count = filtered_abr_stack.shape[3]
+  trial_count = filtered_abr_stack.shape[4]
+  
+  dps = []
+  for j in range(repetition_count):
+    # Note: transpose the resulting array slices because of this answer:
+    #  https://stackoverflow.com/a/71489304
+    signal_data = filtered_abr_stack[freq_index, signal_index,
+                                     channel_index, :,
+                                     
+                                     np.random.choice(trial_count,
+                                                       block_size)].T
+    noise_data = filtered_abr_stack[freq_index, noise_index,
+                                    channel_index, :,
+                                    np.random.choice(trial_count,
+                                                     block_size)].T
+    yield signal_data, noise_data
+
+
 def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
                                        signal_index = 9,
                                        noise_index = 0,
