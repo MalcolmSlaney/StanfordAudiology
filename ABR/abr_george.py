@@ -466,12 +466,12 @@ class DPrimeResult(object):
 
     if self.cov_spl_threshold:
       assert self.cov_spl_threshold.shape == (num_freqs, num_channels)
-    if self.cov_smooth_threshold:
-      assert self.cov_smooth_threshold.shape == (num_freqs, num_channels)
+    if self.cov_smooth_dprimes:
+      assert self.cov_smooth_dprimes.shape == (num_freqs, num_channels)
     if self.rms_spl_threshold:
       assert self.rms_spl_threshold.shape == (num_freqs, num_channels)
-    if self.rms_smooth_threshold:
-      assert self.rms_smooth_threshold.shape == (num_freqs, num_channels)
+    if self.rms_smooth_dprimes:
+      assert self.rms_smooth_dprimes.shape == (num_freqs, num_channels)
 
   def add_threshold(self, dp_criteria=2,
                     fit_method: str = 'bilinear',
