@@ -441,12 +441,20 @@ class DPrimeResult(object):
   freqs: List[float]
   levels: List[float]
   channels: List[int]
+  # The smooth arrays are derived by smoothing the raw data above and have the
+  # same dimensions as the primary arrays above.
+  # The threshold arrays are derived from the primary arrays above, and our
+  # 2D arrays (removed the level dimension).
+  dp_criteria: float = -1  # The d' criteria used for thresholds below
   cov_spl_threshold: Optional[np.ndarray] = None
   cov_smooth_dprimes: Optional[np.ndarray] = None
   rms_spl_threshold: Optional[np.ndarray] = None
   rms_smooth_dprimes: Optional[np.ndarray] = None
 
   def check(self) -> None:
+    """Check the data arrays in a DPrimeExp object to make sure that their
+    sizes are all consistent.  Throws an error if not.
+    """
     num_freqs = len(self.freqs)
     num_levels = len(self.levels)
     num_channels = len(self.channels)
@@ -455,6 +463,15 @@ class DPrimeResult(object):
     assert self.rms_of_total.shape == (num_freqs, num_levels, num_channels)
     assert self.rms_of_average.shape == (num_freqs, num_levels, num_channels)
     assert self.rms_dprimes.shape == (num_freqs, num_levels, num_channels)
+
+    if self.cov_spl_threshold:
+      assert self.cov_spl_threshold.shape == (num_freqs, num_channels)
+    if self.cov_smooth_threshold:
+      assert self.cov_smooth_threshold.shape == (num_freqs, num_channels)
+    if self.rms_spl_threshold:
+      assert self.rms_spl_threshold.shape == (num_freqs, num_channels)
+    if self.rms_smooth_threshold:
+      assert self.rms_smooth_threshold.shape == (num_freqs, num_channels)
 
   def add_threshold(self, dp_criteria=2,
                     fit_method: str = 'bilinear',
@@ -503,16 +520,16 @@ class DPrimeResult(object):
           else:
             assert ValueError(f'Unknown fit method: {fit_method}')
           interp.fit(levels, dprimes)
-          r = interp.threshold(dp_criteria)
-          # Check if r is a list and take the first element if it is
+          thresh_db = interp.threshold(dp_criteria)
+          # Check if thresh_db is a list and take the first element if it is
           # This ensures we store a single numeric value in db_at_threshold
-          if isinstance(r, list):
-              r = r[0] if r else np.nan
+          if isinstance(thresh_db, list):
+              thresh_db = thresh_db[0] if thresh_db else np.nan
         except Exception as error:
           print(f'Could not fit levels: {error}')
           print(traceback.format_exc())
-          r = np.nan
-        spl_threshold[i, j] = r
+          thresh_db = np.nan
+        spl_threshold[i, j] = thresh_db
         smoothed[i, :, j] = interp.eval(np.asarray(self.levels))
         if interp and plot:
           if channel == 1:
@@ -525,13 +542,15 @@ class DPrimeResult(object):
           plt.plot(levels, dprimes, 'x',
                    color=color_list[i])
           plt.axhline(dp_criteria, color='r', ls=':')
-          plt.axvline(r, color='r', ls=':')
+          plt.axvline(thresh_db, color='r', ls=':')  # one line per freq
     if plot:
       plt.legend()
       plt.xlabel('Sound Level (dB)')
       plt.ylabel('d\'')
+      plt.xlim(0, 100)
     self.cov_spl_threshold = spl_threshold
     self.cov_smooth_dprimes = smoothed
+    self.dp_criteria = dp_criteria
 
 
 ###############  Summarize and smooth the d' data ############################
@@ -985,9 +1004,11 @@ def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, title: str = ''):
   names = ['', 'ABR', 'ECochG']
   if plot_cov_dp:
     data = dp.cov_dprimes
+    thresh = dp.cov_spl_threshold
     title = title or 'Covariance D-Prime versus Presentation Level'
   else:
     data = dp.rms_dprimes
+    thresh = dp.rms_spl_threshold
     title = title or 'RMS D-Prime versus Presentation Level'
   for i, freq in enumerate(dp.freqs):
     for k, channel in enumerate(dp.channels):
@@ -995,8 +1016,12 @@ def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, title: str = ''):
         linestyle = '--'
       else:
         linestyle = '-'
+      if thresh:
+        thresh_label = f' Threshold={thresh[i, k]}dB'
+      else:
+        thresh_label = ''
       plt.plot(dp.levels, data[i, :, k],
-               label=f'{names[channel]} {freq}Hz',
+               label=f'{names[channel]} {freq}Hz{thresh_label}',
                linestyle=linestyle,
                color=colors[i])
   plt.title(title)
