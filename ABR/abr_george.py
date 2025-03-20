@@ -385,7 +385,7 @@ def preprocess_mouse_data(data: np.ndarray,
   return data[first_sample:last_sample, :]
 
 
-def shuffle_data(data: np.ndarray) -> np.ndarray:
+def shuffle_data(data: np.ndarray, axis=0) -> np.ndarray:
   """
   Shuffle the data in time.
 
@@ -393,12 +393,12 @@ def shuffle_data(data: np.ndarray) -> np.ndarray:
     data: A matrix of shape num_samples x num_trials
 
   Returns:
-    A shuffled version of the data.
+    A shuffled copy of the data.
   """
   rng = np.random.default_rng()  # Create a random number generator instance.
   # Make sure to copy the input data because shuffle rearranges its argument.
   data = data.copy()
-  rng.shuffle(data, axis=0)  # Shuffle in time
+  rng.shuffle(data, axis=axis)  # Shuffle in time
   return data
 
 
@@ -719,6 +719,7 @@ def calculate_dprime(h1: Union[list, np.ndarray],
 
 def calculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
+                         with_self_similar: bool = False,
                          debug: bool = False,
                          score_loc: Union[bool, Tuple] = True) -> float:
   """
@@ -733,6 +734,9 @@ def calculate_cov_dprime(data: np.ndarray,
     data: A matrix of shape num_samples x num_trials
     moise_data: A matrix like data, but with only noise, no sigal.
       If not specified shuffle the data matrix.
+    with_self_similar: Whether to include the present trial in the model.
+      Originally we did this, but this inflates the d' calculation for small
+      number of trials since the self-similar component scores very well.
     debug: Whether to show a plot of the histogram
     score_loc: Where to put a legend above the scores
       True: automatic on the left
@@ -744,18 +748,25 @@ def calculate_cov_dprime(data: np.ndarray,
   if noise_data is None:
     noise_data = data
   shuffled_data = shuffle_data(noise_data)
-  model = np.mean(data, axis=1, keepdims=True)
-  h1 = model * data
-  h1_response = np.sum(h1, axis=0)  # Sum response over time
-  h2 = model * shuffled_data
+  model = np.mean(data, axis=1) #, keepdims=True)
+  if with_self_similar:
+    h1 = np.reshape(model, (-1, 1)) * data
+    h1_response = np.sum(h1, axis=0)  # Sum response over time
+  else:
+    num_trials = data.shape[1]
+    h1_response = np.zeros(num_trials)
+    for i in range(num_trials):
+      model_without = (model*num_trials - data[:, i])/(num_trials-1)
+      h1_response[i] = np.sum(model_without * data[:, i], axis=0)
+  h2 = np.reshape(model, (-1, 1)) * shuffled_data
   h2_response = np.sum(h2, axis=0)  # Sum response over time
   dprime = calculate_dprime(h1_response, h2_response)
   if debug:
-    range = (min(np.min(h1_response), np.min(h2_response)),
+    data_range = (min(np.min(h1_response), np.min(h2_response)),
              max(np.max(h1_response), np.max(h2_response)))
-    counts, bins = np.histogram(h1_response, bins=40, range=range)
+    counts, bins = np.histogram(h1_response, bins=40, range=data_range)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='signal_trial')
-    counts, bins = np.histogram(h2_response, bins=40, range=range)
+    counts, bins = np.histogram(h2_response, bins=40, range=data_range)
     plt.plot((bins[:-1]+bins[1:])/2.0, counts, label='noise trial')
     plt.legend()
     plt.title('Histogram of covariance')
@@ -771,6 +782,57 @@ def calculate_cov_dprime(data: np.ndarray,
                f'{np.std(h2_response):4.3G}\n'
                f' d\'={dprime:4.3G}\n\n\n')
   return dprime
+
+
+def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
+                                       signal_index = 9,
+                                       noise_index = 0,
+                                       freq_index = 1,
+                                       channel_index = 1,
+                                       min_count = 20,
+                                       max_count = 20000,
+                                       repetition_count: int = 20,
+                                       with_self_similar: bool = True,
+                                       num_divisions: int = 10
+                                       ) -> Tuple[np.ndarray, np.ndarray,
+                                                  np.ndarray]:
+  # The shape of the stacks array is Freqs x levels x channels x time x trials
+  # Use bootstrapping this time
+  assert filtered_abr_stack.ndim == 5
+  assert signal_index < filtered_abr_stack.shape[1]
+  assert noise_index < filtered_abr_stack.shape[1]
+  assert freq_index < filtered_abr_stack.shape[0]
+  assert channel_index < filtered_abr_stack.shape[2]
+
+  time_sample_count = filtered_abr_stack.shape[3]
+  trial_count = filtered_abr_stack.shape[4]
+
+  block_sizes = (trial_count / (2**np.arange(0,
+                                             num_divisions, 1.0))).astype(int)
+  block_sizes = block_sizes[(block_sizes >= min_count) &
+                            (block_sizes <= max_count)]
+  dprime_mean_by_size = np.zeros(len(block_sizes))
+  dprime_std_by_size = np.zeros(len(block_sizes))
+
+  for i, block_size in enumerate(block_sizes):
+    dps = []
+    for j in range(repetition_count):
+      # Note: transpose the resulting array slices because of this answer:
+      #  https://stackoverflow.com/a/71489304
+      signal_data = filtered_abr_stack[freq_index, signal_index,
+                                       channel_index, :,
+                                       np.random.choice(trial_count,
+                                                        block_size)].T
+      noise_data = filtered_abr_stack[freq_index, noise_index,
+                                      channel_index, :,
+                                      np.random.choice(trial_count,
+                                                       block_size)].T
+      dps.append(calculate_cov_dprime(signal_data, noise_data,
+                                      with_self_similar=with_self_similar,
+                                      debug=False))
+    dprime_mean_by_size[i] = np.mean(dps)
+    dprime_std_by_size[i] = np.std(dps)
+  return block_sizes, dprime_mean_by_size, dprime_std_by_size
 
 
 def calculate_rmses(signal_data, noise_data, debug):
@@ -917,8 +979,8 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
           plt.subplot(2, 2, plot_num)
           plot_num += 1
         cov_dprimes[i, j, k] = calculate_cov_dprime(signal_data, noise_data,
-                                                    debug and
-                                                    debug_cov_not_rms)
+                                                    debug = (debug and 
+                                                             debug_cov_not_rms))
         (rms_of_signal, rms_of_average,
          dprime) = calculate_rmses(signal_data, noise_data,
                                    debug and not debug_cov_not_rms)
@@ -1563,14 +1625,66 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
   return block_sizes, dprime_mean_by_size, dprime_std_by_size
 
 
+def block_waveform_stack(filtered_abr_stack: np.ndarray,
+                         block_size: int,
+                         signal_index = 9,
+                         noise_index = 0,
+                         freq_index = 1,
+                         channel_index = 1,
+                         repetition_count: int = 20,
+                         ) -> Tuple[np.ndarray, np.ndarray]:
+  """Yields blocks of random pieces from a waveform stack.  We choose trials
+  at random, and the noise and signal data are independently sampled, both with
+  replacement.
+
+  Args:
+    filtered_abr_stack: a num_freq x num_levels x num_channels x num_times x 
+      num_trials array of preprocessed ABR recordings.
+    block_size: Number of trials to include in the block
+    signal_index: Which signal level to return
+    noise_index: Which signal level contains noise and no signal
+    freq_index: Which stimulus frequency to return
+    channel_index: Which recording channel to return
+    repetition_count: How many block to return
+
+  Returns:
+    Tuple of signal and noise arrays, one block at a time.
+  """
+  assert filtered_abr_stack.ndim == 5
+  assert signal_index < filtered_abr_stack.shape[1]
+  assert noise_index < filtered_abr_stack.shape[1]
+  assert freq_index < filtered_abr_stack.shape[0]
+  assert channel_index < filtered_abr_stack.shape[2]
+
+  time_sample_count = filtered_abr_stack.shape[3]
+  trial_count = filtered_abr_stack.shape[4]
+  
+  dps = []
+  for j in range(repetition_count):
+    # Note: transpose the resulting array slices because of this answer:
+    #  https://stackoverflow.com/a/71489304
+    signal_data = filtered_abr_stack[freq_index, signal_index,
+                                     channel_index, :,
+                                     
+                                     np.random.choice(trial_count,
+                                                       block_size)].T
+    noise_data = filtered_abr_stack[freq_index, noise_index,
+                                    channel_index, :,
+                                    np.random.choice(trial_count,
+                                                     block_size)].T
+    yield signal_data, noise_data
+
+
 def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
-                                       signal_index: int = 9,
-                                       noise_index: int = 0,
-                                       freq_index: int = 1,
-                                       channel_index: int = 1,
-                                       min_count: int = 20,
-                                       max_count: int = 20000,
+                                       signal_index = 9,
+                                       noise_index = 0,
+                                       freq_index = 1,
+                                       channel_index = 1,
+                                       min_count = 20,
+                                       max_count = 20000,
                                        repetition_count: int = 20,
+                                       with_self_similar: bool = True,
+                                       num_divisions: int = 10
                                        ) -> Tuple[np.ndarray, np.ndarray,
                                                   np.ndarray]:
   # The shape of the stacks array is Freqs x levels x channels x time x trials
@@ -1581,10 +1695,11 @@ def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
   assert freq_index < filtered_abr_stack.shape[0]
   assert channel_index < filtered_abr_stack.shape[2]
 
-  # time_sample_count = filtered_abr_stack.shape[3]
+  time_sample_count = filtered_abr_stack.shape[3]
   trial_count = filtered_abr_stack.shape[4]
 
-  block_sizes = (trial_count / (2**np.arange(0, 10, 1.0))).astype(int)
+  block_sizes = (trial_count / (2**np.arange(0,
+                                             num_divisions, 1.0))).astype(int)
   block_sizes = block_sizes[(block_sizes >= min_count) &
                             (block_sizes <= max_count)]
   dprime_mean_by_size = np.zeros(len(block_sizes))
@@ -1593,7 +1708,7 @@ def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
   for i, block_size in enumerate(block_sizes):
     dps = []
     for j in range(repetition_count):
-      # Transpose the resulting array slices because of this issue:
+      # Note: transpose the resulting array slices because of this answer:
       #  https://stackoverflow.com/a/71489304
       signal_data = filtered_abr_stack[freq_index, signal_index,
                                        channel_index, :,
@@ -1603,12 +1718,9 @@ def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
                                       channel_index, :,
                                       np.random.choice(trial_count,
                                                        block_size)].T
-      if j < 2:
-        print(filtered_abr_stack.shape, trial_count, block_size,
-              np.random.choice(trial_count, block_size).shape,
-              signal_data.shape, noise_data.shape)
-      dps.append(calculate_cov_dprime(signal_data, noise_data))
-    print(block_size, dps)
+      dps.append(calculate_cov_dprime(signal_data, noise_data,
+                                      with_self_similar=with_self_similar,
+                                      debug=False))
     dprime_mean_by_size[i] = np.mean(dps)
     dprime_std_by_size[i] = np.std(dps)
   return block_sizes, dprime_mean_by_size, dprime_std_by_size
@@ -1632,6 +1744,38 @@ def create_synthetic_stack(noise_level=1,
   stack = noise_level*np.random.normal(size=(1, 2, 1, num_times, num_trials))
   stack[0, 1, 0, :, :] += np.expand_dims(gammatone, axis=[1])
   return stack
+
+
+def stack_t_test(filtered_abr_stack: np.ndarray):
+  trial_count = filtered_abr_stack.shape[-1]
+  num_divisions = 10
+  min_count = 20
+  max_count = 20000
+
+  block_sizes = (trial_count / (2**np.arange(0,
+                                            num_divisions, 1.0))).astype(int)
+  block_sizes = block_sizes[(block_sizes >= min_count) &
+                            (block_sizes <= max_count)]
+
+  for signal_index in range(filtered_abr_stack.shape[1]):
+    t_stats = []
+    for block_size in block_sizes:
+      noise_response = []
+      abr_response = []
+      for signal, noise in block_waveform_stack(filtered_abr_stack,
+                                                signal_index=signal_index,
+                                                block_size=block_size):
+        abr_response.append(np.sqrt(np.mean(np.mean(signal, axis=-1)**2)))
+        noise_response.append(np.sqrt(np.mean(np.mean(noise, axis=-1)**2)))
+      t_stats.append(spstats.ttest_ind(abr_response, noise_response))
+    plt.semilogy(block_sizes, [t.pvalue for t in t_stats], 
+                label=f'Signal Level {10*signal_index}');
+    if signal_index == 0:
+      print('p values for signal level 0:', [t.pvalue for t in t_stats])
+  plt.legend()
+  plt.xlabel('Block Size (trials)')
+  plt.ylabel('p-value')
+  plt.title('p-value vs. Block Size');
 
 
 if False:

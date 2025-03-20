@@ -132,7 +132,8 @@ class ABRGeorgeTests(absltest.TestCase):
     plt.plot(freqs[:num_points//2-1], spectrum[:num_points//2-1])
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Response (dB)')
-    plt.title('Preprocessing Test Filter Frequency Spectrum')
+    plt.title('Preprocessing Spectrum'
+              f' (BP between {low_cutoff} and {high_cutoff}Hz)')
     plt.xlim(0, 8000)
     plt.savefig('test_preprocess_spectrum.png')
 
@@ -150,8 +151,11 @@ class ABRGeorgeTests(absltest.TestCase):
       data.append(np.reshape(np.arange(num_points)/num_points*np.pi*2 + 
                              rng.normal(scale=0.1,size=num_points), (-1, 1)))
     data = np.concatenate(data, axis=1)
-    dprime = george.calculate_cov_dprime(data)
-    self.assertGreater(dprime, 15)
+    dprime_self = george.calculate_cov_dprime(data)
+    self.assertGreater(dprime_self, 15)
+
+    dprime_wo_self =  george.calculate_cov_dprime(data, with_self_similar=False)
+    self.assertGreater(dprime_wo_self, 1)
 
     # Then test with incoherent signals.
     data = []
@@ -160,7 +164,9 @@ class ABRGeorgeTests(absltest.TestCase):
                              rng.normal(scale=1,size=num_points), (-1, 1)))
     data = np.concatenate(data, axis=1)
     dprime = george.calculate_cov_dprime(data)
-    self.assertLess(dprime, 1)
+    # Make sure there is a difference between dprime with and without the
+    # self point.
+    self.assertLess(dprime, 1)  
 
   def test_dprime_sets(self):
     rng = np.random.default_rng(seed=0)
@@ -309,6 +315,7 @@ class EnsembleTests(absltest.TestCase):
       all_exps, True, debug_freq=freq, debug_levels=levels, debug_channel=1))
     plt.savefig('test_ensemble_cov_dprime.png')
     dprimes_result = {'test': res}
+    print('test_measures res are:', res)
     
     # Result is indexed by frequency, level, and channel, d' goes up with level
     self.assertLess(res.cov_dprimes[0, 0, 0], 20.0)
