@@ -1078,7 +1078,7 @@ def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, title: str = ''):
         linestyle = '--'
       else:
         linestyle = '-'
-      if thresh:
+      if isinstance(thresh, np.ndarray):
         thresh_label = f' Threshold={thresh[i, k]}dB'
       else:
         thresh_label = ''
