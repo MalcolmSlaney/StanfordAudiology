@@ -1050,7 +1050,9 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
   return filtered_dprimes
 
 
-def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, title: str = ''):
+def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, 
+                 show_threshold: bool = False,
+                 title: str = ''):
   """Create a plot summarizing the d' of the covariance data collected by the
   calculate_all_summaries routine above.  Show d' versus level, for each
   frequency and channel pair.
@@ -1078,8 +1080,8 @@ def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True, title: str = ''):
         linestyle = '--'
       else:
         linestyle = '-'
-      if isinstance(thresh, np.ndarray):
-        thresh_label = f' Threshold={thresh[i, k]}dB'
+      if show_threshold and isinstance(thresh, np.ndarray):
+        thresh_label = f' Threshold={thresh[i, k]:10.4f}dB'
       else:
         thresh_label = ''
       plt.plot(dp.levels, data[i, :, k],
