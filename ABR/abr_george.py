@@ -649,7 +649,7 @@ class PositivePolynomial(object):
 
   def threshold(self, threshold, debug=False):
     """Find the level when the quadratic function passes the threshold."""
-    a = self._a - threshold
+    a = self._a - threshold  # Subtract threshold so we can find zero crossings
     b = self._b
     c = self._c
     if debug:
@@ -1001,10 +1001,14 @@ def calculate_waveform_summaries(all_exps: List[MouseExp],
 def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
                           keep_list: List[str] = [],
                           drop_list: List[str] = [],
-                          min_abr_thresh: float = 0.0,   # Min d' threshold
-                          max_abr_thresh: float = 1e9,   # Max d' threshold
+                          abr_thresh_greater_than: float = 0.0,   # Min d' threshold
+                          abr_thresh_less_than: float = 1e9,   # Max d' threshold
                           min_ecog_thresh: float = 0.0,  # Min d' threshold
-                          max_ecog_thresh: float = 1e9,  # Max d' threshold
+                          ecog_thresh_less_than: float = 1e9,  # Max d' threshold
+                          abr_resp_greater_than: float = 0.0,
+                          abr_resp_less_than: float = 1e9,
+                          ecog_resp_greater_than: float = 0.0,
+                          ecog_resp_less_than: float = 1e9,
                           ) -> Dict[str, DPrimeResult]:
   """Filter a DPrime dictionary, looking for good preparations and dropping the
   bad ones.  And setting limits on the calculate thresholds, looking for good
@@ -1016,10 +1020,16 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
     keep_list: A list of strings with words from the date_preparation_name keys
       that we want to keep
     drop_list: Like keep list, but overrules with keys to drop
-    min_abr_thresh: Keep preps where all thresholds are *above* this limit
-    max_abr_thresh: Keep preps where all thresholds are *below* this limit
-    min_ecog_thresh: Like min_abr_thresh, but using ECoG data
-    max_ecog_thresh: Like max_abr_thresh, but using ECoG data
+    abr_thresh_greater_than: Keep preps where all thresholds are *above* this limit
+    abr_thresh_less_than: Keep preps where all thresholds are *below* this limit
+    min_ecog_thresh: Like abr_thresh_greater_than, but using ECoG data
+    ecog_thresh_less_than: Like abr_thresh_less_than, but using ECoG data
+
+    abr_resp_greater_than: Test whether highest level is above this d'
+    abr_resp_less_than: Test whether all levels are below this d'
+    ecoh_resp_greater_than: Test whether highest level is above this d'
+    ecoh_resp_less_than: Test whether all levels are below this d'
+
   Returns:
     A new dictionary containing just the selected dprime results.
   """
@@ -1037,13 +1047,25 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
         dp.cov_spl_threshold.ndim < 2):
       continue
 
-    if np.min(dp.cov_spl_threshold[:, 0]) < min_abr_thresh:
+    if np.all(np.isnan(dp.cov_spl_threshold[:, 0])):  # No ABR Data
       continue
-    if np.max(dp.cov_spl_threshold[:, 0]) > max_abr_thresh:
+    if np.all(np.isnan(dp.cov_spl_threshold[:, 1])):  # No ECochG Data
+      continue    
+    if np.nanmin(dp.cov_spl_threshold[:, 0]) < abr_thresh_greater_than:
       continue
-    if np.min(dp.cov_spl_threshold[:, 1]) < min_ecog_thresh:
+    if np.nanmax(dp.cov_spl_threshold[:, 0]) > abr_thresh_less_than:
       continue
-    if np.max(dp.cov_spl_threshold[:, 1]) > max_ecog_thresh:
+    if np.nanmin(dp.cov_spl_threshold[:, 1]) < min_ecog_thresh:
+      continue
+    if np.nanmax(dp.cov_spl_threshold[:, 1]) > ecog_thresh_less_than:
+      continue
+    if np.min(dp.cov_dprimes[:, -1, 0]) < abr_resp_greater_than:
+      continue
+    if np.max(dp.cov_dprimes[:, :, 0]) > abr_resp_less_than:
+      continue
+    if np.min(dp.cov_dprimes[:, -1, 1]) < ecog_resp_greater_than:
+      continue
+    if np.max(dp.cov_dprimes[:, :, 1]) > ecog_resp_less_than:
       continue
 
     filtered_dprimes[k] = dp
@@ -1081,7 +1103,7 @@ def plot_dprimes(dp: DPrimeResult, plot_cov_dp: bool = True,
       else:
         linestyle = '-'
       if show_threshold and isinstance(thresh, np.ndarray):
-        thresh_label = f' Threshold={thresh[i, k]:10.4f}dB'
+        thresh_label = f' Threshold={thresh[i, k]:6.0f}dB'
       else:
         thresh_label = ''
       plt.plot(dp.levels, data[i, :, k],
