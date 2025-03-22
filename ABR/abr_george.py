@@ -1029,7 +1029,6 @@ def filter_dprime_results(all_dprimes: Dict[str, DPrimeResult],
     abr_resp_less_than: Test whether all levels are below this d'
     ecoh_resp_greater_than: Test whether highest level is above this d'
     ecoh_resp_less_than: Test whether all levels are below this d'
-
   Returns:
     A new dictionary containing just the selected dprime results.
   """
@@ -1416,7 +1415,9 @@ def show_all_stack(stack: np.ndarray,
                    title: str = '',
                    skip_levels: int = 3,
                    relative_max: float = 1.5,
-                   absolute_max: float = 0) -> None:
+                   absolute_max: float = 0,
+                   num_cols: int = 1,
+                   col_num: int = 0) -> None:
   """Show a stack of all ABR waveforms across levels.  The number of plots is
   determined by the number of levels in stack, and skip_levels
 
@@ -1433,11 +1434,13 @@ def show_all_stack(stack: np.ndarray,
     relative_max: Limit y axis of plot to this factor of the max average
       waveform if the absolute value is not set.
     absolute_max: Limit y axis of plot to this absolute value.
+    num_cols: How many columns of stacks to show
+    col_num: which column to plot this time (0 <= col_num < num_cols)
   """
   levels2plot = levels[::skip_levels]
   t = np.arange(stack.shape[-2])/mouse_sample_rate
   for i, level in enumerate(levels2plot):
-    plt.subplot(len(levels2plot), 1, i+1)
+    plt.subplot(len(levels2plot), num_cols, i*num_cols+col_num+1)
     plt.plot(t*1000, stack[freq, levels.index(level), channel, ...],
              alpha=alpha)
     mean_stack = np.mean(stack[freq, levels.index(level), channel, ...],
