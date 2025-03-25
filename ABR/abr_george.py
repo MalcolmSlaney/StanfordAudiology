@@ -1796,8 +1796,9 @@ def stack_t_test(filtered_abr_stack: np.ndarray) -> Tuple[np.ndarray,
                                                 block_size=block_size):
         abr_response.append(np.sqrt(np.mean(np.mean(signal, axis=-1)**2)))
         noise_response.append(np.sqrt(np.mean(np.mean(noise, axis=-1)**2)))
-      t_stats.append(spstats.ttest_ind(abr_response, noise_response))
-      pvals[signal_index, j] = t_stats.pvalue
+      t_stat = spstats.ttest_ind(abr_response, noise_response)
+      t_stats.append(t_stat)
+      pvals[signal_index, j] = t_stat.pvalue
     plt.semilogy(block_sizes, [t.pvalue for t in t_stats], 
                 label=f'Signal Level {10*signal_index}');
     if signal_index == 0:
