@@ -1785,7 +1785,7 @@ def stack_t_test(filtered_abr_stack: np.ndarray) -> Tuple[np.ndarray,
   block_sizes = block_sizes[(block_sizes >= min_count) &
                             (block_sizes <= max_count)]
 
-  pvals = np.zeros(filtered_abr_stack.shape[1], len(block_sizes))
+  pvals = np.zeros((filtered_abr_stack.shape[1], len(block_sizes)))
   for signal_index in range(filtered_abr_stack.shape[1]):
     t_stats = []
     for j, block_size in enumerate(block_sizes):
