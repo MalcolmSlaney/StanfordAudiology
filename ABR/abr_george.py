@@ -784,7 +784,7 @@ def calculate_cov_dprime(data: np.ndarray,
   return dprime
 
 
-def XXcalculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
+def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
                                        level_index = 9,
                                        noise_index = 0,
                                        freq_index = 1,
@@ -1702,7 +1702,7 @@ def block_waveform_stack(filtered_abr_stack: np.ndarray,
     yield signal_data, noise_data
 
 
-def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
+def XXcalculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
                                        signal_index = 9,
                                        noise_index = 0,
                                        freq_index = 1,
