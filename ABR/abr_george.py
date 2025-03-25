@@ -1654,7 +1654,7 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
 
 def block_waveform_stack(filtered_abr_stack: np.ndarray,
                          block_size: int,
-                         signal_index = 9,
+                         level_index = 9,
                          noise_index = 0,
                          freq_index = 1,
                          channel_index = 1,
@@ -1668,8 +1668,8 @@ def block_waveform_stack(filtered_abr_stack: np.ndarray,
     filtered_abr_stack: a num_freq x num_levels x num_channels x num_times x 
       num_trials array of preprocessed ABR recordings.
     block_size: Number of trials to include in the block
-    signal_index: Which signal level to return
-    noise_index: Which signal level contains noise and no signal
+    level_index: Which signal level index to return
+    noise_index: Which signal level index contains noise and no signal
     freq_index: Which stimulus frequency to return
     channel_index: Which recording channel to return
     repetition_count: How many block to return
@@ -1678,7 +1678,7 @@ def block_waveform_stack(filtered_abr_stack: np.ndarray,
     Tuple of signal and noise arrays, one block at a time.
   """
   assert filtered_abr_stack.ndim == 5
-  assert signal_index < filtered_abr_stack.shape[1]
+  assert level_index < filtered_abr_stack.shape[1]
   assert noise_index < filtered_abr_stack.shape[1]
   assert freq_index < filtered_abr_stack.shape[0]
   assert channel_index < filtered_abr_stack.shape[2]
@@ -1690,7 +1690,7 @@ def block_waveform_stack(filtered_abr_stack: np.ndarray,
   for j in range(repetition_count):
     # Note: transpose the resulting array slices because of this answer:
     #  https://stackoverflow.com/a/71489304
-    signal_data = filtered_abr_stack[freq_index, signal_index,
+    signal_data = filtered_abr_stack[freq_index, level_index,
                                      channel_index, :,
                                      
                                      np.random.choice(trial_count,
@@ -1773,8 +1773,21 @@ def create_synthetic_stack(noise_level=1,
   return stack
 
 
-def stack_t_test(filtered_abr_stack: np.ndarray) -> Tuple[np.ndarray,
+def stack_t_test(filtered_abr_stack: np.ndarray,
+                 channel_index = 1,  # ABR
+                 freq_index = 1,  # 160000
+                 ) -> Tuple[np.ndarray,
                                                           List[int]]:
+  """Compute the average signal and noise response (averaging over trials),
+  as a function of the bnlock size (non overlapping blocks, no bootstrapping).
+  Then form the distribution of average signal ABR and noise ABRs in order to
+  calculate the student t-test, and plot the p-values as a function of signal
+  level and block size.
+
+  Args:
+    filtered_abr_stack: recorded waveform tensor of shape:
+      num_freqs x num_levels x num_channels x num_times x num_trials
+  """
   trial_count = filtered_abr_stack.shape[-1]
   num_divisions = 10
   min_count = 20
@@ -1786,22 +1799,24 @@ def stack_t_test(filtered_abr_stack: np.ndarray) -> Tuple[np.ndarray,
                             (block_sizes <= max_count)]
 
   pvals = np.zeros((filtered_abr_stack.shape[1], len(block_sizes)))
-  for signal_index in range(filtered_abr_stack.shape[1]):
+  for level_index in range(filtered_abr_stack.shape[1]):
     t_stats = []
     for j, block_size in enumerate(block_sizes):
       noise_response = []
       abr_response = []
       for signal, noise in block_waveform_stack(filtered_abr_stack,
-                                                signal_index=signal_index,
+                                                level_index=level_index,
+                                                freq_index=freq_index,
+                                                channel_index=channel_index,
                                                 block_size=block_size):
         abr_response.append(np.sqrt(np.mean(np.mean(signal, axis=-1)**2)))
         noise_response.append(np.sqrt(np.mean(np.mean(noise, axis=-1)**2)))
       t_stat = spstats.ttest_ind(abr_response, noise_response)
       t_stats.append(t_stat)
-      pvals[signal_index, j] = t_stat.pvalue
+      pvals[level_index, j] = t_stat.pvalue
     plt.semilogy(block_sizes, [t.pvalue for t in t_stats], 
-                label=f'Signal Level {10*signal_index}');
-    if signal_index == 0:
+                label=f'Signal Level {10*level_index}');
+    if level_index == 0:
       print('p values for signal level 0:', [t.pvalue for t in t_stats])
   plt.legend()
   plt.xlabel('Block Size (trials)')
