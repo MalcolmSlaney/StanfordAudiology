@@ -785,7 +785,7 @@ def calculate_cov_dprime(data: np.ndarray,
 
 
 def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
-                                       signal_index = 9,
+                                       level_index = 9,
                                        noise_index = 0,
                                        freq_index = 1,
                                        channel_index = 1,
@@ -799,7 +799,7 @@ def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
   # The shape of the stacks array is Freqs x levels x channels x time x trials
   # Use bootstrapping this time
   assert filtered_abr_stack.ndim == 5
-  assert signal_index < filtered_abr_stack.shape[1]
+  assert level_index < filtered_abr_stack.shape[1]
   assert noise_index < filtered_abr_stack.shape[1]
   assert freq_index < filtered_abr_stack.shape[0]
   assert channel_index < filtered_abr_stack.shape[2]
@@ -819,7 +819,7 @@ def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
     for j in range(repetition_count):
       # Note: transpose the resulting array slices because of this answer:
       #  https://stackoverflow.com/a/71489304
-      signal_data = filtered_abr_stack[freq_index, signal_index,
+      signal_data = filtered_abr_stack[freq_index, level_index,
                                        channel_index, :,
                                        np.random.choice(trial_count,
                                                         block_size)].T
@@ -1609,7 +1609,7 @@ def calculate_mean_std_rms_values(
 
 
 def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
-                                    signal_index: int = 9,
+                                    level_index: int = 9,
                                     noise_index: int = 0,
                                     freq_index: int = 1,
                                     channel_index: int = 1,
@@ -1619,7 +1619,7 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
                                                np.ndarray]:
   # The shape of the stacks array is Freqs x levels x channels x time x trials
   assert filtered_abr_stack.ndim == 5
-  assert signal_index < filtered_abr_stack.shape[1]
+  assert level_index < filtered_abr_stack.shape[1]
   assert noise_index < filtered_abr_stack.shape[1]
   assert freq_index < filtered_abr_stack.shape[0]
   assert channel_index < filtered_abr_stack.shape[2]
@@ -1637,7 +1637,7 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
     dps = []
     for block_start in range(0, trial_count - block_size + 1, block_size):
       block_end = block_start + block_size
-      signal_data = filtered_abr_stack[freq_index, signal_index,
+      signal_data = filtered_abr_stack[freq_index, level_index,
                                        channel_index,
                                        :, block_start:block_end]
       noise_data = filtered_abr_stack[freq_index, noise_index,
