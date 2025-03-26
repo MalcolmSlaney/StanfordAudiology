@@ -1645,10 +1645,7 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
       noise_data = filtered_abr_stack[freq_index, noise_index,
                                       channel_index,
                                       :, block_start:block_end]
-      if i < 2:
-        print(signal_data.shape, noise_data.shape)
       dps.append(calculate_cov_dprime(signal_data, noise_data))
-    print(block_size, dps)
     dprime_mean_by_size[i] = np.mean(dps)
     dprime_std_by_size[i] = np.std(dps)
   return block_sizes, dprime_mean_by_size, dprime_std_by_size
