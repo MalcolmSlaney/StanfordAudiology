@@ -1615,6 +1615,7 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
                                     channel_index: int = 1,
                                     min_count: int = 20,
                                     max_count: int = 20000,
+                                    num_divisions: int = 10,
                                     ) -> Tuple[np.ndarray, np.ndarray,
                                                np.ndarray]:
   # The shape of the stacks array is Freqs x levels x channels x time x trials
@@ -1627,7 +1628,8 @@ def calculate_dprime_by_trial_count(filtered_abr_stack: np.ndarray,
   # time_sample_count = filtered_abr_stack.shape[3]
   trial_count = filtered_abr_stack.shape[4]
 
-  block_sizes = (trial_count / (2**np.arange(0, 10, 1.0))).astype(int)
+  block_sizes = (trial_count / (2**np.arange(0, 
+                                             num_divisions, 1.0))).astype(int)
   block_sizes = block_sizes[(block_sizes >= min_count) &
                             (block_sizes <= max_count)]
   dprime_mean_by_size = np.zeros(len(block_sizes))
@@ -1725,10 +1727,8 @@ def create_synthetic_stack(noise_level=1,
 def snr_vs_window_size(abr_stack: np.ndarray,
                        channel_index: int = 0,  # 0 is ABR, 1 is ECochG
                        freq_index: int = 1,
-                       num_divisions: int = 10,
-                       min_count: int = 20,
-                       max_count: int = 20000,
-                       repetition_count: int = 10) -> Tuple[np.ndarray, 
+                       window_step: int = 50, 
+                       ) -> Tuple[np.ndarray, 
                                                             np.ndarray]:
   time_sample_count = abr_stack.shape[3]
   trial_count = abr_stack.shape[4]
@@ -1736,7 +1736,7 @@ def snr_vs_window_size(abr_stack: np.ndarray,
   level_index = abr_stack.shape[1]-1
   noise_index = 0
 
-  time_windows = np.arange(0, time_sample_count, 50)
+  time_windows = np.arange(0, time_sample_count, window_step)
   snrs = np.zeros((len(time_windows), len(time_windows))) * np.nan
   for i, time_start in enumerate(time_windows):
     for j, time_end in enumerate(time_windows):

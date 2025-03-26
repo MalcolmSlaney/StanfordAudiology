@@ -210,23 +210,37 @@ class ABRGeorgeTests(absltest.TestCase):
     george.summarize_all_data([basedir], pickle_name)
  
   def test_synthetic_rms(self):
+    """Test SNR vs. window size calculation by using a synthetic ABR and 
+    making sure that the peak response (when considered one short window at
+    a time) is in the right place."""
+    num_trials = 1024
+    window_step = 50
+    expected_peak = 2.3
+    expected_delta = 0.6
+
     synthetic_test_stack = george.create_synthetic_stack(noise_level=.1, 
-                                                         num_trials=128)
-    self.assertEqual(synthetic_test_stack.shape, (1, 2, 1, 1952, 128))
+                                                         num_trials=num_trials)
+    self.assertEqual(synthetic_test_stack.shape, (1, 2, 1, 1952, num_trials))
 
     (synthetic_snrs, 
-     synthetic_time_windows) = george.snr_vs_window_size(synthetic_test_stack, 
-                                                         freq_index=0)
-    peak = synthetic_time_windows[np.argmax(np.diagonal(
+     synthetic_time_windows) = george.snr_vs_window_size(
+       synthetic_test_stack, window_step=window_step, freq_index=0)
+    peak_time = synthetic_time_windows[np.argmax(np.diagonal(
       synthetic_snrs, offset=1))]/george.mouse_sample_rate*1000
 
-    plt.plot(synthetic_time_windows[1:]/george.mouse_sample_rate*1000, 
+    plt.clf()
+    plt.plot(synthetic_time_windows[:-1]/george.mouse_sample_rate*1000, 
              np.diagonal(synthetic_snrs, offset=1))
     plt.title('Instanenous RMS Signal Level for Synthetic ABR')
+    plt.axvline(peak_time, ls=':')
+    plt.axvline(expected_peak - expected_delta, ls='--')
+    plt.axvline(expected_peak + expected_delta, ls='--')
     plt.xlabel('Time (ms)');
-    plt.savefig('synthetic_rms.png')
+    plt.savefig('test_synthetic_rms.png')
 
-    self.assertAlmostEqual(peak, 2.56, delta=0.6)
+    self.assertEqual(len(synthetic_time_windows), 
+                     int(synthetic_test_stack.shape[3]/window_step) + 1)
+    self.assertAlmostEqual(peak_time, expected_peak, delta=expected_delta)
 
 
 class FittingTests(absltest.TestCase):
