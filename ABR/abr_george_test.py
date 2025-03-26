@@ -209,16 +209,25 @@ class ABRGeorgeTests(absltest.TestCase):
     self.assertLen(all_trials, 2)
     george.summarize_all_data([basedir], pickle_name)
  
-  def test_synthetic_rms(self)
+  def test_synthetic_rms(self):
     synthetic_test_stack = george.create_synthetic_stack(noise_level=.1, 
                                                          num_trials=128)
     self.assertEqual(synthetic_test_stack.shape, (1, 2, 1, 1952, 128))
 
     (synthetic_snrs, 
-     synthetic_time_windows) = snr_vs_window_size(synthetic_test_stack, 
-                                                  freq_index=0)
-    peak = synthetic_time_windows[np.argmax(np.diagonal(synthetic_snrs, offset=1))]/george.mouse_sample_rate*1000
+     synthetic_time_windows) = george.snr_vs_window_size(synthetic_test_stack, 
+                                                         freq_index=0)
+    peak = synthetic_time_windows[np.argmax(np.diagonal(
+      synthetic_snrs, offset=1))]/george.mouse_sample_rate*1000
+
+    plt.plot(synthetic_time_windows[1:]/george.mouse_sample_rate*1000, 
+             np.diagonal(synthetic_snrs, offset=1))
+    plt.title('Instanenous RMS Signal Level for Synthetic ABR')
+    plt.xlabel('Time (ms)');
+    plt.savefig('synthetic_rms.png')
+
     self.assertAlmostEqual(peak, 2.56, delta=0.25)
+
 
 class FittingTests(absltest.TestCase):
   def test_polynomial(self):
