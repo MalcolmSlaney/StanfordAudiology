@@ -1722,6 +1722,42 @@ def create_synthetic_stack(noise_level=1,
   return stack
 
 
+def snr_vs_window_size(abr_stack: np.ndarray,
+                       channel_index: int = 0,  # 0 is ABR, 1 is ECochG
+                       freq_index: int = 1,
+                       num_divisions: int = 10,
+                       min_count: int = 20,
+                       max_count: int = 20000,
+                       repetition_count: int = 10) -> Tuple[np.ndarray, 
+                                                            np.ndarray]:
+  time_sample_count = abr_stack.shape[3]
+  trial_count = abr_stack.shape[4]
+
+  level_index = abr_stack.shape[1]-1
+  noise_index = 0
+
+  time_windows = np.arange(0, time_sample_count, 50)
+  snrs = np.zeros((len(time_windows), len(time_windows))) * np.nan
+  for i, time_start in enumerate(time_windows):
+    for j, time_end in enumerate(time_windows):
+      if time_start >= time_end:
+        continue
+      time_window = np.arange(time_start, time_end)
+      signal_data = abr_stack[freq_index, level_index,
+                              channel_index, time_window, :]
+      noise_data = abr_stack[freq_index, noise_index,
+                             channel_index, time_window, :]
+      signal_rms = np.sqrt(np.mean(np.mean(signal_data, axis=-1)**2, axis=-1))
+      # Shuffle the noise data to make sure it has no signal.
+      noise_data = noise_data.T
+      np.random.shuffle(noise_data)
+      noise_data = noise_data.T
+      noise_rms = np.sqrt(np.mean(np.mean(noise_data, axis=-1)**2, axis=-1))
+      snr = signal_rms/noise_rms
+      snrs[i, j] = snr  # signal_rms
+  return snrs, time_windows
+
+
 def stack_t_test(filtered_abr_stack: np.ndarray,
                  channel_index = 1,  # ABR
                  freq_index = 1,  # 160000
