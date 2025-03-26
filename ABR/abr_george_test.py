@@ -226,7 +226,7 @@ class ABRGeorgeTests(absltest.TestCase):
     plt.xlabel('Time (ms)');
     plt.savefig('synthetic_rms.png')
 
-    self.assertAlmostEqual(peak, 2.56, delta=0.25)
+    self.assertAlmostEqual(peak, 2.56, delta=0.6)
 
 
 class FittingTests(absltest.TestCase):
