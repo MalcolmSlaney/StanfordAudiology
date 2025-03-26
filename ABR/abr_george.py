@@ -1756,8 +1756,9 @@ def snr_vs_window_size(abr_stack: np.ndarray,
 
 
 def stack_t_test(filtered_abr_stack: np.ndarray,
-                 channel_index = 1,  # ABR
-                 freq_index = 1,  # 160000
+                 channel_index:int = 1,  # ABR
+                 freq_index:int = 1,  # 160000
+                 plot_pvals: bool = True,
                  ) -> Tuple[np.ndarray,
                                                           List[int]]:
   """Compute the average signal and noise response (averaging over trials),
@@ -1796,14 +1797,16 @@ def stack_t_test(filtered_abr_stack: np.ndarray,
       t_stat = spstats.ttest_ind(abr_response, noise_response)
       t_stats.append(t_stat)
       pvals[level_index, j] = t_stat.pvalue
-    plt.semilogy(block_sizes, [t.pvalue for t in t_stats], 
-                label=f'Signal Level {10*level_index}');
+    if plot_pvals:
+      plt.semilogy(block_sizes, [t.pvalue for t in t_stats], 
+                  label=f'Signal Level {10*level_index}');
     if level_index == 0:
       print('p values for signal level 0:', [float(t.pvalue) for t in t_stats])
-  plt.legend()
-  plt.xlabel('Block Size (trials)')
-  plt.ylabel('p-value')
-  plt.title('p-value vs. Block Size');
+  if plot_pvals:
+    plt.legend()
+    plt.xlabel('Block Size (trials)')
+    plt.ylabel('p-value')
+    plt.title('p-value vs. Block Size');
   return pvals, block_sizes
 
 
