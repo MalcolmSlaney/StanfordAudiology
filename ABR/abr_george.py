@@ -1766,7 +1766,7 @@ def stack_t_test(filtered_abr_stack: np.ndarray,
     plt.semilogy(block_sizes, [t.pvalue for t in t_stats], 
                 label=f'Signal Level {10*level_index}');
     if level_index == 0:
-      print('p values for signal level 0:', [t.pvalue for t in t_stats])
+      print('p values for signal level 0:', [float(t.pvalue) for t in t_stats])
   plt.legend()
   plt.xlabel('Block Size (trials)')
   plt.ylabel('p-value')
