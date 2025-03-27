@@ -746,20 +746,20 @@ def calculate_cov_dprime(data: np.ndarray,
       False: No score legend
       Two-ple: x and y locations in plot coordinates
   Returns:
-    A scalar representing the d-prime.
+    A scalar representing the d-prime between the two distributions.
   """
   if noise_data is None:
     noise_data = data
   shuffled_data = shuffle_data(noise_data)
 
   if theoretical_model is None:
-    model = np.mean(data, axis=1) #, keepdims=True)
+    model = np.mean(data, axis=1)
   else:
     assert len(theoretical_model) == data.shape[0]
     model = theoretical_model
 
   if with_self_similar:
-    h1 = np.reshape(model, (-1, 1)) * data
+    h1 = np.reshape(model, (data.shape[0], 1)) * data
     h1_response = np.sum(h1, axis=0)  # Sum response over time
   else:
     num_trials = data.shape[1]
@@ -767,9 +767,10 @@ def calculate_cov_dprime(data: np.ndarray,
     for i in range(num_trials):
       model_without = (model*num_trials - data[:, i])/(num_trials-1)
       h1_response[i] = np.sum(model_without * data[:, i], axis=0)
-  h2 = np.reshape(model, (-1, 1)) * shuffled_data
+  h2 = np.reshape(model, (data.shape[0], 1)) * shuffled_data
   h2_response = np.sum(h2, axis=0)  # Sum response over time
   dprime = calculate_dprime(h1_response, h2_response)
+
   if debug:
     data_range = (min(np.min(h1_response), np.min(h2_response)),
              max(np.max(h1_response), np.max(h2_response)))
