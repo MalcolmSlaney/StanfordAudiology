@@ -803,7 +803,8 @@ def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
                                        max_count = 20000,
                                        repetition_count: int = 20,
                                        with_self_similar: bool = True,
-                                       num_divisions: int = 10
+                                       num_divisions: int = 10,
+                                       theoretical_model: Optional[np.ndarray] = None,
                                        ) -> Tuple[np.ndarray, np.ndarray,
                                                   np.ndarray]:
   # The shape of the stacks array is Freqs x levels x channels x time x trials
@@ -839,6 +840,7 @@ def calculate_dprime_by_trial_count_bs(filtered_abr_stack: np.ndarray,
                                                        block_size)].T
       dps.append(calculate_cov_dprime(signal_data, noise_data,
                                       with_self_similar=with_self_similar,
+                                      theoretical_model=theoretical_model,
                                       debug=False))
     dprime_mean_by_size[i] = np.mean(dps)
     dprime_std_by_size[i] = np.std(dps)
