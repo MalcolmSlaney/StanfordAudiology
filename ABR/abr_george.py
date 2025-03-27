@@ -721,6 +721,7 @@ def calculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
                          with_self_similar: bool = False,
                          debug: bool = False,
+                         theoretical_model: Optional[np.ndarray] = None,
                          score_loc: Union[bool, Tuple] = True) -> float:
   """
   Calculate the d-prime of the covariance response.  Form a model of the ABR
@@ -738,6 +739,8 @@ def calculate_cov_dprime(data: np.ndarray,
       Originally we did this, but this inflates the d' calculation for small
       number of trials since the self-similar component scores very well.
     debug: Whether to show a plot of the histogram
+    theoretical_model: Use this model instead of computing it from the data.
+      Only use when with_self_similar is True.
     score_loc: Where to put a legend above the scores
       True: automatic on the left
       False: No score legend
@@ -748,7 +751,13 @@ def calculate_cov_dprime(data: np.ndarray,
   if noise_data is None:
     noise_data = data
   shuffled_data = shuffle_data(noise_data)
-  model = np.mean(data, axis=1) #, keepdims=True)
+
+  if theoretical_model is None:
+    model = np.mean(data, axis=1) #, keepdims=True)
+  else:
+    assert len(theoretical_model) == data.shape[0]
+    model = theoretical_model
+
   if with_self_similar:
     h1 = np.reshape(model, (-1, 1)) * data
     h1_response = np.sum(h1, axis=0)  # Sum response over time
