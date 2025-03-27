@@ -717,6 +717,8 @@ def calculate_dprime(h1: Union[list, np.ndarray],
     return (np.mean(h1) - np.mean(h2)) / norm
 
 
+# ToDo(malcolmslaney) Change with_self_similar -> remove_self_cov
+
 def calculate_cov_dprime(data: np.ndarray,
                          noise_data: Optional[np.ndarray] = None,
                          with_self_similar: bool = False,

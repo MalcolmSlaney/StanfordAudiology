@@ -145,44 +145,50 @@ class ABRGeorgeTests(absltest.TestCase):
   def test_dprime(self):
     data = []
     num_points = 40
-    num_trials = 5000
+    num_trials = 10  # Small number of trials to see the difference
+    num_exps = 500
     rng = np.random.default_rng(seed=0)
 
     t = np.arange(num_points)/num_points
-    signal = np.sin(t*np.pi*2) * (1-t)
+    signal = np.sin(t*np.pi*2) * (1-t)  # Create (linearly) decaying sinusoid
 
-    # First test with coherent signals.
-    for i in range(num_trials):
-      data.append(np.reshape(signal + 
-                             rng.normal(scale=0.1,size=num_points), (-1, 1)))
-    data = np.concatenate(data, axis=1)
-    self.assertEqual(data.shape, (num_points, num_trials))
+    dprimes_self = []
+    dprimes_wo_self = []
+    dprimes_theory = []
+    dprimes_noise = []
+    for _ in range(num_exps):
+      # First test with coherent signals.
+      noise = rng.normal(scale=1, size=(num_points, num_trials))
+      data = np.reshape(signal, (-1, 1)) + noise
+      self.assertEqual(data.shape, (num_points, num_trials))
 
-    dprime_self = george.calculate_cov_dprime(data, with_self_similar=True)
-    dprime_wo_self = george.calculate_cov_dprime(data, with_self_similar=False)
-    dprime_theory = george.calculate_cov_dprime(data, theoretical_model=signal)
+      dprimes_self.append(george.calculate_cov_dprime(data, 
+                                                      with_self_similar=True))
+      dprimes_wo_self.append(george.calculate_cov_dprime(data, 
+                                                         with_self_similar=False))
+      dprimes_theory.append(george.calculate_cov_dprime(data, 
+                                                        with_self_similar=True, 
+                                                        theoretical_model=signal))
 
-    # Then test with incoherent signals.
-    data = []
-    for i in range(num_trials):
-      data.append(np.reshape(signal + 
-                             rng.normal(scale=1,size=num_points), (-1, 1)))
-    data = np.concatenate(data, axis=1)
-    self.assertEqual(data.shape, (num_points, num_trials))
-    dprime = george.calculate_cov_dprime(data)
-
+      # Then test with incoherent signals.
+      dprimes_noise.append(george.calculate_cov_dprime(noise, 
+                                                       with_self_similar=False))
+    dprime_self = np.mean(dprimes_self)
+    dprime_wo_self = np.mean(dprimes_wo_self)
+    dprime_theory = np.mean(dprimes_theory)
+    dprime_noise = np.mean(dprimes_noise)
     print(f'test_dprime: dprime_self={dprime_self}, '
           f'dprime_wo_self={dprime_wo_self}, ')
     print(f'test_dprime: dprime_theory={dprime_theory}, '
-          f'dprime={dprime}, ')
+          f'dprime_noise={dprime_noise}, ')
 
-    # Make sure there is a difference between dprime with and without the
-    # self point.
+    # We expect to see 
+    #   dprime_self > dprime_theory > dprime_wo_self > dprime_noise
 
-    # Disable tests until we test in Colab.
-    # self.assertGreater(dprime_self, 30)
-    # self.assertLess(dprime_wo_self, dprime_self)
-    # self.assertLess(dprime, 1)  
+    self.assertGreater(dprime_self, 2.5)
+    self.assertGreater(dprime_self, dprime_theory)
+    self.assertGreater(dprime_theory, dprime_wo_self)
+    self.assertLess(dprime_noise, 1)  
 
   def test_dprime_sets(self):
     rng = np.random.default_rng(seed=0)
