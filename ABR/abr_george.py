@@ -347,7 +347,7 @@ def preprocess_mouse_data(data: np.ndarray,
                           bandpass_filter: bool = False,
                           low_filter: float = 0*200,
                           high_filter: float = 1000,
-                          mouse_sample_rate: float = 24414*8,
+                          mouse_sample_rate: float = mouse_sample_rate,
                           first_sample: int = 0,
                           last_sample: int = -1) -> np.ndarray:
   """
@@ -1719,15 +1719,14 @@ def create_synthetic_stack(noise_level=1,
                            num_times=1952,
                            num_trials=1026):
   """Create a synthetic stack of ABR recordings so we can investigate d'
-  behaviour for really large number of trials.
+  behaviour for really large number of trials.  This stack has two different 
+  (sound pressure) levels.
   """
-  t = np.arange(num_times)/1000
+  t = np.arange(num_times)/mouse_sample_rate
   order = 4
   b = 1
-  f = 5
-  gammatone = 1000*t**(order-1)*np.exp(-2*np.pi*b*t)*np.cos(2*np.pi*f*t)
-  # gammatone = np.cos(2*np.pi*f*t)*np.hamming(num_times)
-  plt.plot(t, gammatone)
+  f = 1000
+  gammatone = 1000*(t*200)**(order-1)*np.exp(-2*np.pi*b*t*200)*np.sin(2*np.pi*f*t)
 
   # The shape of the stacks array is Freqs x levels x channels x time x trials
   stack = noise_level*np.random.normal(size=(1, 2, 1, num_times, num_trials))
