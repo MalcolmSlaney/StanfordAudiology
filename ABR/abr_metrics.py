@@ -56,4 +56,5 @@ class SNRMetric(Metric):
         noise_rms = np.sqrt(np.mean(noise_ave**2))
         return float(signal_rms / noise_rms)
 
-class SNR_dprime(Metric):
+
+# class SNR_dprime(Metric):
