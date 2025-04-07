@@ -53,7 +53,7 @@ def label_duplicates(df: pd.DataFrame) -> pd.DataFrame:
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input',
-                    '/Users/malcolm/Downloads/3-27-2024 raw data no cleaning.csv',
+                    'raw_data.csv',
                     'Input CSV filename')
 flags.DEFINE_string('output',
                     'All_Clean_Audiology_Data.csv',
@@ -62,8 +62,6 @@ flags.DEFINE_string('hmac_key',
                     None,
                     'Key to use when hashing the MRN.',
                     required=True)
-flags.DEFINE_string('cluster_dir', 'ClusterData_v1',
-                    'Where to find the pretrained cluster json data')
 flags.DEFINE_string('convert_mrns', None,
                     'Which file to read MRNs from to convert to hashes')
 
@@ -84,8 +82,7 @@ def main(argv):
                 '? * Line 1, Column 1\n  Syntax error: value, '
                 'object or array expected.\n* Line 1, Column 1\n'
                 '  A valid JSON document must be either an array '
-                'or an object value.'],
-           low_memory = False) # Added low_memory = False to get rid of DType warning
+                'or an object value.'])
 
   df.replace('NR', 1000000, inplace=True)
 
@@ -101,12 +98,17 @@ def main(argv):
 ##### VMA -- Added a few more cases to make it cleaner
   ### Remove abstracted cases
   df = df[~df['ClinicianFullName'].str.contains('Abstracted', na=False)]
-  # df = df[~df['TestLocation'].str.contains('Abstracted', na=False)]
+  df = df[~df['TestLocation'].str.contains('Abstracted', na=False)]
 
   # Convert 'DateOfTest' column to datetime using custom function
   df['DateOfTest'] = df['DateOfTest'].apply(format_date.convert_to_datetime)
   # Drop rows with NaT values (invalid dates)
   df = df.dropna(subset=['DateOfTest'])
+
+  #Remove bad ages
+  df['AgeAtTestDate'] = pd.to_numeric(df['AgeAtTestDate'], errors='coerce')
+  df = df[df['AgeAtTestDate'] >= 18]
+  df = df[df['AgeAtTestDate'] <= 110]
 
   # Renaming variables
   df.rename(columns={'Patients::Gender': 'Gender'}, inplace=True)
@@ -115,8 +117,6 @@ def main(argv):
   # Drop undesired columns
   df = df.drop(columns = ['HMAC_code.1', 'DuplicateAudioDelete',
                           'PTA_L_AC_500_1k_2k_4k', 'PTA_R_AC_500_1k_2k_4k'])
-  # Drop the first column - it's only an index
-  # df = df.drop(df.columns[[0]], axis=1, inplace=True)
 
   # Reordering columns
   begin_columns = ['Patients::HMAC', 'DateOfTest']
@@ -126,7 +126,7 @@ def main(argv):
   new_column_order = begin_columns + other_columns + ssq_columns + hlq_columns
   df = df[new_column_order]
 
-  df.to_csv(FLAGS.output)
+  df.to_csv(FLAGS.output, index = False)
 
   num_multiples = len(set(df.loc[df.MultipleVisits]['Patients::HMAC']))
   num_patients = len(set(df['Patients::HMAC']))

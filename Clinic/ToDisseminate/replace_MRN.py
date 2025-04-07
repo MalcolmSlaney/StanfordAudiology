@@ -12,10 +12,10 @@ def create_hmac(data, key, hash_type=hashlib.sha3_384):
   return digest.hexdigest()
 
 
-def replace_mrn(df, key: str = 'ReplaceMe') -> pd.DataFrame:
+def replace_mrn(df, hmac_key) -> pd.DataFrame:
   """Replace MRN (PHI) with HMAC Code - True De-identification."""
-  df['Patients::HMAC'] = df.apply(
-    lambda row: create_hmac(row['Patients::MRN'], key), axis=1)
+  df['Patients::MRN'] = df['Patients::MRN'].astype(str).str.strip()
+  df['Patients::HMAC'] = df.apply(lambda row: create_hmac(row['Patients::MRN'], hmac_key), axis=1)
   df = df.drop(columns='Patients::MRN', errors='ignore')
   df = df.drop(columns='HMAC_code', errors='ignore')
   return df
