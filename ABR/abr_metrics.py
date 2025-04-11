@@ -1,19 +1,76 @@
-from typing import Tuple
-
 import numpy as np
+import matplotlib.pyplot as plt
+from typing import Optional, Tuple, Union
 
+
+mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
+
+
+def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
+                           bw=200, order=4, cf=1000, signal_levels=(0, 1),
+                           sample_rate=mouse_sample_rate):
+    """Create a synthetic stack of ABR recordings so we can investigate d'
+    behaviour for really large number of trials.  This stack has two different
+    (sound pressure) levels.
+
+    Args:
+      noise_level: Amplitude of the white noise signal. 
+      num_times: The length of the ABR response in samples
+      num_trials: How many trials to create
+      bw: The bandwidth of the envelope (in Hz)
+      order: the Gammatone order
+      cf: The center frequency of the carrier (in Hz)
+      signal_levels: A list of signal levels to generate
+      sample_rate: What sample rate to generate the signal at
+
+    Returns:
+      a 3d tensor with shape num_levels x num_times x num_trials
+    """
+    def gammatone_func(t, cf=cf, bw=bw, order=order):
+        envelope = t ** (order - 1) * np.exp(-2 * np.pi * bw * t)
+        if cf:
+          return envelope * np.sin(2 * np.pi * cf * t)
+        else:
+          return envelope
+
+    t = np.arange(num_times) / mouse_sample_rate
+    peak_time = 3/(2*np.pi*bw)
+    peak_env = gammatone_func(peak_time, cf=0)
+    gammatone = gammatone_func(t)/peak_env
+    # The shape of the stacks array is levels x time x trials
+    stack = noise_level * np.random.normal(size=(len(signal_levels), num_times, num_trials))
+    signals = np.expand_dims(signal_levels, (1, 2)) * np.expand_dims(gammatone, (0, 2))
+    stack += signals
+    return stack
+
+
+def calculate_dprime(
+    h1: Union[list, np.ndarray],
+    h2: Union[list, np.ndarray],
+    geometric_mean: bool = False,
+) -> float:
+    """Calculate the d' given two sets of (one-dimensiona) data.  The h1
+    data should be the bigger of the two data. The normalization factor either
+    the arithmetic mean (default) of the two standard deviations, if the data is
+    additive, or a geometric mean if the data is based on a multiplicative ratio.
+    """
+    if geometric_mean:
+        return (np.mean(h1) - np.mean(h2)) / np.sqrt(np.std(h1) * np.std(h2))
+    else:
+        # Normalize by arithmetic mean of variances (not std)
+        norm = np.sqrt((np.std(h1) ** 2 + np.std(h2) ** 2) / 2.0)
+        return (np.mean(h1) - np.mean(h2)) / norm
+    
 
 class Metric(object):
   def __init__(self, *args, **kwargs):
     del args
     del kwargs
 
-  def compute_metric(
-    self, stack: np.ndarray, signal_index: int, noise_index: int = 0
-  ) -> float:
-    return 0.0  # Should never be called, always specialized.
+  def compute(self, stack: np.ndarray) -> np.ndarray:
+    return np.array(())  # Should never be called, always specialized.
 
-  def compute(
+  def compute_window(
     self,
     stack: np.ndarray,
     signal_index: int,
@@ -21,45 +78,53 @@ class Metric(object):
     window_start: int = 0,
     window_end: int = 0,
   ) -> float:
-    assert stack.ndims == 3  # num_times x num_trials
+    assert stack.ndim == 2  # num_times x num_trials
 
     if window_start and window_end:
         stack = stack[:, window_start:window_end]
-    return self.compute_metric(stack, signal_index, noise_index)
-
-  def bootstrap_compute(
-    self,
-    stack: np.ndarray,
-    trial_count: int,
-    signal_index: int,
-    repetition_count: int = 20,
-    noise_index: int = 0,
-  ) -> Tuple[float, float]:
-    dps = []
-    for j in range(repetition_count):
-      # Note: transpose the resulting array slices because of this answer:
-      #  https://stackoverflow.com/a/71489304
-      bs_stack = stack[:, :, np.random.choice(trial_count, trial_count)].T
-
-      dps.append(self.compute(bs_stack, signal_index, noise_index))
-    return float(np.mean(dps)), float(np.std(dps))
+    return self.compute(stack)
 
 
-class SNRMetric(Metric):
-  def compute_metric(
-      self, stack: np.ndarray, signal_index: int, noise_index: int = 0
-    ) -> np.ndarray:
+class RMSMetric(Metric):
+  def compute(self, stack: np.ndarray) -> np.ndarray:
     """
+    Compute the RMS of the waveform recordings, one per trial.
+
     Args:
-      stack: 3D tensor of waveform recordings: 
-        num_levels x num_times x num_trials
+      stack: 2D tensor of waveform recordings: num_times x num_trials
     """
-    assert stack.ndims == 3
-    signal_ave = np.mean(stack[signal_index, :, :], axis=-1)
-    noise_ave = np.mean(stack[noise_index, :, :], axis=-1)
-    signal_rms = np.sqrt(np.mean(signal_ave**2))
-    noise_rms = np.sqrt(np.mean(noise_ave**2))
-    return float(signal_rms / noise_rms)
+    assert stack.ndim == 2
+    return np.sqrt(np.mean(stack**2, axis=0))
 
 
-# class SNR_dprime(Metric):
+class CovMetric(Metric):
+  def compute(self, stack: np.ndarray) -> np.ndarray:
+    """
+    Compute the matched filter output of the waveform recordings, one per trial.
+
+    Args:
+      stack: 2D tensor of waveform recordings: num_times x num_trials
+    """
+    assert stack.ndim == 2
+    signal_model = np.mean(stack, axis=-1, keepdims=True)
+    return np.sqrt(np.maximum(0, np.mean(stack*signal_model, axis=0)))
+
+
+class PrestoMetric(Metric):
+  num_splits = 500 # From the paper
+  def compute(self, stack: np.ndarray) -> np.ndarray:
+    """
+    Compute a self-similarity measure based on binary splits proposed by the
+    ABRpresto paper.
+
+    Args:
+      stack: 2D tensor of waveform recordings: num_times x num_trials
+    """
+    assert stack.ndim == 2
+    correlations = np.zeros(PrestoMetric.num_splits)
+    for i in range(PrestoMetric.num_splits):
+      selections = np.random.uniform(size=stack.shape[1]) > 0.5
+      mean1 = np.mean(stack[:, selections], axis=1)
+      mean2 = np.mean(stack[:, np.logical_not(selections)], axis=1)
+      correlations[i] = np.mean(mean1*mean2)/np.std(mean1)/np.std(mean2)
+    return correlations
