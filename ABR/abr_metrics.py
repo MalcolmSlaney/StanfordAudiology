@@ -51,24 +51,21 @@ def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
     return stack
 
 
-def bootstrap(data: np.ndarray, 
-              bootstrap_size: int, 
-              num_samples: int) -> Generator[np.ndarray]:
+def bootstrap_sample(data: np.ndarray, 
+                     bootstrap_size: int) -> np.ndarray:
   """Grab a random subset of the trials from the data, choosing with
   replacement.
   Args:
     data: The data to pull from, shape num_dims x num_total_trials
     bootstrap_size: How many samples of the data to pull from the original data.
-    num_samples: How many bootstrap points to pull before stopping
 
   Returns:
-    A total of num_samples arrays of size num_dims x bookstrap_size
+    An array of size num_dims x bookstrap_size
   """
   assert data.ndim == 2
   trial_count = data.shape[1]
 
-  for _ in range(num_samples):
-    yield data[:, np.random.choice(trial_count, bootstrap_size)]
+  return data[:, np.random.choice(trial_count, bootstrap_size)]
 
 
 def calculate_dprime(

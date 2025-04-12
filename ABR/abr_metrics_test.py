@@ -34,7 +34,8 @@ class BootstrapTests(absltest.TestCase):
   def test_bootstrap(self):
     data = np.reshape(np.arange(1000000), (2, -1))
     bootstrap_size = 10
-    for b in metrics.bootstrap(data, bootstrap_size, 100):
+    for _ in range(100):
+      b = metrics.bootstrap_sample(data, bootstrap_size)
       self.assertEqual(b.shape, (2, bootstrap_size))
       c = Counter(np.reshape(b, (-1)))
       self.assertLess(max(c.values()), 2,
