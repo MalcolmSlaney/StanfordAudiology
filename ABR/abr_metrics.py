@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Optional, Tuple, Union
+from typing import Generator, Optional, Tuple, Union
 
 
 mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
@@ -53,7 +53,7 @@ def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
 
 def bootstrap(data: np.ndarray, 
               bootstrap_size: int, 
-              num_samples: int) -> np.ndarray:
+              num_samples: int) -> Generator[np.ndarray]:
   """Grab a random subset of the trials from the data, choosing with
   replacement.
   Args:
