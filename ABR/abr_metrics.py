@@ -97,8 +97,6 @@ class Metric(object):
   def compute_window(
     self,
     stack: np.ndarray,
-    signal_index: int,
-    noise_index: int = 0,
     window_start: int = 0,
     window_end: int = 0,
   ) -> float:
