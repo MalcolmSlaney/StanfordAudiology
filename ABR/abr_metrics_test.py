@@ -30,6 +30,14 @@ class DPrimeTests(absltest.TestCase):
     self.assertAlmostEqual(dprime, 10, delta=0.1)
 
 
+class ShuffleTests(absltest.TestCase):
+  def test_shuffle(self):
+    """Shuffle a big array and make sure most elements are different."""
+    start_array = np.arange(100).reshape((10, 10))
+    rnd_array = metrics.shuffle_2d_array(start_array)
+    self.assertLess(np.sum(start_array == rnd_array), 3)
+
+
 class BootstrapTests(absltest.TestCase):
   def test_bootstrap(self):
     data = np.reshape(np.arange(1000000), (2, -1))

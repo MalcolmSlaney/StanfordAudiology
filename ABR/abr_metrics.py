@@ -172,3 +172,10 @@ class PrestoMetric(Metric):
       mean2 = np.mean(stack[:, np.logical_not(selections)], axis=1)
       correlations[i] = np.mean(mean1*mean2)/np.std(mean1)/np.std(mean2)
     return correlations
+
+
+def shuffle_2d_array(array_2d):
+    array2d = array_2d.copy()
+    flat_array = array_2d.flatten()
+    np.random.shuffle(flat_array)
+    return flat_array.reshape(array_2d.shape)
