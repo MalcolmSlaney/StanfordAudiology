@@ -6,6 +6,13 @@ from typing import Optional, Tuple, Union
 mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
 
 
+# To calculate the time when the gammatone envelope reaches its peak, use 
+# Wolfram Alpha to compute:
+# 
+# Solve[D[(t^e)*e^(-2*Pi*b*t), t] == 0, t]
+#
+# Result is e/(2*pi*b)
+
 def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
                            bw=200, order=4, cf=1000, signal_levels=(0, 1),
                            sample_rate=mouse_sample_rate):
@@ -42,6 +49,26 @@ def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
     signals = np.expand_dims(signal_levels, (1, 2)) * np.expand_dims(gammatone, (0, 2))
     stack += signals
     return stack
+
+
+def bootstrap(data: np.ndarray, 
+              bootstrap_size: int, 
+              num_samples: int) -> np.ndarray:
+  """Grab a random subset of the trials from the data, choosing with
+  replacement.
+  Args:
+    data: The data to pull from, shape num_dims x num_total_trials
+    bootstrap_size: How many samples of the data to pull from the original data.
+    num_samples: How many bootstrap points to pull before stopping
+
+  Returns:
+    A total of num_samples arrays of size num_dims x bookstrap_size
+  """
+  assert data.ndim == 2
+  trial_count = data.shape[1]
+
+  for _ in range(num_samples):
+    yield data[:, np.random.choice(trial_count, bootstrap_size)]
 
 
 def calculate_dprime(

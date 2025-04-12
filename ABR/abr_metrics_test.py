@@ -1,3 +1,4 @@
+from collections import Counter
 import math
 import os
 
@@ -27,6 +28,17 @@ class DPrimeTests(absltest.TestCase):
 
     dprime = metrics.calculate_dprime(signal, noise)
     self.assertAlmostEqual(dprime, 10, delta=0.1)
+
+
+class BootstrapTests(absltest.TestCase):
+  def test_bootstrap(self):
+    data = np.reshape(np.arange(1000000), (2, -1))
+    bootstrap_size = 10
+    for b in metrics.bootstrap(data, bootstrap_size, 100):
+      self.assertEqual(b.shape, (2, bootstrap_size))
+      c = Counter(np.reshape(b, (-1)))
+      self.assertLess(max(c.values()), 2,
+                      f'Got {c}')
 
 
 class MetricTests(absltest.TestCase):
