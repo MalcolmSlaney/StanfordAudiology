@@ -122,16 +122,36 @@ class RMSMetric(Metric):
 
 
 class CovMetric(Metric):
-  def compute(self, stack: np.ndarray) -> np.ndarray:
+  def __init__(self, with_self_similar=False): 
+    self.with_self_similar = with_self_similar
+
+  def compute(self, 
+              stack: np.ndarray, 
+              model: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Compute the matched filter output of the waveform recordings, one per trial.
 
     Args:
       stack: 2D tensor of waveform recordings: num_times x num_trials
+      model: Optional exact form of expected signal for testing.
     """
     assert stack.ndim == 2
-    signal_model = np.mean(stack, axis=-1, keepdims=True)
-    return np.sqrt(np.maximum(0, np.mean(stack*signal_model, axis=0)))
+    
+    if model is None:
+      model = np.mean(stack, axis=-1, keepdims=True)
+
+    if self.with_self_similar:  # Consider all the terms
+      stack = np.reshape(model, (stack.shape[0], 1)) * stack
+      response = np.mean(stack, axis=0)  # Sum response over time
+    else:
+      num_trials = stack.shape[1]
+      response = np.zeros(num_trials)
+      model = model[:, 0]
+      for i in range(num_trials):
+        model_without = (model * num_trials - stack[:, i]) / (num_trials - 1)
+        response[i] = np.mean(model_without * stack[:, i])
+    return np.sqrt(np.maximum(0, response))
+
 
 
 class PrestoMetric(Metric):
