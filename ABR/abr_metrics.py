@@ -177,3 +177,27 @@ def shuffle_2d_array(array_2d):
     flat_array = array_2d.flatten()
     np.random.shuffle(flat_array)
     return flat_array.reshape(array_2d.shape)
+
+    
+def calculate_dprimes(exp_stack: np.ndarray, 
+                      metric: Metric,
+                      signal_index: int = -1,
+                      noise_index: int = 0,
+                      window_start: int = 0,
+                      window_end: int = 0,
+                      **compute_args
+                      ) -> np.ndarray:
+  assert exp_stack.ndim == 3  # num_levels x num_times x num_trials
+  dprimes = np.zeros(exp_stack.shape[0])
+
+  shuffled_noise = shuffle_2d_array(exp_stack[noise_index, ...])
+  noise_dist = metric.compute_window(shuffled_noise,
+                                     window_start=window_start,
+                                     window_end=window_end)
+
+  for i in range(exp_stack.shape[0]):
+    signal_dist = metric.compute_window(exp_stack[i, ...], 
+                                        window_start=window_start,
+                                        window_end=window_end)
+    dprimes[i] = calculate_dprime(signal_dist, noise_dist)
+  return dprimes

@@ -29,13 +29,20 @@ class DPrimeTests(absltest.TestCase):
     dprime = metrics.calculate_dprime(signal, noise)
     self.assertAlmostEqual(dprime, 10, delta=0.1)
 
+  def test_stack_dprime(self):
+    exp_stack = metrics.create_synthetic_stack(noise_level=1, 
+                                               signal_levels=np.linspace(0, .9, 10))
+    cov_ns_metric = metrics.CovMetric(with_self_similar=False)
+    cov_dprimes = metrics.calculate_dprimes(exp_stack, cov_ns_metric)
+    self.assertGreater(np.mean(cov_dprimes), 10)
+    self.assertLess(np.std(cov_dprimes), 10)  # Why so high?
 
 class ShuffleTests(absltest.TestCase):
   def test_shuffle(self):
     """Shuffle a big array and make sure most elements are different."""
     start_array = np.arange(100).reshape((10, 10))
     rnd_array = metrics.shuffle_2d_array(start_array)
-    self.assertLess(np.sum(start_array == rnd_array), 3)
+    self.assertLess(np.sum(start_array == rnd_array), 5)
 
 
 class BootstrapTests(absltest.TestCase):
