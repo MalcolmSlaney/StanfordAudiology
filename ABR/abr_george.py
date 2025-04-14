@@ -2102,6 +2102,7 @@ def main(_):
         all_mouse_dirs = find_all_mouse_directories(FLAGS.csv_dir)
         for mouse_dir in all_mouse_dirs:
             if FLAGS.filter in mouse_dir:
+              print(f'Processing waveforms in {mouse_dir}.')
               cache_dir = os.path.join(FLAGS.cache_dir,
                                        mouse_dir.replace(FLAGS.csv_dir, ''))
               os.makedirs(cache_dir, exist_ok=True)
