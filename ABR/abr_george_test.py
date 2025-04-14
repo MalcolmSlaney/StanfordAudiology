@@ -1,5 +1,6 @@
 import math
 import os
+import shutil
 
 from absl.testing import absltest
 import abr_george as george
@@ -25,9 +26,14 @@ test_csv_content_2 = """group,sgi,channel,subject,ref1,ref2,memo,Freq(Hz),Level(
 """
 
 class ABRGeorgeTests(absltest.TestCase):
-  csv_name_1 = '/tmp/20230824_control1_pre4-0-52-1-1.csv'
-  csv_name_2 = '/tmp/20230824_control1_pre4-0-52-1-2.csv'
-  csv_name_3 = '/tmp/20230824_control2_pre4-0-52-1-2.csv'
+  csv_dir = '/tmp'
+  csv_name_1 = os.path.join(csv_dir, '20230824_control1_pre4-0-52-1-1.csv')
+  csv_name_2 = os.path.join(csv_dir, '20230824_control1_pre4-0-52-1-2.csv')
+  csv_name_3 = os.path.join(csv_dir, '20230824_control2_pre4-0-52-1-2.csv')
+
+  cache_dir = '/tmp/cache'
+  shutil.rmtree(cache_dir, ignore_errors=True)
+  os.makedirs(cache_dir)
 
   def setUp(self):
     with open(ABRGeorgeTests.csv_name_1, 'w') as fp:
@@ -49,8 +55,8 @@ class ABRGeorgeTests(absltest.TestCase):
     self.assertEqual(george.exp_type_from_name(exp.basename), 'control1_pre4')
 
   def test_read_csv_dir(self):
-    george.cache_all_mouse_dir('/tmp')
-    all_exps = george.load_waveform_cache('/tmp')
+    george.cache_all_mouse_dir(ABRGeorgeTests.csv_dir, ABRGeorgeTests.cache_dir)
+    all_exps = george.load_waveform_cache(ABRGeorgeTests.cache_dir)
     self.assertLen(all_exps, 2)
     for exp in all_exps:
       if exp.filename == ABRGeorgeTests.csv_name_2:
@@ -221,16 +227,18 @@ class ABRGeorgeTests(absltest.TestCase):
     plt.savefig('/tmp/dprime_plot.png')
 
   def test_caching(self):
-    basedir = '/tmp'
+    os.makedirs(ABRGeorgeTests.cache_dir, exist_ok=True)
     pickle_name= 'cache.pkl'
     try:
-      os.remove(os.path.join(basedir, pickle_name))
+      os.remove(os.path.join(ABRGeorgeTests.cache_dir, pickle_name))
     except OSError as error:
       pass
-    george.cache_all_mouse_dir(basedir, waveform_pickle_name=pickle_name)
-    all_trials = george.load_waveform_cache(basedir, pickle_name)
+    george.cache_all_mouse_dir(ABRGeorgeTests.csv_dir, 
+                               ABRGeorgeTests.cache_dir, 
+                               waveform_pickle_name=pickle_name)
+    all_trials = george.load_waveform_cache(ABRGeorgeTests.cache_dir, pickle_name)
     self.assertLen(all_trials, 2)
-    george.summarize_all_data([basedir], pickle_name)
+    george.summarize_all_data([ABRGeorgeTests.cache_dir], pickle_name)
  
 
   def test_synthetic_rms(self):
@@ -244,8 +252,8 @@ class ABRGeorgeTests(absltest.TestCase):
 
     synthetic_test_stack = metrics.create_synthetic_stack(noise_level=.1, 
                                                           num_trials=num_trials)
-    synthetic_test_stack = np.expand_dims(synthetic_test_stack, [0, 1])
-    self.assertEqual(synthetic_test_stack.shape, (1, 1, 1, 1952, num_trials))
+    synthetic_test_stack = np.expand_dims(synthetic_test_stack, [0, 2])
+    self.assertEqual(synthetic_test_stack.shape, (1, 2, 1, 1952, num_trials))
 
     (synthetic_snrs, 
      synthetic_time_windows) = george.snr_vs_window_size(
