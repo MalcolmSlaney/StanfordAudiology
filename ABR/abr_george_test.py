@@ -3,6 +3,7 @@ import os
 
 from absl.testing import absltest
 import abr_george as george
+import abr_metrics as metrics
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -233,7 +234,7 @@ class ABRGeorgeTests(absltest.TestCase):
  
 
   def test_gammatone(self):
-    synthetic_stack = george.create_synthetic_stack(noise_level=0, num_trials=1)
+    synthetic_stack = metrics.create_synthetic_stack(noise_level=0, num_trials=1)
 
     plt.figure()
     t = np.arange(synthetic_stack.shape[-2])/george.mouse_sample_rate
