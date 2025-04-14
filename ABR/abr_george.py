@@ -247,19 +247,21 @@ def summarize_all_data(
 
 
 def cache_all_mouse_dir(
-    expdir: str,
+    csv_dir: str,
+    cache_dir: str,
     waveform_pickle_name: str = mouse_waveforms_pickle_name,
     max_files: int = 0,
     max_bytes: float = 10e9,
     debug: bool = False,
 ) -> None:
     """
-    Read and cache the CSV mouse experiments in the given directory. Each
+    Read and cache the CSV a mouse experiments in the given directory. Each
     trial experiment is stored in a single CSV file.  This routine reads all the
     csv files and converts them into numpy arrays, stored as pickle files.
 
     Args:
-      expdir:  Where to find the experimental for this animal
+      csv_dir:  Where to find the experimental for this animal
+      cache_dir: Where to find (or put) the cached data.
       waveform_pickle_name: The canonical name for the resulting pickle files
         (They will be numbered later.)
       max_files: How many files to put into one pickle file, to limit for
@@ -275,11 +277,11 @@ def cache_all_mouse_dir(
     def cache_size(all_trials: List[MouseExp]):
         return sum([exp.single_trials.nbytes for exp in all_exps])
 
-    print("Cache_all_mouse_dir:", expdir, max_files, max_bytes)
+    print("Cache_all_mouse_dir from", csv_dir, max_files, max_bytes)
     all_exp_files = [
         f
-        for f in os.listdir(expdir)
-        if os.path.isfile(os.path.join(expdir, f)) and f.endswith(".csv")
+        for f in os.listdir(csv_dir)
+        if os.path.isfile(os.path.join(csv_dir, f)) and f.endswith(".csv")
     ]
 
     all_exps = []
@@ -294,7 +296,7 @@ def cache_all_mouse_dir(
                 f"    Reading {f} ({len(all_exps)}/{total_file_count} "
                 f"totaling {cache_size(all_exps)} bytes)"
             )
-        exp = read_mouse_exp(os.path.join(expdir, f))
+        exp = read_mouse_exp(os.path.join(csv_dir, f))
         all_exps.append(exp)
         if max_files and len(all_exps) >= max_files:
             print(f"  Reached maximum limit of {max_files} files to process.")
@@ -302,16 +304,16 @@ def cache_all_mouse_dir(
         if max_bytes and cache_size(all_exps) > max_bytes:
             save_waveform_cache(
                 all_exps,
-                expdir,
+                cache_dir,
                 cache_file_count,
                 waveform_pickle_name=waveform_pickle_name,
             )
             cache_file_count += 1
             all_exps = []
-    if all_exps:
+    if all_exps:  # Do the remainder
         save_waveform_cache(
             all_exps,
-            expdir,
+            cache_dir,
             cache_file_count,
             waveform_pickle_name=waveform_pickle_name,
         )
@@ -1477,7 +1479,10 @@ def filter_waveform_data(
     return filtered_exps
 
 
-GeorgeMouseDataDir = "drive/Shareddrives/StanfordAudiology/" "GeorgeMouseABR/CAP_ABR"
+GeorgeMouseDataDir = ("drive/Shareddrives/StanfordAudiology/"
+                      "GeorgeMouseABR/CAP_ABR")
+GeorgeCachedDataDir = ("drive/Shareddrives/StanfordAudiology/"
+                        "GeorgeMouseABR/CAP_Cache")
 
 
 def XXcache_all_waveforms(base_dir: str = GeorgeMouseDataDir) -> None:
@@ -1982,26 +1987,33 @@ flags.DEFINE_enum(
     "Which processing to do on this basedir.",
 )
 flags.DEFINE_string(
-    "basedir",
+    "csv_dir",
     "drive/Shareddrives/StanfordAudiology/" "GeorgeMouseABR/CAP_ABR",
     "Base directory to find the ABRPresto mouse data",
 )
 flags.DEFINE_string(
-    "waveforms_cache",
+    "cache_dir",
+    "drive/Shareddrives/StanfordAudiology/" "GeorgeMouseABR/CAP_Cache",
+    "Base directory to find the experiment's cache data",
+)
+flags.DEFINE_string(
+    "waveforms_cache_name",
     mouse_waveforms_pickle_name,
     "Where to cache all the waveforms in this directory",
 )
 flags.DEFINE_string(
-    "dprimes_cache",
+    "dprimes_cache_name",
     mouse_dprimes_pickle_name,
     "Where to cache the dprimes in this directory",
 )
-flags.DEFINE_string("filter", "", "Which subdirectories to process, ignore rest.")
-flags.DEFINE_integer("max_cache_gbytes", 10, "Maximum size of one cache file (GBytes).")
+flags.DEFINE_string("filter", "", 
+                    "Which subdirectories to process, ignore rest.")
+flags.DEFINE_integer("max_cache_gbytes", 10, 
+                     "Maximum size of one cache file (GBytes).")
 flags.DEFINE_integer(
     "first_sample",
     0,
-    "Start sample # of the temporal window to extract from " "each ABR waveform",
+    "Start sample # of the temporal window to extract from each ABR waveform",
 )
 flags.DEFINE_integer(
     "last_sample",
@@ -2028,13 +2040,18 @@ def waveform_caches_present(dir: str, waveform_pickle_name: str) -> int:
 
 
 def cache_waveform_one_dir(
-    dir: str, waveform_pickle_name: str, max_files: int = 0, max_bytes: float = 10e9
+    csv_dir: str, 
+    cache_dir: str, 
+    waveform_pickle_name: str, 
+    max_files: int = 0, 
+    max_bytes: float = 10e9
 ) -> None:
     """Read all the CSV files and convert them into pickled numpy arrays.  CSV
     files take a long time to read and parse, so this is an important speedup.
 
     Args:
-      dir: Top level directory to find all the waveform CSV files.
+      csv_dir: Directory to find a single mouse's waveform CSV files.
+      cache_dir: Where to put the Waveform CSV files, mirroring the csv_dir.
       waveform_pickle_name: Basic pickle file name, of the form  x.pkl.  We
         remove the .pkl name and look for files of the form x*.pkl, as the
         pickle files are big and we had to split them into multiple pieces,
@@ -2044,7 +2061,7 @@ def cache_waveform_one_dir(
         file.
 
     """
-    num_good = waveform_caches_present(dir, waveform_pickle_name)
+    num_good = waveform_caches_present(cache_dir, waveform_pickle_name)
     if num_good:
         print(
             f"Skipping waveforms and dprimes in {dir} because they are "
@@ -2053,10 +2070,11 @@ def cache_waveform_one_dir(
         return
     print(
         f"Processing up to {max_files} files or {max_bytes/1e9} GB of "
-        f"CSV waveforms in {dir}"
+        f"CSV waveforms in {csv_dir} into {cache_dir}."
     )
     cache_all_mouse_dir(
-        dir, waveform_pickle_name, debug=True, max_files=max_files, max_bytes=max_bytes
+        csv_dir, cache_dir, waveform_pickle_name, 
+        debug=True, max_files=max_files, max_bytes=max_bytes
     )
 
 
@@ -2081,16 +2099,17 @@ def cache_dprime_one_dir(
 
 def main(_):
     if FLAGS.mode == "waveforms":
-        all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
-        for dir in all_mouse_dirs:
-            if FLAGS.filter in dir:
-                # waveform_cache = os.path.join(dir, FLAGS.waveforms_cache)
-                # dprime_cache = os.path.join(dir, FLAGS.dprimes_cache)
-                cache_waveform_one_dir(
-                    dir, FLAGS.waveforms_cache, max_bytes=FLAGS.max_cache_gbytes * 1e9
-                )
+        all_mouse_dirs = find_all_mouse_directories(FLAGS.csv_dir)
+        for mouse_dir in all_mouse_dirs:
+            if FLAGS.filter in mouse_dir:
+              cache_dir = os.path.join(FLAGS.cache_dir,
+                                       mouse_dir.replace(FLAGS.csv_dir, ''))
+              os.makedirs(cache_dir, exist_ok=True)
+              cache_waveform_one_dir(mouse_dir, cache_dir, 
+                                     FLAGS.waveforms_cache_name, 
+                                     max_bytes=FLAGS.max_cache_gbytes * 1e9)
     elif FLAGS.mode == "dprimes":
-        all_mouse_dirs = find_all_mouse_directories(FLAGS.basedir)
+        all_mouse_dirs = find_all_mouse_directories(FLAGS.cache_dir)
         for dir in all_mouse_dirs:
             if FLAGS.filter in dir:
                 cache_dprime_one_dir(

@@ -242,9 +242,10 @@ class ABRGeorgeTests(absltest.TestCase):
     expected_peak = 2.3
     expected_delta = 1.0   # ToDo(malcolm) Need to tighten this bound
 
-    synthetic_test_stack = george.create_synthetic_stack(noise_level=.1, 
-                                                         num_trials=num_trials)
-    self.assertEqual(synthetic_test_stack.shape, (1, 2, 1, 1952, num_trials))
+    synthetic_test_stack = metrics.create_synthetic_stack(noise_level=.1, 
+                                                          num_trials=num_trials)
+    synthetic_test_stack = np.expand_dims(synthetic_test_stack, [0, 1])
+    self.assertEqual(synthetic_test_stack.shape, (1, 1, 1, 1952, num_trials))
 
     (synthetic_snrs, 
      synthetic_time_windows) = george.snr_vs_window_size(
