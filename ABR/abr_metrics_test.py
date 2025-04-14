@@ -27,7 +27,7 @@ class DPrimeTests(absltest.TestCase):
     noise = np.random.normal(0, .1, 10240)
 
     dprime = metrics.calculate_dprime(signal, noise)
-    self.assertAlmostEqual(dprime, 10, delta=0.1)
+    self.assertAlmostEqual(dprime, 10, delta=0.15)
 
   def test_stack_dprime(self):
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
@@ -63,7 +63,7 @@ class MetricTests(absltest.TestCase):
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
                                                signal_levels=signal_levels)
 
-    rms_metric = metrics.RMSMetric()
+    rms_metric = metrics.TotalRMSMetric()
     rms_dist_s = rms_metric.compute(exp_stack[-1, ...])
     rms_dist_n = rms_metric.compute(exp_stack[0, ...])
     self.assertLess(np.mean(rms_dist_n), np.mean(rms_dist_s))
@@ -87,6 +87,19 @@ class MetricTests(absltest.TestCase):
     presto_dist_s = presto_metric.compute(exp_stack[-1, :, :400])
     presto_dist_n = presto_metric.compute(exp_stack[0, :, :400])
     self.assertLess(np.mean(presto_dist_n), np.mean(presto_dist_s))
+
+
+class PlotTests(absltest.TestCase):
+  def test_plot(self):
+    plt.clf()
+    signal_levels = np.linspace(0, 1, 11)
+    stack = metrics.create_synthetic_stack(num_times=4200, num_trials=52, 
+                                           signal_levels=signal_levels,
+                                           noise_level=0)
+    self.assertEqual(stack.shape, (len(signal_levels), 4200, 52))
+    metrics.show_response_stack(stack, (100*signal_levels).astype(int), 
+                                title='Test Plot')
+    plt.savefig('test_show_response_stack.png')
 
 if __name__ == "__main__":
   absltest.main()

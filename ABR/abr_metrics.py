@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Generator, Optional, Tuple, Union
+from typing import Generator, List, Optional, Tuple, Union
 
 
 mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
@@ -107,7 +107,7 @@ class Metric(object):
     return self.compute(stack)
 
 
-class RMSMetric(Metric):
+class TotalRMSMetric(Metric):
   def compute(self, stack: np.ndarray) -> np.ndarray:
     """
     Compute the RMS of the waveform recordings, one per trial.
@@ -201,3 +201,62 @@ def calculate_dprimes(exp_stack: np.ndarray,
                                         window_end=window_end)
     dprimes[i] = calculate_dprime(signal_dist, noise_dist)
   return dprimes
+
+
+def show_response_stack(
+    stack: np.ndarray,
+    levels: Union[np.ndarray, List[float]],
+    alpha: float = 0.01,
+    title: str = "",
+    skip_levels: int = 3,
+    relative_max: float = 1.5,
+    absolute_max: float = 0,
+    num_cols: int = 1,
+    col_num: int = 0,
+) -> None:
+    """Show a stack of all ABR waveforms across levels.  The number of plots is
+    determined by the number of levels in stack, and skip_levels
+
+    Args:
+      stack: a 3 dimensional tensor from create_stack for one animal of shape
+        level, time, trial
+      levels: which levels are defined in this stack
+      alpha: opaqueness of waveform plot.  Usually close to zero so we can
+        overlap lots of waveforms
+      title: What title to put on top of the waveform stack
+      skip_levels: The increment (> 0) across levels for each subplot.
+      relative_max: Limit y axis of plot to this factor of the max average
+        waveform if the absolute value is not set.
+      absolute_max: Limit y axis of plot to this absolute value.
+      num_cols: How many columns of stacks to show
+      col_num: which column to plot this time (0 <= col_num < num_cols)
+    """
+    levels2plot = levels[::skip_levels]
+    if isinstance(levels, np.ndarray):
+      levels = levels.tolist() 
+    t = np.arange(stack.shape[-2]) / mouse_sample_rate
+    for i, level in enumerate(levels2plot):
+        plt.subplot(len(levels2plot), num_cols, i * num_cols + col_num + 1)
+        plt.plot(t * 1000, stack[levels.index(level), ...], alpha=alpha)
+        mean_stack = np.mean(stack[levels.index(level), ...], axis=-1)
+        plt.plot(t * 1000, mean_stack, color="r")
+        m = np.max(np.abs(mean_stack))
+        if m == 0:
+           m = np.max(np.abs(stack))  # In case waveform is all zero.
+        if absolute_max > 0:
+            plt.ylim(-absolute_max, absolute_max)
+        else:
+            plt.ylim(-relative_max * m, relative_max * m)
+        wave_rms = np.sqrt(np.mean(stack[levels.index(level), ...] ** 2))
+        plt.text(np.max(t * 1000) * 0.75, 1.20 * m, 
+                 f"Waveform RMS={wave_rms:5.3g}")
+        ave_rms = np.sqrt(np.mean(mean_stack**2))
+        plt.text(0.0, 1.20 * m, f"Average RMS={ave_rms:5.3g}", color="red")
+
+        plt.xlabel("Time (ms)")
+        plt.ylabel(f"{level}dB")
+
+        if i == 0:
+            plt.title(title)
+        if i != len(levels2plot) - 1:
+            plt.gca().xaxis.set_tick_params(labelcolor="none")

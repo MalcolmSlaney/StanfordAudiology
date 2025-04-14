@@ -24,6 +24,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import jsonpickle
 import jsonpickle.ext.numpy as jsonpickle_numpy
 from abr import remove_offset
+import abr_metrics as abrm
 
 jsonpickle_numpy.register_handlers()
 
@@ -1874,28 +1875,6 @@ def block_waveform_stack(
             np.random.choice(trial_count, block_size),
         ].T
         yield signal_data, noise_data
-
-
-def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026):
-    """Create a synthetic stack of ABR recordings so we can investigate d'
-    behaviour for really large number of trials.  This stack has two different
-    (sound pressure) levels.
-    """
-    t = np.arange(num_times) / mouse_sample_rate
-    order = 4
-    b = 1
-    f = 1000
-    gammatone = (
-        1000
-        * (t * 200) ** (order - 1)
-        * np.exp(-2 * np.pi * b * t * 200)
-        * np.sin(2 * np.pi * f * t)
-    )
-
-    # The shape of the stacks array is Freqs x levels x channels x time x trials
-    stack = noise_level * np.random.normal(size=(1, 2, 1, num_times, num_trials))
-    stack[0, 1, 0, :, :] += np.expand_dims(gammatone, axis=[1])
-    return stack
 
 
 def snr_vs_window_size(
