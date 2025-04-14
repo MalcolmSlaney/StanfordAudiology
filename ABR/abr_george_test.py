@@ -233,26 +233,6 @@ class ABRGeorgeTests(absltest.TestCase):
     george.summarize_all_data([basedir], pickle_name)
  
 
-  def test_gammatone(self):
-    synthetic_stack = metrics.create_synthetic_stack(noise_level=0, num_trials=1)
-
-    plt.figure()
-    t = np.arange(synthetic_stack.shape[-2])/george.mouse_sample_rate
-    plt.plot(t*1000, synthetic_stack[0, 1, 0, :, 0]); 
-    plt.xlabel('Time (ms)')
-    plt.savefig('test_gammatone.png')
-
-    self.assertEqual(synthetic_stack.shape, (1, 2, 1, 1952, 1))
-    self.assertAlmostEqual(
-      np.max(synthetic_stack[0, 0, 0, :, 0]), 
-      0.0, delta=0.1)   # Min signal level for first stack
-    self.assertAlmostEqual(
-      np.max(synthetic_stack[0, 1, 0, :, 0]), 
-      5.4, delta=0.1)   # Max signal level for high SPL
-    self.assertAlmostEqual(
-      np.argmax(synthetic_stack[0, 1, 0, :, 0])/george.mouse_sample_rate*1000, 
-      2.2, delta=0.1)   # Peak response at 2ms.
-
   def test_synthetic_rms(self):
     """Test SNR vs. window size calculation by using a synthetic ABR and 
     making sure that the peak response (when considered one short window at

@@ -1971,26 +1971,6 @@ def stack_t_test(
     return pvals, block_sizes
 
 
-if False:
-    synthetic_stack = create_synthetic_stack(noise_level=10, num_trials=16384)
-    plt.title("Synthetic ABR Waveform")
-
-    (block_sizes, dprime_mean_by_size, dprime_std_by_size) = (
-        calculate_dprime_by_trial_count(
-            synthetic_stack,
-            signal_index=1,
-            noise_index=0,
-            freq_index=0,
-            channel_index=0,
-        )
-    )
-
-    plt.errorbar(block_sizes, dprime_mean_by_size, dprime_std_by_size)
-    plt.xscale("log")
-    plt.xlabel("Block Size (trials)")
-    plt.ylabel("d' Estimate")
-    plt.title("Synthetic d' vs. Trial Count")
-
 ###############  Main program, so we can run this offline ####################
 
 FLAGS = flags.FLAGS
