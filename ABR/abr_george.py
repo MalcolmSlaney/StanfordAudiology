@@ -2111,7 +2111,7 @@ def main(_):
       all_mouse_dirs = find_all_mouse_directories(FLAGS.waveform_dir)
       for mouse_dir in all_mouse_dirs:
         if FLAGS.filter in mouse_dir:
-          print(f'Processing waveforms in {mouse_dir}.')
+          print(f'Reading waveforms from {mouse_dir} and putting into {FLAGS.cache_dir}')
           cache_dir = os.path.join(FLAGS.cache_dir,
                                    mouse_dir.replace(FLAGS.waveform_dir, ''))
           print('New cache dir is', cache_dir)
