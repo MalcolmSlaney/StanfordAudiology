@@ -2114,6 +2114,7 @@ def main(_):
           print(f'Processing waveforms in {mouse_dir}.')
           cache_dir = os.path.join(FLAGS.cache_dir,
                                    mouse_dir.replace(FLAGS.waveform_dir, ''))
+          print('New cache dir is', cache_dir)
           os.makedirs(cache_dir, exist_ok=True)
           cache_waveform_one_dir(mouse_dir, cache_dir, 
                                  FLAGS.waveforms_cache_name, 
