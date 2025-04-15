@@ -95,6 +95,23 @@ class MetricTests(absltest.TestCase):
     presto_dist_n = presto_metric.compute(exp_stack[0, :, :400])
     self.assertLess(np.mean(presto_dist_n), np.mean(presto_dist_s))
 
+  def test_all(self):
+    signal_levels = np.linspace(0, .9, 10)
+    exp_stack = metrics.create_synthetic_stack(noise_level=1, 
+                                               signal_levels=signal_levels)
+    self.assertEqual(exp_stack.shape, (10, 1952, 1026))
+    full_stack = np.expand_dims(exp_stack, (0, 2))
+    self.assertEqual(full_stack.shape, (1, 10, 1, 1952, 1026))
+
+    all_results = metrics.measure_full_stack(full_stack)
+
+    for k in metrics.all_metrics:
+      if k == 'presto':
+        self.assertEqual(all_results[k].shape, (1, 10, 1, 500))
+      else:
+        self.assertEqual(all_results[k].shape, (1, 10, 1, 1026))
+
+
 
 class PlotTests(absltest.TestCase):
   def test_plot(self):

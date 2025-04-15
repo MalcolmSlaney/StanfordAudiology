@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Generator, List, Optional, Tuple, Union
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
 
 mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
@@ -272,3 +272,28 @@ def show_response_stack(
             plt.title(title)
         if i != len(levels2plot) - 1:
             plt.gca().xaxis.set_tick_params(labelcolor="none")
+
+
+def measure_full_stack(stack) -> Dict[str, np.ndarray]:
+  """Calculate all metrics on a full 5-dimensional stack of waveforms.
+  For each frequency, level and channels, summarize the ERP data and create a
+  new 4d array adding the summary.
+
+  Ret
+  """
+  assert stack.ndim == 5 # Freqs x levels x channels x time x trials
+  num_freqs, num_levels, num_channels, _, _ = stack.shape
+  results = {}
+  for key in all_metrics:
+    metric = all_metrics[key]()
+    metric_result = None
+    for f in range(num_freqs):
+      for l in range(num_levels):
+        for c in range(num_channels):
+          r = metric.compute(stack[f, l, c, :, :])
+          if metric_result is None:
+            metric_result = np.zeros((num_freqs, num_levels, num_channels, 
+                                      len(r)))
+          metric_result[f,l,c] = r
+    results[key] = metric_result
+  return results
