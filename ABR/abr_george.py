@@ -2065,7 +2065,7 @@ def cache_waveform_one_dir(
     num_good = waveform_caches_present(cache_dir, waveform_pickle_name)
     if num_good:
         print(
-            f"Skipping waveforms and dprimes in {dir} because they are "
+            f"Skipping waveforms and dprimes in {cached_dir} because they are "
             f"{num_good} cached files."
         )
         return
