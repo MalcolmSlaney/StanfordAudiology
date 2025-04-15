@@ -96,6 +96,7 @@ class MetricTests(absltest.TestCase):
     self.assertLess(np.mean(presto_dist_n), np.mean(presto_dist_s))
 
   def test_all(self):
+    """Test computing all metrics on a full 5d (George@Stanford) stack."""
     signal_levels = np.linspace(0, .9, 10)
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
                                                signal_levels=signal_levels)

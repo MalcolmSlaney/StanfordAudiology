@@ -279,10 +279,11 @@ def measure_full_stack(stack) -> Dict[str, np.ndarray]:
   For each frequency, level and channels, summarize the ERP data and create a
   new 4d array adding the summary.
 
-  Ret
+  Return a dictionary of 4d stack, mirroring the first 3d, and adding a 
+  dimension, depending on the metric, for that metric's analysis.
   """
   assert stack.ndim == 5 # Freqs x levels x channels x time x trials
-  num_freqs, num_levels, num_channels, _, _ = stack.shape
+  num_freqs, num_levels, num_channels, num_time, num_trials = stack.shape
   results = {}
   for key in all_metrics:
     metric = all_metrics[key]()
