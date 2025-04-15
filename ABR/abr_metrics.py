@@ -119,7 +119,7 @@ class TotalRMSMetric(Metric):
     return np.sqrt(np.mean(stack**2, axis=0))
 
 
-class CovMetric(Metric):
+class CovarianceMetric(Metric):
   def __init__(self, with_self_similar=False): 
     self.with_self_similar = with_self_similar
 
@@ -151,6 +151,11 @@ class CovMetric(Metric):
     return np.sqrt(np.maximum(0, response))
 
 
+class CovarianceSelfSimilarMetric(CovarianceMetric):
+  def __init__(self):
+     super().__init__(with_self_similar=True)
+  # All the rest as is
+
 
 class PrestoMetric(Metric):
   num_splits = 500 # From the paper
@@ -171,6 +176,13 @@ class PrestoMetric(Metric):
       correlations[i] = np.mean(mean1*mean2)/np.std(mean1)/np.std(mean2)
     return correlations
 
+
+all_metrics = {
+   'total_rms': TotalRMSMetric,
+   'covariance': CovarianceMetric,
+   'covariance_self_similar': CovarianceSelfSimilarMetric,
+   'presto': PrestoMetric
+}
 
 def shuffle_2d_array(array_2d):
     array2d = array_2d.copy()

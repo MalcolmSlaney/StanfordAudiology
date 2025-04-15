@@ -32,7 +32,7 @@ class DPrimeTests(absltest.TestCase):
   def test_stack_dprime(self):
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
                                                signal_levels=np.linspace(0, .9, 10))
-    cov_ns_metric = metrics.CovMetric(with_self_similar=False)
+    cov_ns_metric = metrics.CovarianceMetric(with_self_similar=False)
     cov_dprimes = metrics.calculate_dprimes(exp_stack, cov_ns_metric)
     self.assertGreater(np.mean(cov_dprimes), 10)
     self.assertLess(np.std(cov_dprimes), 10)  # Why so high?
@@ -73,10 +73,17 @@ class MetricTests(absltest.TestCase):
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
                                                signal_levels=signal_levels)
 
-    cov_metric = metrics.CovMetric()
+    cov_metric = metrics.CovarianceMetric()
     cov_dist_s = cov_metric.compute(exp_stack[-1, ...])
     cov_dist_n = cov_metric.compute(exp_stack[0, ...])
     self.assertLess(np.mean(cov_dist_n), np.mean(cov_dist_s))
+
+    cov_metric = metrics.CovarianceSelfSimilarMetric()
+    cov_dist_ss = cov_metric.compute(exp_stack[-1, ...])
+    cov_dist_ns = cov_metric.compute(exp_stack[0, ...])
+    self.assertLess(np.mean(cov_dist_ns), np.mean(cov_dist_ss))
+    # Without self-similar is less than with self-similar
+    self.assertLess(np.mean(cov_dist_s), np.mean(cov_dist_ss))
 
   def test_presto(self):
     signal_levels = np.linspace(0, 1, 11)

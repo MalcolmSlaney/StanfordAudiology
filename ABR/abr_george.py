@@ -2079,20 +2079,20 @@ def cache_waveform_one_dir(
 
 
 def cache_dprime_one_dir(
-    dir: str,
+    cache_dir: str,
     waveform_cache_name: str,
     dprime_cache_name: str,
     first_sample: int = 0,
     last_sample: int = 0,
 ) -> None:
-    if os.path.exists(os.path.join(dir, dprime_cache_name)):
-        print(f"Cache directory exists for {dir}")
+    if os.path.exists(os.path.join(cache_dir, dprime_cache_name)):
+        print(f"Cache data exists for {cache_dir}")
         return
-    print(f"Loading waveforms from {dir} to compute d's.")
-    all_exps = load_waveform_cache(dir, waveform_cache_name)
+    print(f"Loading waveforms from {cache_dir} to compute d's.")
+    all_exps = load_waveform_cache(cache_dir, waveform_cache_name)
     if all_exps:
         dprimes = calculate_all_summaries(all_exps)
-        cache_dprime_data(dir, dprimes, dprime_cache_name)
+        cache_dprime_data(cache_dir, dprimes, dprime_cache_name)
     else:
         print("  No waveform data to process for dprimes.")
 
@@ -2115,8 +2115,8 @@ def main(_):
             if FLAGS.filter in dir:
                 cache_dprime_one_dir(
                     dir,
-                    FLAGS.waveforms_cache,
-                    FLAGS.dprimes_cache,
+                    FLAGS.waveforms_cache_name,
+                    FLAGS.dprimes_cache_name,
                     FLAGS.first_sample,
                     FLAGS.last_sample,
                 )
