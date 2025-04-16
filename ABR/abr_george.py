@@ -779,6 +779,17 @@ def calculate_dprime(
         return (np.mean(h1) - np.mean(h2)) / norm
 
 
+def compute_stack_dprimes(measures: np.ndarray) -> np.ndarray:
+  num_freqs, num_levels, num_channels, num_trials = measures.shape
+  dprimes = np.zeros((num_freqs, num_levels, num_channels))
+  for i in range(num_freqs):
+    for j in range(num_levels):
+      for k in range(num_channels):
+        h0 = measures[i, 0, k, :]
+        h1 = measures[i, j, k, :]
+        dprimes[i, j, k] = calculate_dprime(h1, h0)
+  return dprimes
+
 # ToDo(malcolmslaney) Change with_self_similar -> remove_self_cov
 
 
@@ -2150,8 +2161,8 @@ def cache_dprime_one_dir(
     all_measures = abrm.measure_full_stack(all_data[:, :, :, :, :1026])
     for k,v in all_measures.items():
       print('   ', k, v.shape)
-    abrm.compute_stack_dprimes(all_measures['covariance'])
-    dprimes[name] = MouseConditionSummary(all_measures, dprimes,
+    all_dprimes = compute_stack_dprimes(all_measures['covariance'])
+    dprimes[name] = MouseConditionSummary(all_measures, all_dprimes,
                                           exp_freqs, exp_levels, exp_channels)
   cache_dprime_data(cache_dir, dprimes, dprime_cache_name)
   return dprimes
