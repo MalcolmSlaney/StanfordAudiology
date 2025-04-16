@@ -95,6 +95,13 @@ class ABRGeorgeTests(absltest.TestCase):
     self.assertLen(exps['control1_pre4'], 1) 
     self.assertLen(exps['control2_pre4'], 1) 
 
+    (all_data, exp_freqs, exp_levels, 
+     exp_channels) = george.gather_all_trial_data(all_exps)
+    self.assertEqual(all_data.shape, (1, 2, 1, 10, 4))
+    self.assertLen(exp_freqs, 1)
+    self.assertLen(exp_levels, 2)
+    self.assertLen(exp_channels, 1)
+
   def test_shuffle(self):
     data1 = np.reshape(np.arange(10), (-1, 1))
     data2 = np.reshape(np.arange(10) + 100, (-1, 1))
