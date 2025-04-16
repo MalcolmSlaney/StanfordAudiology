@@ -1327,26 +1327,6 @@ def compute_and_cache_dprimes():
         print()
 
 
-def cache_dprime_data(
-    cache_dir: str, 
-    dprimes: Dict[str, DPrimeResult], 
-    dprime_pickle_name: str
-) -> None:
-    """
-    Cache all the dprime data in one of George's mouse recording folders.
-
-    Args:
-      cache_dir: Which data directory to write the dprime cache data
-      dprimes: Dictionary keyed by experiment type and the resulting d' results
-      dprime_pickle_name: The name of the waveform cache file.
-    """
-    pickle_file = os.path.join(cache_dir, dprime_pickle_name)
-    with open(pickle_file, "w") as f:
-        f.write(jsonpickle.encode(dprimes))
-        print(f'  Cached data for {len(dprimes)} types of dprime experiments '
-              f'into {pickle_file}.')
-
-
 def accumulate_all_thresholds(
     all_dprimes: Dict[str, DPrimeResult],
     freqs: Optional[List[float]] = None,
@@ -2169,11 +2149,49 @@ def cache_dprime_one_dir(
     all_data, exp_freqs, exp_levels, exp_channels = gather_all_trial_data(all_exps)
     all_measures = abrm.measure_full_stack(all_data[:, :, :, :, :1026])
     for k,v in all_measures.items():
-      print(k, v.shape)
+      print('   ', k, v.shape)
     abrm.compute_stack_dprimes(all_measures['covariance'])
     dprimes[name] = MouseConditionSummary(all_measures, dprimes,
                                           exp_freqs, exp_levels, exp_channels)
   cache_dprime_data(cache_dir, dprimes, dprime_cache_name)
+  return dprimes
+
+def cache_dprime_data(
+    cache_dir: str, 
+    dprimes: Dict[str, MouseConditionSummary], 
+    dprime_pickle_name: str
+) -> None:
+    """
+    Cache all the dprime data in one of George's mouse recording folders.
+
+    Args:
+      cache_dir: Which data directory to write the dprime cache data
+      dprimes: Dictionary keyed by experiment type and the resulting d' results
+      dprime_pickle_name: The name of the waveform cache file.
+    """
+    pickle_file = os.path.join(cache_dir, dprime_pickle_name)
+    with open(pickle_file, "w") as f:
+        f.write(jsonpickle.encode(dprimes))
+        print(f'  Cached data for {len(dprimes)} types of dprime experiments '
+              f'into {pickle_file}.')
+
+def load_dprime_cache(
+    cache_dir: str, 
+    dprime_pickle_name: str
+) -> None:
+    """
+    Load the dprime data from the cache in one of George's mouse recording 
+    folders.
+
+    Args:
+      cache_dir: Which data directory to write the dprime cache data
+      dprime_pickle_name: The name of the waveform cache file.
+    """
+    pickle_file = os.path.join(cache_dir, dprime_pickle_name)
+    with open(pickle_file, "r") as f:
+      dprime_data = jsonpickle.decode(f.read())
+    return dprime_data
+
 
 def main(_):
     if FLAGS.mode == "waveforms":
@@ -2209,8 +2227,8 @@ def main(_):
               FLAGS.last_sample,
           )
     else:
-        print(f"Unknown processing mode: {FLAGS.mode}")
+      print(f"Unknown processing mode: {FLAGS.mode}")
 
 
 if __name__ == "__main__":
-    app.run(main)
+  app.run(main)
