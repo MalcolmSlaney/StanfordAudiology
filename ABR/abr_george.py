@@ -2133,7 +2133,7 @@ def cache_dprime_one_dir(
     if os.path.exists(os.path.join(cache_dir, dprime_cache_name)):
         print(f'Cache data exists for {cache_dir}, skipping')
         return
-    print(f'Loading waveforms from {cache_dir} to compute d'\s.')
+    print(f'Loading waveforms from {cache_dir} to compute d\'s.')
     all_exps = load_waveform_cache(cache_dir, waveform_cache_name)
     if all_exps:
         dprimes = calculate_all_summaries(all_exps)
