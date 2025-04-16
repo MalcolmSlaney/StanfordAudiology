@@ -158,7 +158,10 @@ class CovarianceSelfSimilarMetric(CovarianceMetric):
 
 
 class PrestoMetric(Metric):
-  num_splits = 500 # From the paper
+  def __init__(self, num_splits=500):
+    """500 splits is what is used in the paper."""
+    self.num_splits = num_splits
+
   def compute(self, stack: np.ndarray) -> np.ndarray:
     """
     Compute a self-similarity measure based on binary splits proposed by the
@@ -168,8 +171,8 @@ class PrestoMetric(Metric):
       stack: 2D tensor of waveform recordings: num_times x num_trials
     """
     assert stack.ndim == 2
-    correlations = np.zeros(PrestoMetric.num_splits)
-    for i in range(PrestoMetric.num_splits):
+    correlations = np.zeros(self.num_splits)
+    for i in range(self.num_splits):
       selections = np.random.uniform(size=stack.shape[1]) > 0.5
       mean1 = np.mean(stack[:, selections], axis=1)
       mean2 = np.mean(stack[:, np.logical_not(selections)], axis=1)

@@ -219,7 +219,7 @@ def load_waveform_cache(
                 print(f"  Got {len(new_data)} MouseExp's from {filename}")
             else:
                 print(f"  ** Found an empty Pickle file: {filename}")
-    print(f"  Got a total of {len(all_exps)} MouseExp from {dir}")
+    print(f"  Read a total of {len(all_exps)} MouseExp from {dir}")
     return all_exps
 
 
@@ -476,6 +476,15 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
 
 
 ###############  Compute all the d-primes for our data #######################
+@dataclasses.dataclass
+class MouseSummary(object):
+    metrics: Dict[str, np.ndarray]
+    dprimes: Dict[str, np.ndarray]
+
+    freqs: np.ndarray
+    levels: np.ndarray
+    channels: np.ndarray
+
 @dataclasses.dataclass
 class DPrimeResult(object):
     """Consolidate all the d' results for one preparation, across frequency.
@@ -1319,26 +1328,23 @@ def compute_and_cache_dprimes():
 
 
 def cache_dprime_data(
-    d: str, dprimes: Dict[str, DPrimeResult], dprime_pickle_name: str
-):
+    cache_dir: str, 
+    dprimes: Dict[str, DPrimeResult], 
+    dprime_pickle_name: str
+) -> None:
     """
     Cache all the dprime data in one of George's mouse recording folders.
-    If we don't have the cache file, calculate the dprime data
-    a new cache file.  If return_data is true, return the dictionary of waveform
-    data, reading it back in if we didn't compute it here.
 
     Args:
-      exp_dir: Which data directory to read and cache.
-      waveform_pickle_name: The name of the waveform cache file.
-      load_data: Whether to return the cached data if it is there.
-
-    Returns:
-      A list of MouseExp structures.
+      cache_dir: Which data directory to write the dprime cache data
+      dprimes: Dictionary keyed by experiment type and the resulting d' results
+      dprime_pickle_name: The name of the waveform cache file.
     """
-    pickle_file = os.path.join(d, dprime_pickle_name)
+    pickle_file = os.path.join(cache_dir, dprime_pickle_name)
     with open(pickle_file, "w") as f:
         f.write(jsonpickle.encode(dprimes))
-        print(f"  Cached data for {len(dprimes)} types of dprime experiments.")
+        print(f'  Cached data for {len(dprimes)} types of dprime experiments '
+              f'into {pickle_file}.')
 
 
 def accumulate_all_thresholds(
@@ -1579,9 +1585,12 @@ def XXcache_all_waveforms(base_dir: str = GeorgeMouseDataDir) -> None:
     file_num = cache_waveforms(file_num, all_filtered_exps)  # Write remainder
 
 
-def create_stack(exps: List[MouseExp]) -> np.ndarray:
+def XXcreate_stack(exps: List[MouseExp]) -> Tuple[np.ndarray, np.ndarray, 
+                                                  np.ndarray, np.ndarray]:
     """Collect all the waveform data for a list of mouse experiments into a
       single tensor.
+
+    Replaced by gather_all_trial_data
 
     Result is a 5d tensor:
       frequency, level, channel, time, trial
@@ -2121,26 +2130,50 @@ def cache_waveform_one_dir(
     )
 
 
+@dataclasses.dataclass
+class MouseConditionSummary(object):
+  """To describe the results from one mouse-condition experiment.
+  """
+  metrics: Dict[str, np.ndarray]
+  dprimes: Dict[str, np.ndarray]
+
+  freqs: np.ndarray
+  levels: np.ndarray
+  channels: np.ndarray
+    
 def cache_dprime_one_dir(
     cache_dir: str,
     waveform_cache_name: str,
     dprime_cache_name: str,
     first_sample: int = 0,
     last_sample: int = 0,
+    force: bool = False, 
 ) -> None:
-    if not os.path.exists(cache_dir):
-      assert FileNotFoundError, f"Can't find the cache dir: {cache_dir}."
-    if os.path.exists(os.path.join(cache_dir, dprime_cache_name)):
-        print(f'Cache data exists for {cache_dir}, skipping')
-        return
-    print(f'Loading waveforms from {cache_dir} to compute d\'s.')
-    all_exps = load_waveform_cache(cache_dir, waveform_cache_name)
-    if all_exps:
-        dprimes = calculate_all_summaries(all_exps)
-        cache_dprime_data(cache_dir, dprimes, dprime_cache_name)
-    else:
-        print("  No waveform data to process for dprimes.")
+  if not os.path.exists(cache_dir):
+    assert FileNotFoundError, f"Can't find the cache dir: {cache_dir}."
+  if not force and os.path.exists(os.path.join(cache_dir, dprime_cache_name)):
+      print(f'Cache data exists for {cache_dir}, skipping')
+      return
 
+  print(f'Loading waveforms from {cache_dir} to compute d\'s.')
+  all_exps = load_waveform_cache(cache_dir, waveform_cache_name)
+  if not all_exps:
+    print(f'  No waveform data to load from {cache_dir}')
+    return
+
+  exp_groups = group_experiments(all_exps)
+  dprimes: Dict[str, MouseConditionSummary] = {}
+
+  for name, all_exps in exp_groups.items():
+    print(f' Processing {name} experiments.')
+    all_data, exp_freqs, exp_levels, exp_channels = gather_all_trial_data(all_exps)
+    all_measures = abrm.measure_full_stack(all_data[:, :, :, :, :1026])
+    for k,v in all_measures.items():
+      print(k, v.shape)
+    abrm.compute_stack_dprimes(all_measures['covariance'])
+    dprimes[name] = MouseConditionSummary(all_measures, dprimes,
+                                          exp_freqs, exp_levels, exp_channels)
+  cache_dprime_data(cache_dir, dprimes, dprime_cache_name)
 
 def main(_):
     if FLAGS.mode == "waveforms":
@@ -2166,10 +2199,10 @@ def main(_):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), 
                                 FLAGS.cache_dir)
       all_mouse_dirs = find_all_mouse_directories(FLAGS.cache_dir)
-      for dir in all_mouse_dirs:
-        if FLAGS.filter in dir:
+      for one_mouse_dir in all_mouse_dirs:
+        if FLAGS.filter in one_mouse_dir:
           cache_dprime_one_dir(
-              dir,
+              one_mouse_dir,
               FLAGS.waveforms_cache_name,
               FLAGS.dprimes_cache_name,
               FLAGS.first_sample,
