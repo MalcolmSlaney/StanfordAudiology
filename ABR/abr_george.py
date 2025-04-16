@@ -981,6 +981,48 @@ def calculate_all_summaries(
     return all_dprimes
 
 
+def gather_all_trial_data(
+    all_exps: List[MouseExp]) -> Tuple[np.ndarray, np.ndarray, 
+                                       np.ndarray, np.ndarray]:
+  """Gather all the data for one animal experiment---across all sound levels,
+  frequencies, and channels---into one 5-dimensional tensor."""
+  all_exp_levels = sorted(list(set([exp.level for exp in all_exps])))
+  all_exp_freqs = sorted(list(set([exp.freq for exp in all_exps])))
+  all_exp_channels = sorted(list(set([exp.channel for exp in all_exps])))
+
+  all_data = None
+  all_processed = 0
+  for i, freq in enumerate(all_exp_freqs):
+    for j, level in enumerate(all_exp_levels):
+      for k, channel in enumerate(all_exp_channels):
+        exps = find_exp(all_exps, freq=freq, level=level, channel=channel)
+        if len(exps) == 0:
+          print(f' Found ZERO examples for freq={freq}, level={level}, '
+                f'channel={channel}: {len(exps)}')
+          continue
+        elif len(exps) > 1:
+          print(f'  Processing {len(exps)} segments for the same preparation: '
+                f'{freq}Hz, {level}dB, channel {channel}')
+          # all_multiprocessed += 1
+        exp_data = []
+        for exp in exps:
+          all_processed += 1
+          exp_data.append(preprocess_mouse_data(exp.single_trials))
+        signal_data = np.concatenate(exp_data, axis=1)
+        if all_data is None:
+          all_data = np.zeros((len(all_exp_freqs),
+                               len(all_exp_levels),
+                               len(all_exp_channels),
+                               signal_data.shape[0],
+                               signal_data.shape[1]))
+        num_times = min(all_data.shape[3], signal_data.shape[0])
+        num_trials = min(all_data.shape[4], signal_data.shape[1])
+        all_data[i, j, k, :num_times, :num_trials] = signal_data[:num_times, 
+                                                                 :num_trials]
+  return (all_data, np.asarray(all_exp_freqs), np.asarray(all_exp_levels),
+          np.asarray(all_exp_channels))
+
+
 def calculate_waveform_summaries(
     all_exps: List[MouseExp],
     debug_cov_not_rms: bool = True,
@@ -2089,9 +2131,9 @@ def cache_dprime_one_dir(
     if not os.path.exists(cache_dir):
       assert FileNotFoundError, f"Can't find the cache dir: {cache_dir}."
     if os.path.exists(os.path.join(cache_dir, dprime_cache_name)):
-        print(f"Cache data exists for {cache_dir}")
+        print(f'Cache data exists for {cache_dir}, skipping')
         return
-    print(f"Loading waveforms from {cache_dir} to compute d's.")
+    print(f'Loading waveforms from {cache_dir} to compute d'\s.')
     all_exps = load_waveform_cache(cache_dir, waveform_cache_name)
     if all_exps:
         dprimes = calculate_all_summaries(all_exps)
