@@ -2154,14 +2154,16 @@ def cache_dprime_one_dir(
 
   exp_groups = group_experiments(all_exps)
   dprimes: Dict[str, MouseConditionSummary] = {}
+  all_dprimes = {}
 
   for name, all_exps in exp_groups.items():
     print(f' Processing {name} experiments.')
-    all_data, exp_freqs, exp_levels, exp_channels = gather_all_trial_data(all_exps)
-    all_measures = abrm.measure_full_stack(all_data[:, :, :, :, :1026])
-    for k,v in all_measures.items():
-      print('   ', k, v.shape)
-    all_dprimes = compute_stack_dprimes(all_measures['covariance'])
+    (all_data, exp_freqs, exp_levels, 
+     exp_channels) = gather_all_trial_data(all_exps)
+    all_measures = abrm.measure_full_stack(all_data)
+    for metric_name,metric_value in all_measures.items():
+      print('   ', metric_name, metric_value.shape)
+      all_dprimes[metric_name] = compute_stack_dprimes(all_measures[metric_name])
     dprimes[name] = MouseConditionSummary(all_measures, all_dprimes,
                                           exp_freqs, exp_levels, exp_channels)
   cache_dprime_data(cache_dir, dprimes, dprime_cache_name)
