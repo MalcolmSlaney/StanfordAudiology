@@ -106,6 +106,17 @@ class Metric(object):
         stack = stack[:, window_start:window_end]
     return self.compute(stack)
 
+class PeakMetric(Metric):
+  """Look at peak amplitude of the average, which should be all signal,
+  vs. the RMS energy of the noise.  We want to be some number of standard
+  deviations above the noise.
+  https://bmcneurosci.biomedcentral.com/articles/10.1186/1471-2202-10-104
+  """
+  def compute(self, stack: np.ndarray) -> np.ndarray:
+    signal_ave = np.mean(stack, axis=1)
+    noise_ave = np.mean(shuffle_2d_array(stack), axis=1)
+    return np.reshape(np.max(np.abs(signal_ave))/np.std(noise_ave), (1,))
+  
 
 class TotalRMSMetric(Metric):
   def compute(self, stack: np.ndarray) -> np.ndarray:
@@ -181,6 +192,7 @@ class PrestoMetric(Metric):
 
 
 all_metrics = {
+   'peak': PeakMetric,
    'total_rms': TotalRMSMetric,
    'covariance': CovarianceMetric,
    'covariance_self_similar': CovarianceSelfSimilarMetric,

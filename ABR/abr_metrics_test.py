@@ -58,6 +58,24 @@ class BootstrapTests(absltest.TestCase):
 
 
 class MetricTests(absltest.TestCase):
+  def test_peak(self):
+    num_points = 100
+    num_trials = 200
+
+    signal = np.zeros((num_points, num_trials))
+    signal[42, :] = 1.0
+
+    noise = np.random.random((num_points,num_trials))
+
+    response = signal + noise
+    peak_metric = metrics.PeakMetric()
+    snr = peak_metric.compute(response)
+    self.assertGreater(snr, 50)
+
+    response = signal + 2*noise
+    snr2 = peak_metric.compute(response)
+    self.assertGreater(snr, snr2)
+
   def test_rms(self):
     signal_levels = np.linspace(0, 1, 11)
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
@@ -109,6 +127,8 @@ class MetricTests(absltest.TestCase):
     for k in metrics.all_metrics:
       if k == 'presto':
         self.assertEqual(all_results[k].shape, (1, 10, 1, 500))
+      elif k == 'peak':
+        self.assertEqual(all_results[k].shape, (1, 10, 1, 1))
       else:
         self.assertEqual(all_results[k].shape, (1, 10, 1, 1026))
 
