@@ -57,7 +57,7 @@ There are two types of summary files, across all dates.
 
 There are a number of files to consolidate the waveforms from "good" trials
 together.  They are in the main directory, and have names of the form
-  good_waveform_cache00.pkl.
+  good_waveform_cache-00.pkl.
 These files consist of lists of MouseExp classes.
 
 Finally, all the RMS estimates from "good" experiments are stored in a file
@@ -152,32 +152,31 @@ mouse_dprimes_pickle_name = "mouse_dprime_v2.pkl"
 
 
 def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
-    """Look for all the directories that seem to contain George's mouse data.
-    Walk the directory tree starting at the given directory, looking for all
-    directories names that do not contain the following words:
-      analyze, bad and traces
+  """Look for all the directories that seem to contain George's mouse data.
+  Walk the directory tree starting at the given directory, looking for all
+  directories names that do not contain the following words:
+    analyze, bad and traces
 
-    Args:
-      mouse_data_dir: where to start looking for George's mouse data
+  Args:
+    mouse_data_dir: where to start looking for George's mouse data
 
-    Returns:
-      A list of file paths.
-    """
-    all_exp_dirs = [
-        x[0]
-        for x in os.walk(mouse_data_dir)
-        if "analyze" not in x[0] and "bad" not in x[0] and "traces" not in x[0]
-    ]
-    return all_exp_dirs
+  Returns:
+    A list of file paths.
+  """
+  all_exp_dirs = [
+      x[0]
+      for x in os.walk(mouse_data_dir)
+      if "analyze" not in x[0] and "bad" not in x[0] and "traces" not in x[0]
+  ]
+  return all_exp_dirs
 
 
 def waveform_cache_present(
-    dir: str, waveform_pickle_name: str = mouse_waveforms_pickle_name
-):
-    if os.path.exists(os.path.join(dir, waveform_pickle_name)):
-        return True
-    new_filename = waveform_pickle_name.replace(".pkl", "00.pkl")
-    return os.path.exists(os.path.join(dir, new_filename))
+  dir: str, waveform_pickle_name: str = mouse_waveforms_pickle_name):
+  if os.path.exists(os.path.join(dir, waveform_pickle_name)):
+    return True
+  new_filename = waveform_pickle_name.replace(".pkl", "-00.pkl")
+  return os.path.exists(os.path.join(dir, new_filename))
 
 
 def save_waveform_cache(
