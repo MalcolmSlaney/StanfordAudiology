@@ -115,7 +115,8 @@ class PeakMetric(Metric):
   def compute(self, stack: np.ndarray) -> np.ndarray:
     signal_ave = np.mean(stack, axis=1)
     noise_ave = np.mean(shuffle_2d_array(stack), axis=1)
-    return np.reshape(np.max(np.abs(signal_ave))/np.std(noise_ave), (1,))
+    snr = np.max(np.abs(signal_ave))/np.std(noise_ave)
+    return np.reshape(snr, (1,))  # Need 1d array to match other metrics
   
 
 class TotalRMSMetric(Metric):

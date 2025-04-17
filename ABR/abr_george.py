@@ -2063,6 +2063,8 @@ flags.DEFINE_integer(
     "End sample # of the temporal window to extract from a "
     "waveform, (including last sample is indicated with -1)",
 )
+flags.DEFINE_boolean('force', False, 
+                     'Force waveform and d\' recalculation when caching')
 
 
 def waveform_caches_present(dir: str, waveform_pickle_name: str) -> int:
@@ -2086,7 +2088,8 @@ def cache_waveform_one_dir(
     cache_dir: str, 
     waveform_pickle_name: str, 
     max_files: int = 0, 
-    max_bytes: float = 10e9
+    max_bytes: float = 10e9,
+    force: bool = False,
 ) -> None:
     """Read all the CSV files and convert them into pickled numpy arrays.  CSV
     files take a long time to read and parse, so this is an important speedup.
@@ -2104,7 +2107,7 @@ def cache_waveform_one_dir(
 
     """
     num_good = waveform_caches_present(cache_dir, waveform_pickle_name)
-    if num_good:
+    if not force and num_good:
         print(
             f"Skipping waveforms and dprimes in {cache_dir} because they are "
             f"{num_good} cached files."
@@ -2223,7 +2226,8 @@ def main(_):
           os.makedirs(cache_dir, exist_ok=True)
           cache_waveform_one_dir(mouse_dir, cache_dir, 
                                  FLAGS.waveforms_cache_name, 
-                                 max_bytes=FLAGS.max_cache_gbytes * 1e9)
+                                 max_bytes=FLAGS.max_cache_gbytes * 1e9,
+                                 force=FLAGS.force)
     elif FLAGS.mode == "dprimes":
       if not os.path.isdir(FLAGS.cache_dir):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), 
@@ -2236,7 +2240,8 @@ def main(_):
               FLAGS.waveforms_cache_name,
               FLAGS.dprimes_cache_name,
               FLAGS.first_sample,
-              FLAGS.last_sample,
+              FLAGS.last_sample, 
+              force=FLAGS.force,
           )
     else:
       print(f"Unknown processing mode: {FLAGS.mode}")
