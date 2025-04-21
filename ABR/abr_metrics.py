@@ -112,12 +112,15 @@ class PeakMetric(Metric):
   deviations above the noise.
   https://bmcneurosci.biomedcentral.com/articles/10.1186/1471-2202-10-104
   """
-  def __init__(self):
+  def __init__(self, 
+               window_start=int(1.75e-3*mouse_sample_rate), 
+               window_end=int(2.75e-3*mouse_sample_rate)):
     super().__init__()
-    self.window_start = int(1.75e-3*mouse_sample_rate)
-    self.window_end = int(2.75e-3*mouse_sample_rate)
+    self.window_start = window_start
+    self.window_end = window_end
 
   def compute(self, stack: np.ndarray) -> np.ndarray:
+    assert stack.ndim == 2
     signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
     noise_ave = np.mean(shuffle_2d_array(stack), axis=1)
     snr = np.max(np.abs(signal_ave))/np.std(noise_ave)

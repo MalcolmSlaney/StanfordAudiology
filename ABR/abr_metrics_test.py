@@ -59,7 +59,7 @@ class BootstrapTests(absltest.TestCase):
 
 class MetricTests(absltest.TestCase):
   def test_peak(self):
-    num_points = 100
+    num_points = 2000
     num_trials = 200
 
     signal = np.zeros((num_points, num_trials))
@@ -68,7 +68,7 @@ class MetricTests(absltest.TestCase):
     noise = np.random.random((num_points,num_trials))
 
     response = signal + noise
-    peak_metric = metrics.PeakMetric()
+    peak_metric = metrics.PeakMetric(0, -1)
     snr = peak_metric.compute(response)
     self.assertGreater(snr, 50)
 
