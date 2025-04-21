@@ -67,6 +67,23 @@ This data is a List (by frequency) of List (by level) of List (by channel) of
 list of RMS values (one per animal)
 
 """
+
+################### Waveform Level Reading/Caching/Loading ##################
+
+# Obsolete name
+mouse_waveforms_pickle_name = "mouse_waveforms_v2.pkl"
+mouse_dprimes_pickle_name = "mouse_dprime_v2.pkl"
+
+# New name
+MouseWaveformsPickleName = "mouse_waveforms_v2.pkl"
+MouseDPrimesPickleName = "mouse_dprime_v2.pkl"
+
+GeorgeMouseDataDir = ("drive/Shareddrives/StanfordAudiology/"
+                      "GeorgeMouseABR/CAP_ABR")
+GeorgeCachedDataDir = ("drive/Shareddrives/StanfordAudiology/"
+                        "GeorgeMouseABR/CAP_Cache")
+
+
 ################### Waveform Level Reading/Caching/Loading ##################
 
 
@@ -147,9 +164,6 @@ def read_mouse_exp(filename: str) -> MouseExp:
 
 ###############  Cache all the Mouse CSV files ###########################
 
-mouse_waveforms_pickle_name = "mouse_waveforms_v2.pkl"
-mouse_dprimes_pickle_name = "mouse_dprime_v2.pkl"
-
 
 def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
   """Look for all the directories that seem to contain George's mouse data.
@@ -172,7 +186,7 @@ def find_all_mouse_directories(mouse_data_dir: str) -> List[str]:
 
 
 def waveform_cache_present(
-  dir: str, waveform_pickle_name: str = mouse_waveforms_pickle_name):
+  dir: str, waveform_pickle_name: str = MouseWaveformsPickleName):
   if os.path.exists(os.path.join(dir, waveform_pickle_name)):
     return True
   new_filename = waveform_pickle_name.replace(".pkl", "-00.pkl")
@@ -183,7 +197,7 @@ def save_waveform_cache(
     all_exps: List[MouseExp],
     dir: str,
     number: int,
-    waveform_pickle_name=mouse_waveforms_pickle_name,
+    waveform_pickle_name=MouseWaveformsPickleName,
 ):
     """Save some of the MouseExp's objects into a cache file.  We store all the
     data from one directory into multiple cache files since they get to large to
@@ -200,7 +214,7 @@ def save_waveform_cache(
 
 
 def load_waveform_cache(
-    dir: str, waveform_pickle_name: str = mouse_waveforms_pickle_name
+    dir: str, waveform_pickle_name: str = MouseWaveformsPickleName
 ) -> List[MouseExp]:
     """The CSV files are converted into a small number of PKL files for easier
     loading. (CSV is slow.) This routine reads in all the cached data (from
@@ -223,7 +237,7 @@ def load_waveform_cache(
 
 
 def summarize_all_data(
-    all_exp_dirs: List[str], pickle_name=mouse_waveforms_pickle_name
+    all_exp_dirs: List[str], pickle_name=MouseWaveformsPickleName
 ):
     for d in all_exp_dirs:
         try:
@@ -249,7 +263,7 @@ def summarize_all_data(
 def cache_all_mouse_dir(
     waveform_dir: str,
     cache_dir: str,
-    waveform_pickle_name: str = mouse_waveforms_pickle_name,
+    waveform_pickle_name: str = MouseWaveformsPickleName,
     max_files: int = 0,
     max_bytes: float = 10e9,
     debug: bool = False,
@@ -612,7 +626,7 @@ class DPrimeResult(object):
 
 
 def get_all_dprime_data(
-    dirs: List[str], pickle_name: str = mouse_dprimes_pickle_name
+    dirs: List[str], pickle_name: str = MouseDPrimesPickleName
 ) -> Dict[str, DPrimeResult]:
     """Get all the d' data from the list of directories of mouse ABR data.
 
@@ -1311,8 +1325,8 @@ def compute_and_cache_dprimes():
         if not os.path.exists(full_dir):
             continue
         print(dir)
-        waveform_file = os.path.join(full_dir, mouse_waveforms_pickle_name)
-        dprime_file = os.path.join(full_dir, mouse_dprimes_pickle_name)
+        waveform_file = os.path.join(full_dir, MouseWaveformsPickleName)
+        dprime_file = os.path.join(full_dir, MouseDPrimesPickleName)
         if (
             os.path.exists(waveform_file)
             and os.path.getsize(waveform_file)
@@ -1322,10 +1336,10 @@ def compute_and_cache_dprimes():
             print(f"Skipping {base}")
             continue
         if run_local:
-            # cache_waveform_one_dir(full_dir, mouse_waveforms_pickle_name,
+            # cache_waveform_one_dir(full_dir, MouseWaveformsPickleName,
             #                        max_bytes=5*1e9)
             cache_dprime_one_dir(
-                full_dir, mouse_waveforms_pickle_name, mouse_dprimes_pickle_name
+                full_dir, MouseWaveformsPickleName, MouseDPrimesPickleName
             )
         else:
             out = subprocess.run(
@@ -1517,11 +1531,6 @@ def filter_waveform_data(
         filtered_exps.append(exp)
     return filtered_exps
 
-
-GeorgeMouseDataDir = ("drive/Shareddrives/StanfordAudiology/"
-                      "GeorgeMouseABR/CAP_ABR")
-GeorgeCachedDataDir = ("drive/Shareddrives/StanfordAudiology/"
-                        "GeorgeMouseABR/CAP_Cache")
 
 
 def XXcache_all_waveforms(base_dir: str = GeorgeMouseDataDir) -> None:
@@ -1747,7 +1756,7 @@ def load_rms_data(
 default_cache_name = "good_waveform_cache.pkl"
 
 
-def load_rms_data(
+def XXload_rms_data(
     base_dir: str = GeorgeMouseDataDir, cache_filename: str = default_cache_name
 ) -> List[List[List[List[float]]]]:
     """Read in the cached RMS data from disk.
@@ -2042,12 +2051,12 @@ flags.DEFINE_string(
 )
 flags.DEFINE_string(
     "waveforms_cache_name",
-    mouse_waveforms_pickle_name,
+    MouseWaveformsPickleName,
     "Where to cache all the waveforms in this directory",
 )
 flags.DEFINE_string(
     "dprimes_cache_name",
-    mouse_dprimes_pickle_name,
+    MouseDPrimesPickleName,
     "Where to cache the dprimes in this directory",
 )
 flags.DEFINE_string("filter", "", 
@@ -2196,7 +2205,7 @@ def cache_dprime_data(
 def load_dprime_cache(
     cache_dir: str, 
     dprime_pickle_name: str
-) -> None:
+) -> Dict[str, MouseConditionSummary]:
     """
     Load the dprime data from the cache in one of George's mouse recording 
     folders.
@@ -2209,6 +2218,20 @@ def load_dprime_cache(
     with open(pickle_file, "r") as f:
       dprime_data = jsonpickle.decode(f.read())
     return dprime_data
+
+def load_all_dprime_cache(
+        cache_base_dir: str, 
+        dprime_pickle_name: str
+) -> Dict[str, Dict[str, MouseConditionSummary]]:
+  all_dprimes = {}
+  all_mouse_dirs = find_all_mouse_directories(cache_base_dir)
+  for mouse_dir in all_mouse_dirs:
+    if mouse_dir[-1] == '/':
+      mouse_dir = mouse_dir[:-1]
+    key = mouse_dir.split('/')[-1]
+    dprime_data = load_dprime_cache(mouse_dir, dprime_pickle_name)
+    all_dprimes[key] = dprime_data
+  return all_dprimes
 
 
 def main(_):
