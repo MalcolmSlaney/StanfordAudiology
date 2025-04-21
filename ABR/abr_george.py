@@ -2184,6 +2184,7 @@ def cache_dprime_data(
       dprimes: Dictionary keyed by experiment type and the resulting d' results
       dprime_pickle_name: The name of the waveform cache file.
     """
+    dprimes['_version'] = '2025/04/20 - With George time limits for PeakMetric'
     pickle_file = os.path.join(cache_dir, dprime_pickle_name)
     with open(pickle_file, "w") as f:
         f.write(jsonpickle.encode(dprimes))
