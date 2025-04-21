@@ -1575,8 +1575,8 @@ def XXcache_all_waveforms(base_dir: str = GeorgeMouseDataDir) -> None:
     file_num = cache_waveforms(file_num, all_filtered_exps)  # Write remainder
 
 
-def XXcreate_stack(exps: List[MouseExp]) -> Tuple[np.ndarray, np.ndarray, 
-                                                  np.ndarray, np.ndarray]:
+def create_stack(exps: List[MouseExp]) -> Tuple[np.ndarray, np.ndarray, 
+                                                np.ndarray, np.ndarray]:
     """Collect all the waveform data for a list of mouse experiments into a
       single tensor.
 
