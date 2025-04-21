@@ -1653,6 +1653,8 @@ def show_all_stack(
       num_cols: How many columns of stacks to show
       col_num: which column to plot this time (0 <= col_num < num_cols)
     """
+    if isinstance(levels, np.ndarray):
+        levels = list(levels) # So we can use the .index() method.
     levels2plot = levels[::skip_levels]
     t = np.arange(stack.shape[-2]) / mouse_sample_rate
     for i, level in enumerate(levels2plot):
