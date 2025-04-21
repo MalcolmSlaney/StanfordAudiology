@@ -2144,6 +2144,10 @@ class MouseConditionSummary(object):
   freqs: np.ndarray
   levels: np.ndarray
   channels: np.ndarray
+
+  # Keep these here too so we can drop the dictionary when we have a set.
+  mouse_name: str = ''
+  recording_condition: str = ''
     
 def cache_dprime_one_dir(
     cache_dir: str,
@@ -2153,6 +2157,8 @@ def cache_dprime_one_dir(
     last_sample: int = 0,
     force: bool = False, 
 ) -> None:
+  if cache_dir[-1] == '/':
+      cache_dir = cache_dir[:-1]
   if not os.path.exists(cache_dir):
     assert FileNotFoundError, f"Can't find the cache dir: {cache_dir}."
   if not force and os.path.exists(os.path.join(cache_dir, dprime_cache_name)):
@@ -2178,7 +2184,9 @@ def cache_dprime_one_dir(
       print('   ', metric_name, metric_value.shape)
       all_dprimes[metric_name] = compute_stack_dprimes(all_measures[metric_name])
     dprimes[name] = MouseConditionSummary(all_measures, all_dprimes,
-                                          exp_freqs, exp_levels, exp_channels)
+                                          exp_freqs, exp_levels, exp_channels,
+                                          mouse_name=cache_dir.split('/')[-1],
+                                          recording_condition=name)
   cache_dprime_data(cache_dir, dprimes, dprime_cache_name)
   return dprimes
 
