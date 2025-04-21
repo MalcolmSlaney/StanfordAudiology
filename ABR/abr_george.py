@@ -2205,7 +2205,7 @@ def cache_dprime_data(
 def load_dprime_cache(
     cache_dir: str, 
     dprime_pickle_name: str
-) -> Dict[str, MouseConditionSummary]:
+) -> Optional[Dict[str, MouseConditionSummary]]:
     """
     Load the dprime data from the cache in one of George's mouse recording 
     folders.
@@ -2213,15 +2213,21 @@ def load_dprime_cache(
     Args:
       cache_dir: Which data directory to write the dprime cache data
       dprime_pickle_name: The name of the waveform cache file.
+    Returns:
+      If the cache files exists returns a dictionary (keyed by experiment type)
+      of MouseConditionSummary objects, which contain the metric and dprime
+      dictionaries.
     """
     pickle_file = os.path.join(cache_dir, dprime_pickle_name)
-    with open(pickle_file, "r") as f:
-      dprime_data = jsonpickle.decode(f.read())
-    return dprime_data
+    if os.path.exists(pickle_file):
+      with open(pickle_file, "r") as f:
+        dprime_data = jsonpickle.decode(f.read())
+      return dprime_data
+    return None
 
 def load_all_dprime_cache(
-        cache_base_dir: str, 
-        dprime_pickle_name: str
+        cache_base_dir: str = GeorgeCachedDataDir, 
+        dprime_pickle_name: str = MouseDPrimesPickleName,
 ) -> Dict[str, Dict[str, MouseConditionSummary]]:
   all_dprimes = {}
   all_mouse_dirs = find_all_mouse_directories(cache_base_dir)
@@ -2230,7 +2236,8 @@ def load_all_dprime_cache(
       mouse_dir = mouse_dir[:-1]
     key = mouse_dir.split('/')[-1]
     dprime_data = load_dprime_cache(mouse_dir, dprime_pickle_name)
-    all_dprimes[key] = dprime_data
+    if dprime_data:
+      all_dprimes[key] = dprime_data
   return all_dprimes
 
 
