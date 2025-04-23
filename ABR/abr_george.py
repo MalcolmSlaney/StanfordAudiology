@@ -47,14 +47,15 @@ files (since the CSV files are expensive to read).  The contents of these
 pickle files are MouseExp's.  Each of these files are stored in the
 corresponding date directory.
 
-We read all the waveforms and calculate the covariance d' and store the
-results, one per day in a
+We read all the waveforms and calculate the various metrics such as d' and 
+store the results, one per day in a
   mouse_dprime.pkl
-The data here is stored as a dictionary pointing to DPrimeResult classes.  One
-file per date directory.
+The data here is stored as a dictionary pointing to MouseSummary classes.  
+One file per date directory.
 
 There are two types of summary files, across all dates.
 
+Rest obsolete?
 There are a number of files to consolidate the waveforms from "good" trials
 together.  They are in the main directory, and have names of the form
   good_waveform_cache-00.pkl.
@@ -82,6 +83,8 @@ GeorgeMouseDataDir = ("drive/Shareddrives/StanfordAudiology/"
                       "GeorgeMouseABR/CAP_ABR")
 GeorgeCachedDataDir = ("drive/Shareddrives/StanfordAudiology/"
                         "GeorgeMouseABR/CAP_Cache")
+
+GeorgeCacheDPrimeVersion = '2025/04/20 - With George time limits for PeakMetric'
 
 
 ################### Waveform Level Reading/Caching/Loading ##################
@@ -499,7 +502,7 @@ class MouseSummary(object):
     channels: np.ndarray
 
 @dataclasses.dataclass
-class DPrimeResult(object):
+class XXDPrimeResult(object):
     """Consolidate all the d' results for one preparation, across frequency.
     level and channel."""
 
@@ -625,31 +628,31 @@ class DPrimeResult(object):
 ###############  Summarize and smooth the d' data ############################
 
 
-def get_all_dprime_data(
-    dirs: List[str], pickle_name: str = MouseDPrimesPickleName
-) -> Dict[str, DPrimeResult]:
-    """Get all the d' data from the list of directories of mouse ABR data.
-
-    Args:
-      dirs: All the directories from which to read the cached d' data.
-      pickle_name: What is the name of the pickle file in each directory.
-
-    Returns:
-      A dictionary mapping experiment name to d' data.
-    """
-    all_dprimes = {}
-    for d in dirs:
-        animal_date = os.path.basename(d)
-        pickle_file = os.path.join(d, pickle_name)
-        if os.path.exists(pickle_file):
-            with open(pickle_file, "rb") as fp:
-                mouse_dprime = jsonpickle.decode(fp.read())
-            mouse_dprime2 = {}
-            for k in mouse_dprime.keys():
-                mouse_dprime2[f"{animal_date}_{k}"] = mouse_dprime[k]
-            print(f"Added {len(mouse_dprime2)} d' results added from {pickle_file}")
-            all_dprimes.update(mouse_dprime2)
-    return all_dprimes
+# def XXget_all_dprime_data(
+#     dirs: List[str], pickle_name: str = MouseDPrimesPickleName
+# ) -> Dict[str, DPrimeResult]:
+#     """Get all the d' data from the list of directories of mouse ABR data.
+# 
+#     Args:
+#       dirs: All the directories from which to read the cached d' data.
+#       pickle_name: What is the name of the pickle file in each directory.
+# 
+#     Returns:
+#       A dictionary mapping experiment name to d' data.
+#     """
+#     all_dprimes = {}
+#     for d in dirs:
+#         animal_date = os.path.basename(d)
+#         pickle_file = os.path.join(d, pickle_name)
+#         if os.path.exists(pickle_file):
+#             with open(pickle_file, "rb") as fp:
+#                 mouse_dprime = jsonpickle.decode(fp.read())
+#             mouse_dprime2 = {}
+#             for k in mouse_dprime.keys():
+#                 mouse_dprime2[f"{animal_date}_{k}"] = mouse_dprime[k]
+#             print(f"Added {len(mouse_dprime2)} d' results added from {pickle_file}")
+#             all_dprimes.update(mouse_dprime2)
+#     return all_dprimes
 
 
 class BilinearInterpolation(object):
@@ -741,24 +744,24 @@ class PositivePolynomial(object):
         return np.nan  # Or any other appropriate value for no positive roots
 
 
-def add_all_thresholds(
-    all_dprimes: Dict[str, DPrimeResult], dp_criteria=2, fit_method="bilinear"
-) -> None:
-    """Process all the dprime structures we have, using the add_threshold
-      function.
-
-    Args:
-      all_dprimes: Dictionary pointing to all the d' data that we have.
-      dp_criteria: How high does the d' have to be to pass this arbitrary
-        threshold level (defaults to 2)
-      fit_method: How do we interpolate the d' versus level to find the point
-        when the d' data crosses the threshold above.
-
-    Return:
-      Nothing returned, all d' objects modified in place.
-    """
-    for k in all_dprimes.keys():
-        all_dprimes[k].add_threshold(dp_criteria=dp_criteria, fit_method=fit_method)
+# def XXadd_all_thresholds(
+#     all_dprimes: Dict[str, DPrimeResult], dp_criteria=2, fit_method="bilinear"
+# ) -> None:
+#     """Process all the dprime structures we have, using the add_threshold
+#       function.
+# 
+#     Args:
+#       all_dprimes: Dictionary pointing to all the d' data that we have.
+#       dp_criteria: How high does the d' have to be to pass this arbitrary
+#         threshold level (defaults to 2)
+#       fit_method: How do we interpolate the d' versus level to find the point
+#         when the d' data crosses the threshold above.
+# 
+#     Return:
+#       Nothing returned, all d' objects modified in place.
+#     """
+#     for k in all_dprimes.keys():
+#         all_dprimes[k].add_threshold(dp_criteria=dp_criteria, fit_method=fit_method)
 
 
 def calculate_rms(data: np.ndarray):
@@ -806,7 +809,7 @@ def compute_stack_dprimes(measures: np.ndarray) -> np.ndarray:
 # ToDo(malcolmslaney) Change with_self_similar -> remove_self_cov
 
 
-def calculate_cov_dprime(
+def XXcalculate_cov_dprime(
     data: np.ndarray,
     noise_data: Optional[np.ndarray] = None,
     with_self_similar: bool = False,
@@ -890,7 +893,7 @@ def calculate_cov_dprime(
     return dprime
 
 
-def calculate_dprime_by_trial_count_bs(
+def XXcalculate_dprime_by_trial_count_bs(
     filtered_abr_stack: np.ndarray,
     level_index=9,
     noise_index=0,
@@ -952,7 +955,7 @@ def calculate_dprime_by_trial_count_bs(
     return block_sizes, dprime_mean_by_size, dprime_std_by_size
 
 
-def calculate_rmses(signal_data, noise_data, debug):
+def XXcalculate_rmses(signal_data, noise_data, debug):
     noise_rms = calculate_rms(noise_data)
     signal_rms = calculate_rms(signal_data)
     dprime = calculate_dprime(signal_rms, noise_rms)
@@ -983,35 +986,35 @@ def calculate_rmses(signal_data, noise_data, debug):
     return rms_of_signal, rms_of_average, dprime
 
 
-def calculate_all_summaries(
-    all_exps: List[MouseExp],
-    first_sample: int = 0,
-    last_sample: int = -1,
-) -> Dict[str, DPrimeResult]:
-    """Calculate the waveform summaries for each type of experiment within this
-    list of results.  Each result is for one experiment, at one frequency, level
-    and channel. This code groups the experiments together that share the same
-    type, based on the second component of the file name, and then computes the
-    d' as a function of frequency, level and channel.
-
-    Arg:
-      all_exps: A list of MouseExps, containing the raw waveform data for each
-        condition
-      first_sample: Extract part of the waveform data, starting with this sample
-      last_sample: Extract part of the waveform data, ending with this sample (-1
-        means all the data)
-
-    Returns:
-      A dictionary, keyed by experiment type, containing the dprime result.
-    """
-    all_groups = group_experiments(all_exps)
-    all_dprimes = {}
-    for t, exps in all_groups.items():
-        result = DPrimeResult(
-            *calculate_waveform_summaries(exps, first_sample, last_sample)
-        )
-        all_dprimes[t] = result
-    return all_dprimes
+# def XXcalculate_all_summaries(
+#     all_exps: List[MouseExp],
+#     first_sample: int = 0,
+#     last_sample: int = -1,
+# ) -> Dict[str, DPrimeResult]:
+#     """Calculate the waveform summaries for each type of experiment within this
+#     list of results.  Each result is for one experiment, at one frequency, level
+#     and channel. This code groups the experiments together that share the same
+#     type, based on the second component of the file name, and then computes the
+#     d' as a function of frequency, level and channel.
+# 
+#     Arg:
+#       all_exps: A list of MouseExps, containing the raw waveform data for each
+#         condition
+#       first_sample: Extract part of the waveform data, starting with this sample
+#       last_sample: Extract part of the waveform data, ending with this sample (-1
+#         means all the data)
+# 
+#     Returns:
+#       A dictionary, keyed by experiment type, containing the dprime result.
+#     """
+#     all_groups = group_experiments(all_exps)
+#     all_dprimes = {}
+#     for t, exps in all_groups.items():
+#         result = DPrimeResult(
+#             *calculate_waveform_summaries(exps, first_sample, last_sample)
+#         )
+#         all_dprimes[t] = result
+#     return all_dprimes
 
 
 def gather_all_trial_data(
@@ -1056,261 +1059,262 @@ def gather_all_trial_data(
           np.asarray(all_exp_channels))
 
 
-def calculate_waveform_summaries(
-    all_exps: List[MouseExp],
-    debug_cov_not_rms: bool = True,
-    debug_freq: Optional[float] = None,
-    debug_levels: List[float] = [],
-    debug_channel: Optional[int] = None,
-    first_sample: int = 0,
-    last_sample: int = -1,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[float], List[float], List[int]]:
-    """
-    Calculate the covariance and RMS d' for all trial preparations.  First gather
-    the waveforms by frequency, level and channel.  And then for each preparation
-    preprocess the waveforms.  The calcuate the covariance and its d', and then
-    do the same thing for RMS.
-
-    Args:
-      all_exps: a list containing experiments in MouseExp format, before
-        preprocessing.
-      debug_cov_not_rms: If true plot the covariance results, otherwise RMS
-      debug_freq: Which frequency from this preparation to plot
-      debug_levels: Which levels from this preparation to plot (a list)
-      debug_channel: Which channel to plot
-      first_sample: Extract part of the waveform data, starting with this sample
-      last_sample: Extract part of the waveform data, ending with this sample (-1
-        means all the data)
-
-    Returns:
-      A tuple consisting of the following items.  They must be in the *same*
-      order as the fields in the DPrimeResult class object.  All 3d arrays have
-      shape (freq x levels x channels):
-        a 3d array of d' for the covariance measure, for each experiment,
-        a 3d array of RMS values for the total signal (rms_of_total),
-        a 3d array of RMS values for the average of trial type (rms_of_average),
-        a 3d array of d' for the RMS measure
-        Then lists of the found the corresponding frequences, levels, and
-        channels
-      The order of these results is be the same as the fields in DPrimeExp class.
-    """
-    all_exp_levels = sorted(list(set([exp.level for exp in all_exps])))
-    all_exp_freqs = sorted(list(set([exp.freq for exp in all_exps])))
-    all_exp_channels = sorted(list(set([exp.channel for exp in all_exps])))
-
-    plot_num = 1
-    cov_dprimes = np.nan * np.zeros(
-        (len(all_exp_freqs), len(all_exp_levels), len(all_exp_channels))
-    )
-    rms_of_signals = cov_dprimes.copy()
-    rms_of_averages = cov_dprimes.copy()
-    rms_dprimes = np.nan * np.zeros(
-        (len(all_exp_freqs), len(all_exp_levels), len(all_exp_channels))
-    )
-    # Now loop through all the frequencies, channels, and levels.
-    all_processed = 0
-    all_multiprocessed = 0
-    for i, freq in enumerate(all_exp_freqs):
-        for k, channel in enumerate([1, 2]):
-            # Find the noisy data for this combination of frequency and channel
-            noise_exp = find_noise_exp(all_exps, freq=freq, channel=channel)
-            if noise_exp is None:
-                print(f"Found no noise data for freq={freq}, channel={channel}")
-                continue
-
-            noise_data = preprocess_mouse_data(
-                noise_exp.single_trials, first_sample, last_sample
-            )
-            noise_rms = calculate_rms(noise_data)
-
-            for j, level in enumerate(all_exp_levels):
-                exps = find_exp(all_exps, freq=freq, level=level, channel=channel)
-                if len(exps) == 0:
-                    print(
-                        f" Found ZERO examples for freq={freq}, level={level}, "
-                        f"channel={channel}: {len(exps)}"
-                    )
-                    continue
-                elif len(exps) > 1:
-                    print(
-                        f"  Processing {len(exps)} segments for the same preparation."
-                    )
-                    all_multiprocessed += 1
-                all_data = []
-                for exp in exps:
-                    all_processed += 1
-                    all_data.append(
-                        preprocess_mouse_data(
-                            exp.single_trials, first_sample, last_sample
-                        )
-                    )
-                signal_data = np.concatenate(all_data, axis=1)
-
-                debug = (
-                    channel == debug_channel
-                    and freq == debug_freq
-                    and level in debug_levels
-                )
-                if debug:
-                    plt.subplot(2, 2, plot_num)
-                    plot_num += 1
-                cov_dprimes[i, j, k] = calculate_cov_dprime(
-                    signal_data, noise_data, debug=(debug and debug_cov_not_rms)
-                )
-                (rms_of_signal, rms_of_average, dprime) = calculate_rmses(
-                    signal_data, noise_data, debug and not debug_cov_not_rms
-                )
-
-                signal_rms = calculate_rms(signal_data)
-                rms_of_signals[i, j, k] = rms_of_signal
-                rms_of_averages[i, j, k] = rms_of_average
-                rms_dprimes[i, j, k] = dprime
-                if debug:
-                    plt.title(
-                        f"freq={int(freq)}, level={int(level)}, "
-                        f"channel={int(channel)}"
-                    )
-    print(
-        f"  Processed {all_processed} CSV files, {all_multiprocessed} "
-        "part of a group."
-    )
-    return (
-        cov_dprimes,
-        rms_of_signals,
-        rms_of_averages,
-        rms_dprimes,
-        all_exp_freqs,
-        all_exp_levels,
-        all_exp_channels,
-    )
-
-
-def filter_dprime_results(
-    all_dprimes: Dict[str, DPrimeResult],
-    keep_list: List[str] = [],
-    drop_list: List[str] = [],
-    abr_thresh_greater_than: float = 0.0,  # Min d' threshold
-    abr_thresh_less_than: float = 1e9,  # Max d' threshold
-    min_ecog_thresh: float = 0.0,  # Min d' threshold
-    ecog_thresh_less_than: float = 1e9,  # Max d' threshold
-    abr_resp_greater_than: float = 0.0,
-    abr_resp_less_than: float = 1e9,
-    ecog_resp_greater_than: float = 0.0,
-    ecog_resp_less_than: float = 1e9,
-) -> Dict[str, DPrimeResult]:
-    """Filter a DPrime dictionary, looking for good preparations and dropping the
-    bad ones.  And setting limits on the calculate thresholds, looking for good
-    and bad data.  Be sure to run add_all_thresholds() before running this filter
-    command.
-
-    Args:
-      all_dprimes: A dictionary pointing to dprime results
-      keep_list: A list of strings with words from the date_preparation_name keys
-        that we want to keep
-      drop_list: Like keep list, but overrules with keys to drop
-      abr_thresh_greater_than: Keep preps where all thresholds are *above* this limit
-      abr_thresh_less_than: Keep preps where all thresholds are *below* this limit
-      min_ecog_thresh: Like abr_thresh_greater_than, but using ECoG data
-      ecog_thresh_less_than: Like abr_thresh_less_than, but using ECoG data
-
-      abr_resp_greater_than: Test whether highest level is above this d'
-      abr_resp_less_than: Test whether all levels are below this d'
-      ecoh_resp_greater_than: Test whether highest level is above this d'
-      ecoh_resp_less_than: Test whether all levels are below this d'
-    Returns:
-      A new dictionary containing just the selected dprime results.
-    """
-    filtered_dprimes = {}
-    for k in all_dprimes.keys():
-        if any([l in k for l in drop_list]):
-            continue
-        if len(keep_list) and not any([l in k for l in keep_list]):
-            continue
-
-        dp = all_dprimes[k]
-        if dp.cov_spl_threshold is None:
-            continue
-        if (
-            not isinstance(dp.cov_spl_threshold, np.ndarray)
-            or dp.cov_spl_threshold.ndim < 2
-        ):
-            continue
-
-        if np.all(np.isnan(dp.cov_spl_threshold[:, 0])):  # No ABR Data
-            continue
-        if np.all(np.isnan(dp.cov_spl_threshold[:, 1])):  # No ECochG Data
-            continue
-        if np.nanmin(dp.cov_spl_threshold[:, 0]) < abr_thresh_greater_than:
-            continue
-        if np.nanmax(dp.cov_spl_threshold[:, 0]) > abr_thresh_less_than:
-            continue
-        if np.nanmin(dp.cov_spl_threshold[:, 1]) < min_ecog_thresh:
-            continue
-        if np.nanmax(dp.cov_spl_threshold[:, 1]) > ecog_thresh_less_than:
-            continue
-        if np.min(dp.cov_dprimes[:, -1, 0]) < abr_resp_greater_than:
-            continue
-        if np.max(dp.cov_dprimes[:, :, 0]) > abr_resp_less_than:
-            continue
-        if np.min(dp.cov_dprimes[:, -1, 1]) < ecog_resp_greater_than:
-            continue
-        if np.max(dp.cov_dprimes[:, :, 1]) > ecog_resp_less_than:
-            continue
-
-        filtered_dprimes[k] = dp
-    return filtered_dprimes
+# def XXcalculate_waveform_summaries(
+#     all_exps: List[MouseExp],
+#     debug_cov_not_rms: bool = True,
+#     debug_freq: Optional[float] = None,
+#     debug_levels: List[float] = [],
+#     debug_channel: Optional[int] = None,
+#     first_sample: int = 0,
+#     last_sample: int = -1,
+# ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[float], List[float], List[int]]:
+#     """
+#     Calculate the covariance and RMS d' for all trial preparations.  First gather
+#     the waveforms by frequency, level and channel.  And then for each preparation
+#     preprocess the waveforms.  The calcuate the covariance and its d', and then
+#     do the same thing for RMS.
+# 
+#     Args:
+#       all_exps: a list containing experiments in MouseExp format, before
+#         preprocessing.
+#       debug_cov_not_rms: If true plot the covariance results, otherwise RMS
+#       debug_freq: Which frequency from this preparation to plot
+#       debug_levels: Which levels from this preparation to plot (a list)
+#       debug_channel: Which channel to plot
+#       first_sample: Extract part of the waveform data, starting with this sample
+#       last_sample: Extract part of the waveform data, ending with this sample (-1
+#         means all the data)
+# 
+#     Returns:
+#       A tuple consisting of the following items.  They must be in the *same*
+#       order as the fields in the DPrimeResult class object.  All 3d arrays have
+#       shape (freq x levels x channels):
+#         a 3d array of d' for the covariance measure, for each experiment,
+#         a 3d array of RMS values for the total signal (rms_of_total),
+#         a 3d array of RMS values for the average of trial type (rms_of_average),
+#         a 3d array of d' for the RMS measure
+#         Then lists of the found the corresponding frequences, levels, and
+#         channels
+#       The order of these results is be the same as the fields in DPrimeExp class.
+#     """
+#     all_exp_levels = sorted(list(set([exp.level for exp in all_exps])))
+#     all_exp_freqs = sorted(list(set([exp.freq for exp in all_exps])))
+#     all_exp_channels = sorted(list(set([exp.channel for exp in all_exps])))
+# 
+#     plot_num = 1
+#     cov_dprimes = np.nan * np.zeros(
+#         (len(all_exp_freqs), len(all_exp_levels), len(all_exp_channels))
+#     )
+#     rms_of_signals = cov_dprimes.copy()
+#     rms_of_averages = cov_dprimes.copy()
+#     rms_dprimes = np.nan * np.zeros(
+#         (len(all_exp_freqs), len(all_exp_levels), len(all_exp_channels))
+#     )
+#     # Now loop through all the frequencies, channels, and levels.
+#     all_processed = 0
+#     all_multiprocessed = 0
+#     for i, freq in enumerate(all_exp_freqs):
+#         for k, channel in enumerate([1, 2]):
+#             # Find the noisy data for this combination of frequency and channel
+#             noise_exp = find_noise_exp(all_exps, freq=freq, channel=channel)
+#             if noise_exp is None:
+#                 print(f"Found no noise data for freq={freq}, channel={channel}")
+#                 continue
+# 
+#             noise_data = preprocess_mouse_data(
+#                 noise_exp.single_trials, first_sample, last_sample
+#             )
+#             noise_rms = calculate_rms(noise_data)
+# 
+#             for j, level in enumerate(all_exp_levels):
+#                 exps = find_exp(all_exps, freq=freq, level=level, channel=channel)
+#                 if len(exps) == 0:
+#                     print(
+#                         f" Found ZERO examples for freq={freq}, level={level}, "
+#                         f"channel={channel}: {len(exps)}"
+#                     )
+#                     continue
+#                 elif len(exps) > 1:
+#                     print(
+#                         f"  Processing {len(exps)} segments for the same preparation."
+#                     )
+#                     all_multiprocessed += 1
+#                 all_data = []
+#                 for exp in exps:
+#                     all_processed += 1
+#                     all_data.append(
+#                         preprocess_mouse_data(
+#                             exp.single_trials, first_sample, last_sample
+#                         )
+#                     )
+#                 signal_data = np.concatenate(all_data, axis=1)
+# 
+#                 debug = (
+#                     channel == debug_channel
+#                     and freq == debug_freq
+#                     and level in debug_levels
+#                 )
+#                 if debug:
+#                     plt.subplot(2, 2, plot_num)
+#                     plot_num += 1
+#                 cov_dprimes[i, j, k] = calculate_cov_dprime(
+#                     signal_data, noise_data, debug=(debug and debug_cov_not_rms)
+#                 )
+#                 (rms_of_signal, rms_of_average, dprime) = calculate_rmses(
+#                     signal_data, noise_data, debug and not debug_cov_not_rms
+#                 )
+# 
+#                 signal_rms = calculate_rms(signal_data)
+#                 rms_of_signals[i, j, k] = rms_of_signal
+#                 rms_of_averages[i, j, k] = rms_of_average
+#                 rms_dprimes[i, j, k] = dprime
+#                 if debug:
+#                     plt.title(
+#                         f"freq={int(freq)}, level={int(level)}, "
+#                         f"channel={int(channel)}"
+#                     )
+#     print(
+#         f"  Processed {all_processed} CSV files, {all_multiprocessed} "
+#         "part of a group."
+#     )
+#     return (
+#         cov_dprimes,
+#         rms_of_signals,
+#         rms_of_averages,
+#         rms_dprimes,
+#         all_exp_freqs,
+#         all_exp_levels,
+#         all_exp_channels,
+#     )
 
 
-def plot_dprimes(
-    dp: DPrimeResult,
-    plot_cov_dp: bool = True,
-    show_threshold: bool = False,
-    title: str = "",
-):
-    """Create a plot summarizing the d' of the covariance data collected by the
-    calculate_all_summaries routine above.  Show d' versus level, for each
-    frequency and channel pair.
+# def XXfilter_dprime_results(
+#     all_dprimes: Dict[str, DPrimeResult],
+#     keep_list: List[str] = [],
+#     drop_list: List[str] = [],
+#     abr_thresh_greater_than: float = 0.0,  # Min d' threshold
+#     abr_thresh_less_than: float = 1e9,  # Max d' threshold
+#     min_ecog_thresh: float = 0.0,  # Min d' threshold
+#     ecog_thresh_less_than: float = 1e9,  # Max d' threshold
+#     abr_resp_greater_than: float = 0.0,
+#     abr_resp_less_than: float = 1e9,
+#     ecog_resp_greater_than: float = 0.0,
+#     ecog_resp_less_than: float = 1e9,
+# ) -> Dict[str, DPrimeResult]:
+#     """Filter a DPrime dictionary, looking for good preparations and dropping the
+#     bad ones.  And setting limits on the calculate thresholds, looking for good
+#     and bad data.  Be sure to run add_all_thresholds() before running this filter
+#     command.
+# 
+#     Args:
+#       all_dprimes: A dictionary pointing to dprime results
+#       keep_list: A list of strings with words from the date_preparation_name keys
+#         that we want to keep
+#       drop_list: Like keep list, but overrules with keys to drop
+#       abr_thresh_greater_than: Keep preps where all thresholds are *above* this limit
+#       abr_thresh_less_than: Keep preps where all thresholds are *below* this limit
+#       min_ecog_thresh: Like abr_thresh_greater_than, but using ECoG data
+#       ecog_thresh_less_than: Like abr_thresh_less_than, but using ECoG data
+# 
+#       abr_resp_greater_than: Test whether highest level is above this d'
+#       abr_resp_less_than: Test whether all levels are below this d'
+#       ecoh_resp_greater_than: Test whether highest level is above this d'
+#       ecoh_resp_less_than: Test whether all levels are below this d'
+#     Returns:
+#       A new dictionary containing just the selected dprime results.
+#     """
+#     filtered_dprimes = {}
+#     for k in all_dprimes.keys():
+#         if any([l in k for l in drop_list]):
+#             continue
+#         if len(keep_list) and not any([l in k for l in keep_list]):
+#             continue
+# 
+#         dp = all_dprimes[k]
+#         if dp.cov_spl_threshold is None:
+#             continue
+#         if (
+#             not isinstance(dp.cov_spl_threshold, np.ndarray)
+#             or dp.cov_spl_threshold.ndim < 2
+#         ):
+#             continue
+# 
+#         if np.all(np.isnan(dp.cov_spl_threshold[:, 0])):  # No ABR Data
+#             continue
+#         if np.all(np.isnan(dp.cov_spl_threshold[:, 1])):  # No ECochG Data
+#             continue
+#         if np.nanmin(dp.cov_spl_threshold[:, 0]) < abr_thresh_greater_than:
+#             continue
+#         if np.nanmax(dp.cov_spl_threshold[:, 0]) > abr_thresh_less_than:
+#             continue
+#         if np.nanmin(dp.cov_spl_threshold[:, 1]) < min_ecog_thresh:
+#             continue
+#         if np.nanmax(dp.cov_spl_threshold[:, 1]) > ecog_thresh_less_than:
+#             continue
+#         if np.min(dp.cov_dprimes[:, -1, 0]) < abr_resp_greater_than:
+#             continue
+#         if np.max(dp.cov_dprimes[:, :, 0]) > abr_resp_less_than:
+#             continue
+#         if np.min(dp.cov_dprimes[:, -1, 1]) < ecog_resp_greater_than:
+#             continue
+#         if np.max(dp.cov_dprimes[:, :, 1]) > ecog_resp_less_than:
+#             continue
+# 
+#         filtered_dprimes[k] = dp
+#     return filtered_dprimes
+# 
+# 
+# def XXplot_dprimes(
+#     dp: DPrimeResult,
+#     plot_cov_dp: bool = True,
+#     show_threshold: bool = False,
+#     title: str = "",
+# ):
+#     """Create a plot summarizing the d' of the covariance data collected by the
+#     calculate_all_summaries routine above.  Show d' versus level, for each
+#     frequency and channel pair.
+# 
+#     Args:
+#       dprimes: a 3d array of dprimes, for all experiments, as a function of
+#         frequences, levels, and channels.
+#       plot_cov_dp: If true, plot covariance d', otherwise RMS d'
+#     """
+#     prop_cycle = plt.rcParams["axes.prop_cycle"]
+#     colors = prop_cycle.by_key()["color"]
+# 
+#     names = ["", "ABR", "ECochG"]
+#     if plot_cov_dp:
+#         data = dp.cov_dprimes
+#         thresh = dp.cov_spl_threshold
+#         title = title or "Covariance D-Prime versus Presentation Level"
+#     else:
+#         data = dp.rms_dprimes
+#         thresh = dp.rms_spl_threshold
+#         title = title or "RMS D-Prime versus Presentation Level"
+#     for i, freq in enumerate(dp.freqs):
+#         for k, channel in enumerate(dp.channels):
+#             if channel == 2:
+#                 linestyle = "--"
+#             else:
+#                 linestyle = "-"
+#             if show_threshold and isinstance(thresh, np.ndarray):
+#                 thresh_label = f" Threshold={thresh[i, k]:6.0f}dB"
+#             else:
+#                 thresh_label = ""
+#             plt.plot(
+#                 dp.levels,
+#                 data[i, :, k],
+#                 label=f"{names[channel]} {freq}Hz{thresh_label}",
+#                 linestyle=linestyle,
+#                 color=colors[i],
+#             )
+#     plt.title(title)
+#     plt.legend()
+#     plt.xlabel("Level (dB)")
+#     plt.ylabel("d'")
 
-    Args:
-      dprimes: a 3d array of dprimes, for all experiments, as a function of
-        frequences, levels, and channels.
-      plot_cov_dp: If true, plot covariance d', otherwise RMS d'
-    """
-    prop_cycle = plt.rcParams["axes.prop_cycle"]
-    colors = prop_cycle.by_key()["color"]
 
-    names = ["", "ABR", "ECochG"]
-    if plot_cov_dp:
-        data = dp.cov_dprimes
-        thresh = dp.cov_spl_threshold
-        title = title or "Covariance D-Prime versus Presentation Level"
-    else:
-        data = dp.rms_dprimes
-        thresh = dp.rms_spl_threshold
-        title = title or "RMS D-Prime versus Presentation Level"
-    for i, freq in enumerate(dp.freqs):
-        for k, channel in enumerate(dp.channels):
-            if channel == 2:
-                linestyle = "--"
-            else:
-                linestyle = "-"
-            if show_threshold and isinstance(thresh, np.ndarray):
-                thresh_label = f" Threshold={thresh[i, k]:6.0f}dB"
-            else:
-                thresh_label = ""
-            plt.plot(
-                dp.levels,
-                data[i, :, k],
-                label=f"{names[channel]} {freq}Hz{thresh_label}",
-                linestyle=linestyle,
-                color=colors[i],
-            )
-    plt.title(title)
-    plt.legend()
-    plt.xlabel("Level (dB)")
-    plt.ylabel("d'")
-
-
+# Still needed?
 def compute_and_cache_dprimes():
     cmd = "StanfordAudiology/abr_george.py"
     run_local = True
@@ -1351,62 +1355,62 @@ def compute_and_cache_dprimes():
         print()
 
 
-def accumulate_all_thresholds(
-    all_dprimes: Dict[str, DPrimeResult],
-    freqs: Optional[List[float]] = None,
-    max_spl=120,
-) -> Tuple[List[float], List[float], float]:
-    """Accumulate all the thresholds for ABR and ECoG data, across all the data
-    we have.  Filter out the preparation names we do and don't want.  And remove
-    remove any preparations where the computed threshold is greater than max_spl,
-    indicating that we got no data for this prep.
-
-    Args:
-      all_dprimes: Dictionary keyed by the date_prep_name and pointing to the
-        d' data for this preparation.  In particular we look at the
-        spl_threshold, which should already be calculated by add_threshold()
-      freqs: List of frequencies to keep. The default is to return the d'
-        regardless of test frequency.
-      max_spl: Filter results using this threshold before computing the Pearson
-        correlation.
-    Returns:
-      1) List of ABR thresholds
-      2) List of corresponding ECoG thresholds
-      3) the Pearson correlation between the ABR and ECoG thresholds
-    """
-    all_abr = []
-    all_ecog = []
-    for k in all_dprimes.keys():
-        dp = all_dprimes[k]
-        if dp.cov_spl_threshold is None:
-            continue
-        if freqs is not None:
-            if not isinstance(freqs, list):
-                freqs = [
-                    freqs,
-                ]
-            freq_indices = [dp.freqs.index(f) for f in freqs if f in dp.freqs]
-        else:
-            freq_indices = range(len(dp.freqs))
-        # print(freq_indices, dp.cov_spl_threshold.shape)
-        all_abr.append(dp.cov_spl_threshold[freq_indices, 0].flatten())
-        all_ecog.append(dp.cov_spl_threshold[freq_indices, 1].flatten())
-    if len(all_abr) == 0:
-        print(f'Found no data for frequency list: {",".join(freqs)}')
-        return [], [], 0.0
-    all_abr = np.concatenate(all_abr)
-    all_ecog = np.concatenate(all_ecog)
-
-    # Calculate the Pearson correlation using the "good" data.
-    good = np.logical_and(
-        np.logical_and(np.isfinite(all_abr), all_abr < max_spl),
-        np.logical_and(np.isfinite(all_ecog), all_ecog < max_spl),
-    )
-    abr_thresh = all_abr[good]
-    ecog_thresh = all_ecog[good]
-    pearson_r = spstats.pearsonr(abr_thresh, ecog_thresh).statistic
-
-    return all_abr, all_ecog, pearson_r
+# def XXaccumulate_all_thresholds(
+#     all_dprimes: Dict[str, DPrimeResult],
+#     freqs: Optional[List[float]] = None,
+#     max_spl=120,
+# ) -> Tuple[List[float], List[float], float]:
+#     """Accumulate all the thresholds for ABR and ECoG data, across all the data
+#     we have.  Filter out the preparation names we do and don't want.  And remove
+#     remove any preparations where the computed threshold is greater than max_spl,
+#     indicating that we got no data for this prep.
+# 
+#     Args:
+#       all_dprimes: Dictionary keyed by the date_prep_name and pointing to the
+#         d' data for this preparation.  In particular we look at the
+#         spl_threshold, which should already be calculated by add_threshold()
+#       freqs: List of frequencies to keep. The default is to return the d'
+#         regardless of test frequency.
+#       max_spl: Filter results using this threshold before computing the Pearson
+#         correlation.
+#     Returns:
+#       1) List of ABR thresholds
+#       2) List of corresponding ECoG thresholds
+#       3) the Pearson correlation between the ABR and ECoG thresholds
+#     """
+#     all_abr = []
+#     all_ecog = []
+#     for k in all_dprimes.keys():
+#         dp = all_dprimes[k]
+#         if dp.cov_spl_threshold is None:
+#             continue
+#         if freqs is not None:
+#             if not isinstance(freqs, list):
+#                 freqs = [
+#                     freqs,
+#                 ]
+#             freq_indices = [dp.freqs.index(f) for f in freqs if f in dp.freqs]
+#         else:
+#             freq_indices = range(len(dp.freqs))
+#         # print(freq_indices, dp.cov_spl_threshold.shape)
+#         all_abr.append(dp.cov_spl_threshold[freq_indices, 0].flatten())
+#         all_ecog.append(dp.cov_spl_threshold[freq_indices, 1].flatten())
+#     if len(all_abr) == 0:
+#         print(f'Found no data for frequency list: {",".join(freqs)}')
+#         return [], [], 0.0
+#     all_abr = np.concatenate(all_abr)
+#     all_ecog = np.concatenate(all_ecog)
+# 
+#     # Calculate the Pearson correlation using the "good" data.
+#     good = np.logical_and(
+#         np.logical_and(np.isfinite(all_abr), all_abr < max_spl),
+#         np.logical_and(np.isfinite(all_ecog), all_ecog < max_spl),
+#     )
+#     abr_thresh = all_abr[good]
+#     ecog_thresh = all_ecog[good]
+#     pearson_r = spstats.pearsonr(abr_thresh, ecog_thresh).statistic
+# 
+#     return all_abr, all_ecog, pearson_r
 
 
 def plot_threshold_scatter(
@@ -1444,35 +1448,35 @@ def plot_threshold_scatter(
         plt.plot([0, a], [0, a], "--")
 
 
-def find_dprime(
-    all_dprimes: Dict[str, DPrimeResult], spl: float
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Find the d' for all data in this dictionary of preparations at one SPL.
-    Use the smooth d' data, which is best calculated with bilinear interpolaton.
-
-    Args:
-      all_dprimes: Dictionary mapping preparation name to d' results.
-      spl: Which sound pressure level (SPL) to query the d'.  Must be one of the
-        measured SPLs, as computed by the smooth polynomial.
-    Returns:
-      Matched ABR and ECoG arrays with the d' at the given SPL.  There should
-      be three d's (one for each frequency) for each experiment.
-    """
-    abr_90s = []
-    ecog_90s = []
-    for k in all_dprimes:
-        dp = all_dprimes[k]
-        if (
-            dp.cov_smooth_dprimes is None
-            or spl not in dp.levels
-            or dp.cov_smooth_dprimes.shape[2] < 2
-        ):
-            continue
-        index = dp.levels.index(spl)
-        abr_90s.append(dp.cov_smooth_dprimes[:, index, 0])
-        ecog_90s.append(dp.cov_smooth_dprimes[:, index, 1])
-
-    return np.concatenate(abr_90s), np.concatenate(ecog_90s)
+# def XXfind_dprime(
+#     all_dprimes: Dict[str, DPrimeResult], spl: float
+# ) -> Tuple[np.ndarray, np.ndarray]:
+#     """Find the d' for all data in this dictionary of preparations at one SPL.
+#     Use the smooth d' data, which is best calculated with bilinear interpolaton.
+# 
+#     Args:
+#       all_dprimes: Dictionary mapping preparation name to d' results.
+#       spl: Which sound pressure level (SPL) to query the d'.  Must be one of the
+#         measured SPLs, as computed by the smooth polynomial.
+#     Returns:
+#       Matched ABR and ECoG arrays with the d' at the given SPL.  There should
+#       be three d's (one for each frequency) for each experiment.
+#     """
+#     abr_90s = []
+#     ecog_90s = []
+#     for k in all_dprimes:
+#         dp = all_dprimes[k]
+#         if (
+#             dp.cov_smooth_dprimes is None
+#             or spl not in dp.levels
+#             or dp.cov_smooth_dprimes.shape[2] < 2
+#         ):
+#             continue
+#         index = dp.levels.index(spl)
+#         abr_90s.append(dp.cov_smooth_dprimes[:, index, 0])
+#         ecog_90s.append(dp.cov_smooth_dprimes[:, index, 1])
+# 
+#     return np.concatenate(abr_90s), np.concatenate(ecog_90s)
 
 
 ###############  Waveform and RMS Displays ######################
@@ -2203,7 +2207,8 @@ def cache_dprime_data(
       dprimes: Dictionary keyed by experiment type and the resulting d' results
       dprime_pickle_name: The name of the waveform cache file.
     """
-    dprimes['_version'] = '2025/04/20 - With George time limits for PeakMetric'
+    dprimes['_version'] = GeorgeCacheDPrimeVersion
+
     pickle_file = os.path.join(cache_dir, dprime_pickle_name)
     with open(pickle_file, "w") as f:
         f.write(jsonpickle.encode(dprimes))
