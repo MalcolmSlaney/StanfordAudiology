@@ -170,7 +170,7 @@ class CovarianceMetric(Metric):
         response[i] = np.mean(model_without * stack[:, i])
     # Can't take sqrt since response with noise is symmetric around 0.
     # return np.sqrt(np.maximum(0, response))
-    return np.sqrt(np.maximum(0, response))
+    return response
 
 
 class CovarianceSelfSimilarMetric(CovarianceMetric):
