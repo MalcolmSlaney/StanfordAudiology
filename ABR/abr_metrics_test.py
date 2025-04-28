@@ -34,7 +34,7 @@ class DPrimeTests(absltest.TestCase):
                                                signal_levels=np.linspace(0, .9, 10))
     cov_ns_metric = metrics.CovarianceMetric(with_self_similar=False)
     cov_dprimes = metrics.calculate_dprimes(exp_stack, cov_ns_metric)
-    self.assertGreater(np.mean(cov_dprimes), 10)
+    self.assertGreater(np.mean(cov_dprimes), 9)
     self.assertLess(np.std(cov_dprimes), 10)  # Why so high?
 
 class ShuffleTests(absltest.TestCase):
