@@ -168,6 +168,8 @@ class CovarianceMetric(Metric):
       for i in range(num_trials):
         model_without = (model * num_trials - stack[:, i]) / (num_trials - 1)
         response[i] = np.mean(model_without * stack[:, i])
+    # Can't take sqrt since response with noise is symmetric around 0.
+    # return np.sqrt(np.maximum(0, response))
     return np.sqrt(np.maximum(0, response))
 
 
