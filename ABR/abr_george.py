@@ -85,6 +85,7 @@ GeorgeCachedDataDir = ("drive/Shareddrives/StanfordAudiology/"
                         "GeorgeMouseABR/CAP_Cache")
 
 GeorgeCacheDPrimeVersion = '2025/04/20 - With George time limits for PeakMetric'
+GeorgeCacheDPrimeVersion = '2025/04/28 - Removed sqrt from Covariance Metric'
 
 
 ################### Waveform Level Reading/Caching/Loading ##################
