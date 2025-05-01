@@ -655,6 +655,10 @@ class XXDPrimeResult(object):
 #             all_dprimes.update(mouse_dprime2)
 #     return all_dprimes
 
+# Interpolation Objects, using either bilinear approximation or polynomial.
+# In either case, create the object, call fit() to create the model, and then
+# call threshold() to find the x-value where y crosses the given threshold.
+# The eval() function evalues the interpolation object at the given value of x.
 
 class BilinearInterpolation(object):
     def __init__(self):
@@ -662,9 +666,9 @@ class BilinearInterpolation(object):
         self._ydata = []
 
     def fit(self, xdata, ydata):
-        i = np.argsort(xdata)
         if len(xdata) != len(ydata):
             raise ValueError("Unequal array sizes passed to fit")
+        i = np.argsort(xdata)
         self._xdata = np.asarray(xdata)[i]
         # Make sure ydata is increasing, not perfect but better than noise
         self._ydata = np.asarray(ydata)[i]
