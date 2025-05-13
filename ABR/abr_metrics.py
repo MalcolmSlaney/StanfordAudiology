@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from typing import Dict, Generator, List, Optional, Tuple, Union
 
@@ -51,8 +52,8 @@ def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
     return stack
 
 
-def bootstrap_sample(data: np.ndarray, 
-                     bootstrap_size: int) -> np.ndarray:
+def bootstrap_sample(data: NDArray, 
+                     bootstrap_size: int) -> NDArray:
   """Grab a random subset of the trials from the data, choosing with
   replacement.
   Args:
@@ -69,8 +70,8 @@ def bootstrap_sample(data: np.ndarray,
 
 
 def calculate_dprime(
-    h1: Union[list, np.ndarray],
-    h2: Union[list, np.ndarray],
+    h1: Union[list, NDArray],
+    h2: Union[list, NDArray],
     geometric_mean: bool = False,
 ) -> float:
     """Calculate the d' given two sets of (one-dimensiona) data.  The h1
@@ -91,12 +92,12 @@ class Metric(object):
     del args
     del kwargs
 
-  def compute(self, stack: np.ndarray) -> np.ndarray:
+  def compute(self, stack: NDArray) -> NDArray:
     return np.array(())  # Should never be called, always specialized.
 
   def compute_window(
     self,
-    stack: np.ndarray,
+    stack: NDArray,
     window_start: int = 0,
     window_end: int = 0,
   ) -> float:
@@ -119,7 +120,7 @@ class PeakMetric(Metric):
     self.window_start = window_start
     self.window_end = window_end
 
-  def compute(self, stack: np.ndarray) -> np.ndarray:
+  def compute(self, stack: NDArray) -> NDArray:
     assert stack.ndim == 2
     signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
     noise_ave = np.mean(shuffle_2d_array(stack), axis=1)
@@ -128,7 +129,7 @@ class PeakMetric(Metric):
   
 
 class TotalRMSMetric(Metric):
-  def compute(self, stack: np.ndarray) -> np.ndarray:
+  def compute(self, stack: NDArray) -> NDArray:
     """
     Compute the RMS of the waveform recordings, one per trial.
 
@@ -144,8 +145,8 @@ class CovarianceMetric(Metric):
     self.with_self_similar = with_self_similar
 
   def compute(self, 
-              stack: np.ndarray, 
-              model: Optional[np.ndarray] = None) -> np.ndarray:
+              stack: NDArray, 
+              model: Optional[NDArray] = None) -> NDArray:
     """
     Compute the matched filter output of the waveform recordings, one per trial.
 
@@ -184,7 +185,7 @@ class PrestoMetric(Metric):
     """500 splits is what is used in the paper."""
     self.num_splits = num_splits
 
-  def compute(self, stack: np.ndarray) -> np.ndarray:
+  def compute(self, stack: NDArray) -> NDArray:
     """
     Compute a self-similarity measure based on binary splits proposed by the
     ABRpresto paper.
@@ -217,14 +218,14 @@ def shuffle_2d_array(array_2d):
     return flat_array.reshape(array_2d.shape)
 
     
-def calculate_dprimes(exp_stack: np.ndarray, 
+def calculate_dprimes(exp_stack: NDArray, 
                       metric: Metric,
                       signal_index: int = -1,
                       noise_index: int = 0,
                       window_start: int = 0,
                       window_end: int = 0,
                       **compute_args
-                      ) -> np.ndarray:
+                      ) -> NDArray:
   assert exp_stack.ndim == 3  # num_levels x num_times x num_trials
   dprimes = np.zeros(exp_stack.shape[0])
 
@@ -242,8 +243,8 @@ def calculate_dprimes(exp_stack: np.ndarray,
 
 
 def show_response_stack(
-    stack: np.ndarray,
-    levels: Union[np.ndarray, List[float]],
+    stack: NDArray,
+    levels: Union[NDArray, List[float]],
     alpha: float = 0.01,
     title: str = "",
     skip_levels: int = 3,
@@ -300,7 +301,7 @@ def show_response_stack(
             plt.gca().xaxis.set_tick_params(labelcolor="none")
 
 
-def measure_full_stack(stack) -> Dict[str, np.ndarray]:
+def measure_full_stack(stack) -> Dict[str, NDArray]:
   """Calculate all metrics on a full 5-dimensional stack of waveforms.
   For each frequency, level and channels, summarize the ERP data and create a
   new 4d array adding the summary.
