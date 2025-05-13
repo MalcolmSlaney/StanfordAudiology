@@ -1,6 +1,7 @@
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 from typing import List, Optional, Tuple, Union
 from scipy.signal import butter, freqz, lfilter, sosfilt, sosfiltfilt
 from sklearn.linear_model import Ridge, LinearRegression
@@ -113,7 +114,7 @@ def reject_artifacts(abr_data, variance_percentile=95,
 
 
 def design_butterworth_filter(lowcut: float, highcut: float, 
-                            fs: float, order: int=6) -> np.ndarray:
+                            fs: float, order: int=6) -> NDArray:
   """Design a butterworth filter with the indicated parameters. Returns the filter 
   coefficients (for each second order section) as an array.
   """
@@ -130,8 +131,8 @@ def design_butterworth_filter(lowcut: float, highcut: float,
   #       f'frequencies {freqs}.')
   return butter(order, freqs, fs=fs, btype=filter_type, output='sos')
 
-def butterworth_filter(data: np.ndarray, lowcut: float, highcut: float, 
-                       fs: float, order: int=5, axis=-1) -> np.ndarray:
+def butterworth_filter(data: NDArray, lowcut: float, highcut: float, 
+                       fs: float, order: int=5, axis=-1) -> NDArray:
   """Filter an array of signals with a Butterworth (smooth passband) 
   filter with the given low-frequency and high-frequency cutoffs.  All 
   frequencies are in Hz.
@@ -160,7 +161,7 @@ def butterworth_filter(data: np.ndarray, lowcut: float, highcut: float,
   return y
 
 
-def remove_offset(abr_data: np.ndarray) -> np.ndarray:
+def remove_offset(abr_data: NDArray) -> NDArray:
   """Remove the mean from each channel. This is good to do this way (instead
   of using the bandpass filter, because there is no startup energy due to a 
   non-zero offset)
@@ -179,7 +180,7 @@ def remove_offset(abr_data: np.ndarray) -> np.ndarray:
   return filtered_data
 
 
-def rereference(eeg: np.ndarray, channel: Optional[int] = None) -> np.ndarray:
+def rereference(eeg: NDArray, channel: Optional[int] = None) -> NDArray:
   """Re reference the EEG data, by using a new *ground* signal.  This reference
   can either be a single channel (the ground) or the mean of all the channels.
   
@@ -197,9 +198,9 @@ def rereference(eeg: np.ndarray, channel: Optional[int] = None) -> np.ndarray:
     reference = np.mean(eeg, keepdims=True, axis=1)
   return eeg - reference
 
-def extract_epochs(data: np.ndarray,
-                   locs: Union[int, List[int], np.ndarray],
-                   length: int) -> np.ndarray:
+def extract_epochs(data: NDArray,
+                   locs: Union[int, List[int], NDArray],
+                   length: int) -> NDArray:
   """
   Extract the click response from a multi-channel EEG recording.
   
@@ -225,10 +226,10 @@ def extract_epochs(data: np.ndarray,
   return epochs
 
 
-def epoch_bipolar_data(clean_eeg: np.ndarray, 
-                       positive_indices: Union[List[int], np.ndarray], 
-                       negative_indices: Union[List[int], np.ndarray], 
-                       epoch_length) -> np.ndarray:
+def epoch_bipolar_data(clean_eeg: NDArray, 
+                       positive_indices: Union[List[int], NDArray], 
+                       negative_indices: Union[List[int], NDArray], 
+                       epoch_length) -> NDArray:
   """
   Accumulate positive and negative click stimuli, and flip the negative
   stimuli to get an average response. This was originally done so that
@@ -255,7 +256,7 @@ def epoch_bipolar_data(clean_eeg: np.ndarray,
   return epochs
 
 
-def estimate_snr_at_t(data: np.ndarray, # A 1D array over trials at one time
+def estimate_snr_at_t(data: NDArray, # A 1D array over trials at one time
                       ridge_alpha: float = 0.0,
                       plot_results: bool = False,
                       low_trial_count: int = 10

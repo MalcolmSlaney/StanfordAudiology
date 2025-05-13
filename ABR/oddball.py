@@ -1,5 +1,6 @@
 import json
 import numpy as np
+from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 
@@ -19,8 +20,8 @@ def create_sequence(count: int, normal_frac:float =.9) -> List[bool]:
 
 
 def choose_block(s: bool, fs: float, 
-                 normal_beep: np.ndarray, deviant_beep: np.ndarray,
-                 silence: np.ndarray, normal_sense: bool = True):
+                 normal_beep: NDArray, deviant_beep: NDArray,
+                 silence: NDArray, normal_sense: bool = True):
   silence_ms = np.random.uniform(700, 899)
   silence_samples = int(silence_ms/1000*fs)
   jittered_silence = silence[0:silence_samples]

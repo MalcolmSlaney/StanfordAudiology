@@ -13,6 +13,7 @@ import traceback
 import matplotlib.pyplot as plt
 
 import numpy as np
+from np.typing import NDArray
 import scipy.stats as spstats
 
 from absl import app, flags
@@ -118,8 +119,8 @@ class MouseExp:
     channel: int  # which electrode, probably 1 or 2
     sgi: int  # TDT Stimulus generation index (i.e. freq and level)
     description: str = ""
-    single_trials: np.ndarray = None  # num_waveform samples x num_trials
-    paired_trials: np.ndarray = None
+    single_trials: NDArray = None  # num_waveform samples x num_trials
+    paired_trials: NDArray = None
 
 
 mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
@@ -396,7 +397,7 @@ def find_noise_exp(
 
 # Maybe move to abr.py
 def preprocess_mouse_data(
-    data: np.ndarray,
+    data: NDArray,
     remove_dc: bool = True,
     remove_artifacts: bool = True,
     bandpass_filter: bool = False,
@@ -405,7 +406,7 @@ def preprocess_mouse_data(
     mouse_sample_rate: float = mouse_sample_rate,
     first_sample: int = 0,
     last_sample: int = -1,
-) -> np.ndarray:
+) -> NDArray:
     """
     Preprocess the mouse data, removing the DC offset, rejecting artifacts, and
     applying a bandpass filter.
@@ -447,7 +448,7 @@ def preprocess_mouse_data(
     return data[first_sample:last_sample, :]
 
 
-def shuffle_data(data: np.ndarray, axis=0) -> np.ndarray:
+def shuffle_data(data: NDArray, axis=0) -> NDArray:
     """
     Shuffle the data in time.
 
@@ -495,22 +496,22 @@ def group_experiments(all_exps: List[MouseExp]) -> Dict[str, List[MouseExp]]:
 ###############  Compute all the d-primes for our data #######################
 @dataclasses.dataclass
 class MouseSummary(object):
-    metrics: Dict[str, np.ndarray]
-    dprimes: Dict[str, np.ndarray]
+    metrics: Dict[str, NDArray]
+    dprimes: Dict[str, NDArray]
 
-    freqs: np.ndarray
-    levels: np.ndarray
-    channels: np.ndarray
+    freqs: NDArray
+    levels: NDArray
+    channels: NDArray
 
 @dataclasses.dataclass
 class XXDPrimeResult(object):
     """Consolidate all the d' results for one preparation, across frequency.
     level and channel."""
 
-    cov_dprimes: np.ndarray  # 3d array by frequency, level and channel
-    rms_of_total: np.ndarray  # RMS values for total signals
-    rms_of_average: np.ndarray  # RMS values for the average of each group
-    rms_dprimes: np.ndarray  # Corresponding d' for the RMS calculations.
+    cov_dprimes: NDArray  # 3d array by frequency, level and channel
+    rms_of_total: NDArray  # RMS values for total signals
+    rms_of_average: NDArray  # RMS values for the average of each group
+    rms_dprimes: NDArray  # Corresponding d' for the RMS calculations.
     freqs: List[float]
     levels: List[float]
     channels: List[int]
@@ -519,10 +520,10 @@ class XXDPrimeResult(object):
     # The threshold arrays are derived from the primary arrays above, and our
     # 2D arrays (removed the level dimension).
     dp_criteria: float = -1  # The d' criteria used for thresholds below
-    cov_spl_threshold: Optional[np.ndarray] = None
-    cov_smooth_dprimes: Optional[np.ndarray] = None
-    rms_spl_threshold: Optional[np.ndarray] = None
-    rms_smooth_dprimes: Optional[np.ndarray] = None
+    cov_spl_threshold: Optional[NDArray] = None
+    cov_smooth_dprimes: Optional[NDArray] = None
+    rms_spl_threshold: Optional[NDArray] = None
+    rms_smooth_dprimes: Optional[NDArray] = None
 
     def check(self) -> None:
         """Check the data arrays in a DPrimeExp object to make sure that their
@@ -674,7 +675,7 @@ class BilinearInterpolation(object):
         self._ydata = np.asarray(ydata)[i]
 
     def eval(self, x):
-        if isinstance(x, list) or (isinstance(x, np.ndarray) and x.size > 1):
+        if isinstance(x, list) or (isinstance(x, NDArray) and x.size > 1):
             return [self.eval(f) for f in x]
         if len(self._xdata) < 2:  # Not enough data for interpolation
             return self._ydata
@@ -769,7 +770,7 @@ class PositivePolynomial(object):
 #         all_dprimes[k].add_threshold(dp_criteria=dp_criteria, fit_method=fit_method)
 
 
-def calculate_rms(data: np.ndarray):
+def calculate_rms(data: NDArray):
     """Calculate the RMS power for a set of waveform measurements.
     Note, because of the root, this is now in the amplitude domain.  Average
     over all time, returning the RMS for each trial.
@@ -783,8 +784,8 @@ def calculate_rms(data: np.ndarray):
 
 
 def calculate_dprime(
-    h1: Union[list, np.ndarray],
-    h2: Union[list, np.ndarray],
+    h1: Union[list, NDArray],
+    h2: Union[list, NDArray],
     geometric_mean: bool = False,
 ) -> float:
     """Calculate the d' given two sets of (one-dimensiona) data.  The h1
@@ -800,7 +801,7 @@ def calculate_dprime(
         return (np.mean(h1) - np.mean(h2)) / norm
 
 
-def compute_stack_dprimes(measures: np.ndarray) -> np.ndarray:
+def compute_stack_dprimes(measures: NDArray) -> NDArray:
   num_freqs, num_levels, num_channels, num_trials = measures.shape
   dprimes = np.zeros((num_freqs, num_levels, num_channels))
   for i in range(num_freqs):
@@ -815,11 +816,11 @@ def compute_stack_dprimes(measures: np.ndarray) -> np.ndarray:
 
 
 def XXcalculate_cov_dprime(
-    data: np.ndarray,
-    noise_data: Optional[np.ndarray] = None,
+    data: NDArray,
+    noise_data: Optional[NDArray] = None,
     with_self_similar: bool = False,
     debug: bool = False,
-    theoretical_model: Optional[np.ndarray] = None,
+    theoretical_model: Optional[NDArray] = None,
     score_loc: Union[bool, Tuple] = True,
 ) -> float:
     """
@@ -899,7 +900,7 @@ def XXcalculate_cov_dprime(
 
 
 def XXcalculate_dprime_by_trial_count_bs(
-    filtered_abr_stack: np.ndarray,
+    filtered_abr_stack: NDArray,
     level_index=9,
     noise_index=0,
     freq_index=1,
@@ -909,8 +910,8 @@ def XXcalculate_dprime_by_trial_count_bs(
     repetition_count: int = 20,
     with_self_similar: bool = True,
     num_divisions: int = 10,
-    theoretical_model: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    theoretical_model: Optional[NDArray] = None,
+) -> Tuple[NDArray, NDArray, NDArray]:
     # The shape of the stacks array is Freqs x levels x channels x time x trials
     # Use bootstrapping this time
     assert filtered_abr_stack.ndim == 5
@@ -1023,8 +1024,8 @@ def XXcalculate_rmses(signal_data, noise_data, debug):
 
 
 def gather_all_trial_data(
-    all_exps: List[MouseExp]) -> Tuple[np.ndarray, np.ndarray, 
-                                       np.ndarray, np.ndarray]:
+    all_exps: List[MouseExp]) -> Tuple[NDArray, NDArray, 
+                                       NDArray, NDArray]:
   """Gather all the data for one animal experiment---across all sound levels,
   frequencies, and channels---into one 5-dimensional tensor."""
   all_exp_levels = sorted(list(set([exp.level for exp in all_exps])))
@@ -1072,7 +1073,7 @@ def gather_all_trial_data(
 #     debug_channel: Optional[int] = None,
 #     first_sample: int = 0,
 #     last_sample: int = -1,
-# ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[float], List[float], List[int]]:
+# ) -> Tuple[NDArray, NDArray, NDArray, List[float], List[float], List[int]]:
 #     """
 #     Calculate the covariance and RMS d' for all trial preparations.  First gather
 #     the waveforms by frequency, level and channel.  And then for each preparation
@@ -1239,7 +1240,7 @@ def gather_all_trial_data(
 #         if dp.cov_spl_threshold is None:
 #             continue
 #         if (
-#             not isinstance(dp.cov_spl_threshold, np.ndarray)
+#             not isinstance(dp.cov_spl_threshold, NDArray)
 #             or dp.cov_spl_threshold.ndim < 2
 #         ):
 #             continue
@@ -1302,7 +1303,7 @@ def gather_all_trial_data(
 #                 linestyle = "--"
 #             else:
 #                 linestyle = "-"
-#             if show_threshold and isinstance(thresh, np.ndarray):
+#             if show_threshold and isinstance(thresh, NDArray):
 #                 thresh_label = f" Threshold={thresh[i, k]:6.0f}dB"
 #             else:
 #                 thresh_label = ""
@@ -1419,8 +1420,8 @@ def compute_and_cache_dprimes():
 
 
 def plot_threshold_scatter(
-    abr_thresh: np.ndarray,
-    ecog_thresh: np.ndarray,
+    abr_thresh: NDArray,
+    ecog_thresh: NDArray,
     title: str = "Comparson of Threshold",
     axis_limit: float = 120,
     color: str = "b",
@@ -1455,7 +1456,7 @@ def plot_threshold_scatter(
 
 # def XXfind_dprime(
 #     all_dprimes: Dict[str, DPrimeResult], spl: float
-# ) -> Tuple[np.ndarray, np.ndarray]:
+# ) -> Tuple[NDArray, NDArray]:
 #     """Find the d' for all data in this dictionary of preparations at one SPL.
 #     Use the smooth d' data, which is best calculated with bilinear interpolaton.
 # 
@@ -1593,8 +1594,8 @@ def XXcache_all_waveforms(base_dir: str = GeorgeMouseDataDir) -> None:
     file_num = cache_waveforms(file_num, all_filtered_exps)  # Write remainder
 
 
-def create_stack(exps: List[MouseExp]) -> Tuple[np.ndarray, np.ndarray, 
-                                                np.ndarray, np.ndarray]:
+def create_stack(exps: List[MouseExp]) -> Tuple[NDArray, NDArray, 
+                                                NDArray, NDArray]:
     """Collect all the waveform data for a list of mouse experiments into a
       single tensor.
 
@@ -1640,8 +1641,8 @@ def show_mean_stack(stack, freq=1, channel=0, alpha=0.01):
 
 
 def show_all_stack(
-    stack: np.ndarray,
-    levels: Union[np.ndarray, List[float]],
+    stack: NDArray,
+    levels: Union[NDArray, List[float]],
     freq: int = 1,
     channel: int = 0,
     alpha: float = 0.01,
@@ -1671,7 +1672,7 @@ def show_all_stack(
       num_cols: How many columns of stacks to show
       col_num: which column to plot this time (0 <= col_num < num_cols)
     """
-    if isinstance(levels, np.ndarray):
+    if isinstance(levels, NDArray):
         levels = list(levels) # So we can use the .index() method.
     levels2plot = levels[::skip_levels]
     t = np.arange(stack.shape[-2]) / mouse_sample_rate
@@ -1826,7 +1827,7 @@ def XXload_rms_data(
 
 def calculate_mean_std_rms_values(
     all_good_rms: List[List[List[List[float]]]],
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[NDArray, NDArray]:
     """Summarize the lists of lists of lists of lists of RMS values by
     calculating their mean and standard deviation.
     """
@@ -1848,7 +1849,7 @@ def calculate_mean_std_rms_values(
 
 
 def calculate_dprime_by_trial_count(
-    filtered_abr_stack: np.ndarray,
+    filtered_abr_stack: NDArray,
     level_index: int = 9,
     noise_index: int = 0,
     freq_index: int = 1,
@@ -1856,7 +1857,7 @@ def calculate_dprime_by_trial_count(
     min_count: int = 20,
     max_count: int = 20000,
     num_divisions: int = 10,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[NDArray, NDArray, NDArray]:
     # The shape of the stacks array is Freqs x levels x channels x time x trials
     assert filtered_abr_stack.ndim == 5
     assert level_index < filtered_abr_stack.shape[1]
@@ -1889,14 +1890,14 @@ def calculate_dprime_by_trial_count(
 
 
 def block_waveform_stack(
-    filtered_abr_stack: np.ndarray,
+    filtered_abr_stack: NDArray,
     block_size: int,
     level_index=9,
     noise_index=0,
     freq_index=1,
     channel_index=1,
     repetition_count: int = 20,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[NDArray, NDArray]:
     """Yields blocks of random pieces from a waveform stack.  We choose trials
     at random, and the noise and signal data are independently sampled, both with
     replacement.
@@ -1945,11 +1946,11 @@ def block_waveform_stack(
 
 
 def snr_vs_window_size(
-    abr_stack: np.ndarray,
+    abr_stack: NDArray,
     channel_index: int = 0,  # 0 is ABR, 1 is ECochG
     freq_index: int = 1,
     window_step: int = 50,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[NDArray, NDArray]:
     time_sample_count = abr_stack.shape[3]
     trial_count = abr_stack.shape[4]
 
@@ -1981,11 +1982,11 @@ def snr_vs_window_size(
 
 
 def stack_t_test(
-    filtered_abr_stack: np.ndarray,
+    filtered_abr_stack: NDArray,
     channel_index: int = 1,  # ABR
     freq_index: int = 1,  # 160000
     plot_pvals: bool = True,
-) -> Tuple[np.ndarray, List[int]]:
+) -> Tuple[NDArray, List[int]]:
     """Compute the average signal and noise response (averaging over trials),
     as a function of the bnlock size (non overlapping blocks, no bootstrapping).
     Then form the distribution of average signal ABR and noise ABRs in order to
@@ -2147,12 +2148,12 @@ def cache_waveform_one_dir(
 class MouseConditionSummary(object):
   """To describe the results from one mouse-condition experiment.
   """
-  metrics: Dict[str, np.ndarray]
-  dprimes: Dict[str, np.ndarray]
+  metrics: Dict[str, NDArray]
+  dprimes: Dict[str, NDArray]
 
-  freqs: np.ndarray
-  levels: np.ndarray
-  channels: np.ndarray
+  freqs: NDArray
+  levels: NDArray
+  channels: NDArray
 
   # Keep these here too so we can drop the dictionary when we have a set.
   mouse_name: str = ''
