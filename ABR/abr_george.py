@@ -675,7 +675,7 @@ class BilinearInterpolation(object):
         self._ydata = np.asarray(ydata)[i]
 
     def eval(self, x):
-        if isinstance(x, list) or (isinstance(x, NDArray) and x.size > 1):
+        if isinstance(x, list) or (isinstance(x, np.ndarray) and x.size > 1):
             return [self.eval(f) for f in x]
         if len(self._xdata) < 2:  # Not enough data for interpolation
             return self._ydata
@@ -1672,7 +1672,7 @@ def show_all_stack(
       num_cols: How many columns of stacks to show
       col_num: which column to plot this time (0 <= col_num < num_cols)
     """
-    if isinstance(levels, NDArray):
+    if isinstance(levels, np.ndarray):
         levels = list(levels) # So we can use the .index() method.
     levels2plot = levels[::skip_levels]
     t = np.arange(stack.shape[-2]) / mouse_sample_rate
