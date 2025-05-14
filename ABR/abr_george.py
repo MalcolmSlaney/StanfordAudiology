@@ -13,7 +13,7 @@ import traceback
 import matplotlib.pyplot as plt
 
 import numpy as np
-from np.typing import NDArray
+from numpy.typing import NDArray
 import scipy.stats as spstats
 
 from absl import app, flags
