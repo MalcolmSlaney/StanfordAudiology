@@ -662,9 +662,10 @@ class XXDPrimeResult(object):
 # The eval() function evalues the interpolation object at the given value of x.
 
 class BilinearInterpolation(object):
-    def __init__(self):
+    def __init__(self, semilogx: bool = False):
         self._xdata = []
         self._ydata = []
+        self.semilogx = semilogx
 
     def fit(self, xdata, ydata):
         if len(xdata) != len(ydata):
@@ -673,12 +674,16 @@ class BilinearInterpolation(object):
         self._xdata = np.asarray(xdata)[i]
         # Make sure ydata is increasing, not perfect but better than noise
         self._ydata = np.asarray(ydata)[i]
+        if self.semilogx:
+            self._xdata = np.log10(np.maximum(0, self._xdata) + 1e-10)
 
     def eval(self, x):
         if isinstance(x, list) or (isinstance(x, np.ndarray) and x.size > 1):
             return [self.eval(f) for f in x]
         if len(self._xdata) < 2:  # Not enough data for interpolation
             return self._ydata
+        if self.semilogx:
+            x = np.log10(np.maximum(0, x) + 1e-10)
         if x <= self._xdata[0]:
             i = 0
         elif x >= self._xdata[-2]:
@@ -701,7 +706,10 @@ class BilinearInterpolation(object):
         assert i >= 0
         assert i <= len(ydata) - 2, f"i too big: y={y}, ydata={ydata}, i={i}"
         delta = (y - ydata[i]) / (ydata[i + 1] - ydata[i])
-        return self._xdata[i] * (1 - delta) + self._xdata[i + 1] * delta
+        ans = self._xdata[i] * (1 - delta) + self._xdata[i + 1] * delta
+        if self.semilogx:
+            ans = 10**ans
+        return ans
 
 
 class PositivePolynomial(object):

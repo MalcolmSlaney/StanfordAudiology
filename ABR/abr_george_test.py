@@ -311,6 +311,14 @@ class FittingTests(absltest.TestCase):
     self.assertAlmostEqual(bp.threshold(4.5), 3.5)
     self.assertAlmostEqual(bp.threshold(5.5), 4.5)
 
+    bp = george.BilinearInterpolation(semilogx=True)
+    x = [1, 10, 100, 1000]
+    y = [1, 2, 3, 4]
+    bp.fit(x, y)
+    delta = (math.log10(20)-math.log10(10))/(math.log10(100)-math.log10(10))
+    ans = 2*(1-delta) + 3*delta
+    self.assertAlmostEqual(bp.eval(20), ans)
+
   def test_short_data(self):
     x = [1]
     y = [2, 3]
