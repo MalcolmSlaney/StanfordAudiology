@@ -292,6 +292,13 @@ class FittingTests(absltest.TestCase):
     new_x = 3.5
     self.assertAlmostEqual(pp.eval(3.5), new_x**2 + 3*new_x, delta=1e-4)
 
+    pp = george.PositivePolynomial(semilogx=True)
+    x = [1, 10,      1000, 10000]
+    y = [1,  2,      4,    5]
+    pp.fit(x, y)
+    self.assertAlmostEqual(pp.eval(100), 3, delta=1e-4)
+
+
   def test_binlinear(self):
     x = [1, 2, 3, 4]
     y = [2, 4, 4, 5]
@@ -312,12 +319,10 @@ class FittingTests(absltest.TestCase):
     self.assertAlmostEqual(bp.threshold(5.5), 4.5)
 
     bp = george.BilinearInterpolation(semilogx=True)
-    x = [1, 10, 100, 1000]
-    y = [1, 2, 3, 4]
+    x = [1, 10,      1000]
+    y = [1,  2,      4]
     bp.fit(x, y)
-    delta = (math.log10(20)-math.log10(10))/(math.log10(100)-math.log10(10))
-    ans = 2*(1-delta) + 3*delta
-    self.assertAlmostEqual(bp.eval(20), ans)
+    self.assertAlmostEqual(bp.eval(100), 3)
 
   def test_short_data(self):
     x = [1]

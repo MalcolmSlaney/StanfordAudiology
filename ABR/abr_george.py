@@ -665,7 +665,7 @@ class BilinearInterpolation(object):
     def __init__(self, semilogx: bool = False):
         self._xdata = []
         self._ydata = []
-        self.semilogx = semilogx
+        self._semilogx = semilogx
 
     def fit(self, xdata, ydata):
         if len(xdata) != len(ydata):
@@ -674,7 +674,7 @@ class BilinearInterpolation(object):
         self._xdata = np.asarray(xdata)[i]
         # Make sure ydata is increasing, not perfect but better than noise
         self._ydata = np.asarray(ydata)[i]
-        if self.semilogx:
+        if self._semilogx:
             self._xdata = np.log10(np.maximum(0, self._xdata) + 1e-10)
 
     def eval(self, x):
@@ -682,7 +682,7 @@ class BilinearInterpolation(object):
             return [self.eval(f) for f in x]
         if len(self._xdata) < 2:  # Not enough data for interpolation
             return self._ydata
-        if self.semilogx:
+        if self._semilogx:
             x = np.log10(np.maximum(0, x) + 1e-10)
         if x <= self._xdata[0]:
             i = 0
@@ -707,7 +707,7 @@ class BilinearInterpolation(object):
         assert i <= len(ydata) - 2, f"i too big: y={y}, ydata={ydata}, i={i}"
         delta = (y - ydata[i]) / (ydata[i + 1] - ydata[i])
         ans = self._xdata[i] * (1 - delta) + self._xdata[i + 1] * delta
-        if self.semilogx:
+        if self._semilogx:
             ans = 10**ans
         return ans
 
@@ -717,10 +717,11 @@ class PositivePolynomial(object):
     coefficients to some d' data.
     """
 
-    def __init__(self):
+    def __init__(self, semilogx: bool = False):
         self._a = 0
         self._b = 0
         self._c = 0
+        self._semilogx = semilogx
 
     def quadratic(_, x, a, b, c):
         return a + b * x + c * x**2
@@ -728,12 +729,16 @@ class PositivePolynomial(object):
     def fit(self, xdata, ydata, bounds=([0, 0, 0], [np.inf, np.inf, np.inf])):
         if len(xdata) != len(ydata):
             raise ValueError("Unequal array sizes passed to fit")
+        if self._semilogx:
+            xdata = np.log10(np.maximum(0, xdata) + 1e-10)
         (self._a, self._b, self._c), _ = curve_fit(
             self.quadratic, xdata, ydata, bounds=bounds
         )
 
-    def eval(self, x):
-        return self.quadratic(x, self._a, self._b, self._c)
+    def eval(self, xdata):
+        if self._semilogx:
+            xdata = np.log10(np.maximum(0, xdata) + 1e-10)
+        return self.quadratic(xdata, self._a, self._b, self._c)
 
     def threshold(self, threshold, debug=False):
         """Find the level when the quadratic function passes the threshold."""
@@ -754,6 +759,8 @@ class PositivePolynomial(object):
 
         if positive_roots:
             root = np.min(positive_roots)
+            if self._semilogx:
+                root = 10**root
             return root  # Return the single root value
         return np.nan  # Or any other appropriate value for no positive roots
 
