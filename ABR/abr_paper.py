@@ -28,7 +28,7 @@ def create_exp_stack(num_trials: int = 4096,
 
 def plot_exp_stack_waveform(exp_stack: NDArray, level_index: int = -1):
   plt.plot(exp_stack[level_index, :, 0], label='One trial')
-  plt.plot(np.mean(exp_stack[-1, ...], axis=level_index, label='Average')
+  plt.plot(np.mean(exp_stack[-1, ...], axis=level_index), label='Average')
   plt.title('ABR Response at Highest Sound Level')
   plt.legend()
 
