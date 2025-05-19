@@ -65,6 +65,8 @@ def bootstrap_sample(data: NDArray,
   """
   assert data.ndim >= 2
   trial_count = data.shape[-1]
+  if trial_count == bootstrap_size:
+     return data  # Nothing to do
 
   return data[..., np.random.choice(trial_count, bootstrap_size)]
 
@@ -121,7 +123,10 @@ class Metric(object):
   def compute_distribution_by_trial_size(self,
                                          exp_stack: NDArray,
                                          block_sizes: List[int],
-                                         bootstrap_repetitions: int = 20):
+                                         bootstrap_repetitions: int = 20,
+                                         min_count = 10,
+                                         max_count = 20000,
+                                         ):
     """Compute the distribution for a stack of data as a function of trial count.
     Use bootstrapping.
     
@@ -129,20 +134,20 @@ class Metric(object):
       Array of size num_levels x num_trials x num_bootstraps
     """
     trial_count = exp_stack.shape[-1]
-    num_divisions = 14
-    min_count = 10
-    max_count = 20000
     bookstrap_repetitions = 20
 
-    block_sizes = block_sizes[(block_sizes >= min_count) & (block_sizes <= max_count)]
-    dist = np.zeros((exp_stack.shape[0], len(block_sizes), bookstrap_repetitions))
+    block_sizes = block_sizes[(block_sizes >= min_count) & 
+                              (block_sizes <= max_count)]
+    dist = np.zeros((exp_stack.shape[0], 
+                     len(block_sizes), 
+                     bookstrap_repetitions))
 
     for i, trial_count in enumerate(block_sizes):
       for j in range(bootstrap_repetitions):
         sample = bootstrap_sample(exp_stack[0, ...], trial_count)
         for l in range(exp_stack.shape[0]):
-          dist[l, i, j] = self.compute(sample[l, :, :])
-    return dist
+          dist[l, i, j] = self.compute(sample[l, ...])
+    return dist, block_sizes
  
 
 class PeakMetric(Metric):
@@ -174,7 +179,7 @@ class TotalRMSMetric(Metric):
     Args:
       stack: 2D tensor of waveform recordings: num_times x num_trials
     """
-    assert stack.ndim == 2
+    assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     return np.sqrt(np.mean(stack**2, axis=0))
 
 
@@ -192,7 +197,7 @@ class CovarianceMetric(Metric):
       stack: 2D tensor of waveform recordings: num_times x num_trials
       model: Optional exact form of expected signal for testing.
     """
-    assert stack.ndim == 2
+    assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     
     if model is None:
       model = np.mean(stack, axis=-1, keepdims=True)

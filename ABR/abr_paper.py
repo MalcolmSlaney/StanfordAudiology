@@ -1,3 +1,4 @@
+import datetime
 import os
 
 from absl import app, flags
@@ -35,11 +36,12 @@ def cache_exists(cache_file: str) -> bool:
   return os.path.exists(os.path.join(Synthetic_ABR_Cache_Dir, cache_file))
 
 def save_to_cache(data: Dict[str, NDArray], cache_file: str):
-    pickle_file = os.path.join(Synthetic_ABR_Cache_Dir, cache_file)
-    with open(pickle_file, "w") as f:
-        f.write(jsonpickle.encode(data))
-        print(f'  Cached data for {data.keys()} data '
-              f'into {pickle_file}.')
+  data['date'] = datetime.datetime.now()
+  pickle_file = os.path.join(Synthetic_ABR_Cache_Dir, cache_file)
+  with open(pickle_file, "w") as f:
+    f.write(jsonpickle.encode(data))
+    print(f'  Cached data for {data.keys()} data '
+          f'into {pickle_file}.')
 
 def restore_from_cache(pickle_filename: str) -> Dict[str, NDArray]:
   pickle_file = os.path.join(Synthetic_ABR_Cache_Dir, pickle_filename)
@@ -117,22 +119,50 @@ def plot_distribution_histogram_comparison(top_dist: NDArray,
 
 ##################  Compute a distribution and plot it  #######################
 
-def distribution_comparison(dist_rms, dist_cov, block_sizes):
+distribution_names = {
+   'RMS': TotalRMSMetric,
+   'Covariance': CovarianceMetric,
+   'Peak': PeakMetric,
+   'Presto': PrestoMetric
+}
+
+def compute_all_distributions(exp_stack: NDArray, block_sizes):
+  distributions = {}
+  for distribution_name in distribution_names:
+    cache_file = f'Distribution_{distribution_name}_Cache.pkl'
+    if not Synthetic_ABR_Cache_Force and cache_exists(cache_file):
+      data = restore_from_cache(cache_file)
+      distributions = data['distribution']
+      block_sizes = data['block_sizes']
+    else:
+      metric:Metric = distribution_names[distribution_name]()
+      (block_sizes, 
+       distribution) = metric.compute_distribution_by_trial_size(exp_stack,
+                                                                 block_sizes)
+      distributions[distribution_name] = distribution
+      save_to_cache({'data': distribution,
+                     'block_sizes': block_sizes}, 
+                    cache_file)
+  return distributions, block_sizes
+
+
+def distribution_comparison(distribution, block_sizes):
+  # dist have size num_levels x num_trials x num_bootstraps
   plt.figure(figsize=(8, 6))
 
   plt.subplot(2, 2, 1)
-  means = [np.mean(cov_dist_l9[b]) for b in range(len(block_sizes))]
-  stds = [np.std(cov_dist_l9[b]) for b in range(len(block_sizes))]
+  means = [np.mean(distribution[-1, b]) for b in range(len(block_sizes))]
+  stds = [np.std(distribution[-1, b]) for b in range(len(block_sizes))]
   plt.errorbar(block_sizes, means, yerr=4*np.asarray(stds),
           label='Signal')
-  meann = [np.mean(cov_dist_l0[b]) for b in range(len(block_sizes))]
-  stdn = [np.std(cov_dist_l0[b]) for b in range(len(block_sizes))]
+  meann = [np.mean(distribution[0, b]) for b in range(len(block_sizes))]
+  stdn = [np.std(distribution[0, b]) for b in range(len(block_sizes))]
   plt.errorbar(block_sizes, meann, yerr=4*np.asarray(stdn),
           label='Noise')
   plt.gca().set_xscale('log')
   plt.legend()
   # plt.xlabel('Trial Count')
-  plt.ylabel('Cov. of the Distribution')
+  plt.ylabel('Distribution of the Covariance')
   plt.title(r'Cov. Distributions - Level 9 (errorbars are $4\sigma$)');
 
   plt.subplot(2, 2, 2)
@@ -166,16 +196,24 @@ def distribution_comparison(dist_rms, dist_cov, block_sizes):
 
 def main(*argv):
   stack_signal_levels, exp_stack = create_exp_stack()
+  num_levels, num_times, num_trials = exp_stack.shape
   plot_exp_stack_waveform(exp_stack)
    
   metric_rms = TotalRMSMetric()
-  dist_rms = compute_distribution(metric_rms, exp_stack)
+  dist_rms = metric_rms.compute_distribution(exp_stack)
 
   metric_cov = CovarianceMetric()
-  dist_cov = compute_distribution(metric_cov, exp_stack)
+  dist_cov = metric_cov.compute_distribution(exp_stack)
 
-  plot_distribution_histogram_comparison(dist_rms, dist_cov,
-                                         )
+
+  num_divisions = 14
+  block_sizes = (num_trials / (2 ** np.arange(0, 
+                                              num_divisions, 
+                                              1.0))).astype(int)
+
+  distributions, block_sizes = compute_all_distributions(exp_stack, block_sizes)
+  plot_distribution_histogram_comparison(distributions['Covariance'],
+                                         block_sizes)
 
 if __name__ == "__main__":
   app.run(main)
