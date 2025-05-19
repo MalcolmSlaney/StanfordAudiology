@@ -57,16 +57,16 @@ def bootstrap_sample(data: NDArray,
   """Grab a random subset of the trials from the data, choosing with
   replacement.
   Args:
-    data: The data to pull from, shape num_dims x num_total_trials
+    data: The data to sample, shape [num_levels x ] num_dims x num_total_trials
     bootstrap_size: How many samples of the data to pull from the original data.
 
   Returns:
-    An array of size num_dims x bookstrap_size
+    An array of size [num_levels x ] x num_dims x bookstrap_size
   """
-  assert data.ndim == 2
-  trial_count = data.shape[1]
+  assert data.ndim >= 2
+  trial_count = data.shape[-1]
 
-  return data[:, np.random.choice(trial_count, bootstrap_size)]
+  return data[..., np.random.choice(trial_count, bootstrap_size)]
 
 
 def calculate_dprime(
@@ -106,6 +106,44 @@ class Metric(object):
     if window_start and window_end:
         stack = stack[:, window_start:window_end]
     return self.compute(stack)
+
+  def compute_distribution(self, exp_stack: NDArray) -> NDArray:
+    # Number of levels x num of time samples x number of trials
+    """Look at the entire set of data, all trials.
+    """
+    assert exp_stack.ndim == 3
+
+    dist = np.zeros((exp_stack.shape[0], exp_stack.shape[2]))
+    for l in range(exp_stack.shape[0]):
+      dist[l, :] = self.compute(exp_stack[l, ...])
+    return dist # Shape: num_levels x num_trials
+
+  def compute_distribution_by_trial_size(self,
+                                         exp_stack: NDArray,
+                                         block_sizes: List[int],
+                                         bootstrap_repetitions: int = 20):
+    """Compute the distribution for a stack of data as a function of trial count.
+    Use bootstrapping.
+    
+    Returns:
+      Array of size num_levels x num_trials x num_bootstraps
+    """
+    trial_count = exp_stack.shape[-1]
+    num_divisions = 14
+    min_count = 10
+    max_count = 20000
+    bookstrap_repetitions = 20
+
+    block_sizes = block_sizes[(block_sizes >= min_count) & (block_sizes <= max_count)]
+    dist = np.zeros((exp_stack.shape[0], len(block_sizes), bookstrap_repetitions))
+
+    for i, trial_count in enumerate(block_sizes):
+      for j in range(bootstrap_repetitions):
+        sample = bootstrap_sample(exp_stack[0, ...], trial_count)
+        for l in range(exp_stack.shape[0]):
+          dist[l, i, j] = self.compute(sample[l, :, :])
+    return dist
+ 
 
 class PeakMetric(Metric):
   """Look at peak amplitude of the average, which should be all signal,
