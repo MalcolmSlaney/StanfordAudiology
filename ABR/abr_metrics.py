@@ -61,7 +61,9 @@ def bootstrap_sample(data: NDArray,
     bootstrap_size: How many samples of the data to pull from the original data.
 
   Returns:
-    An array of size [num_levels x ] x num_dims x bookstrap_size
+    An array of size [num_levels x ] x num_dims x bookstrap_size.
+    The input and output arrays have the same number of dimensions, only the
+    last dimension is subsampled.
   """
   assert data.ndim >= 2
   trial_count = data.shape[-1]
@@ -75,6 +77,7 @@ def calculate_dprime(
     h1: Union[list, NDArray],
     h2: Union[list, NDArray],
     geometric_mean: bool = False,
+    debug: bool = True
 ) -> float:
     """Calculate the d' given two sets of (one-dimensiona) data.  The h1
     data should be the bigger of the two data. The normalization factor either
@@ -86,7 +89,12 @@ def calculate_dprime(
     else:
         # Normalize by arithmetic mean of variances (not std)
         norm = np.sqrt((np.std(h1) ** 2 + np.std(h2) ** 2) / 2.0)
-        return (np.mean(h1) - np.mean(h2)) / (1e-10 + norm)
+        dprime = (np.mean(h1) - np.mean(h2)) / (1e-10 + norm)
+        if debug:
+           print('Calculate dprime: norm', norm, 'dprime:', dprime)
+           print('mean h1:', np.mean(h1), 'mean h2:', np.mean(h2))
+           print('std h1:', np.std(h1), 'std h2:', np.std(h2))
+        return dprime
     
 
 class Metric(object):

@@ -15,8 +15,6 @@ from typing import Dict, Optional, Union
 # at some point.
 #   https://www.geeksforgeeks.org/why-import-star-in-python-is-a-bad-idea/
 
-######################  Cache Partial Results #############################
-
 from abr_metrics import *
 from abr_george import BilinearInterpolation, PositivePolynomial
 
@@ -26,6 +24,20 @@ import jsonpickle
 import jsonpickle.ext.numpy as jsonpickle_numpy
 jsonpickle_numpy.register_handlers()
 
+DistributionArray = NDArray
+
+# DistributionList with num_block_counts 3D arrays.  Each array of size
+#       num_levels x bootstrap_repetitions x trial_count
+# for one metric type
+DistributionList = List[DistributionArray]
+
+# MultipleDistribution Lists are combined into a dictionary, keyed by the 
+# metric name.
+MetricDistributionDict = Dict[str, List[NDArray]]
+
+DPrimeDict = Dict[str, NDArray]
+
+######################  Cache Partial Results #############################
 
 Synthetic_ABR_Cache_Dir: str = '/tmp'
 Synthetic_ABR_Cache_Force: bool = False
@@ -57,7 +69,7 @@ def restore_from_cache(pickle_filename: str) -> Dict[str, NDArray]:
 def create_exp_stack(signal_levels: List[float] = [],
                      num_trials: int = 4096, 
                      num_times: int = 1952,
-                     cache_file: str = 'exp_stack.pkl') -> NDArray:
+                     cache_file: str = 'exp_stack.pkl') -> DistributionArray:
   """Compute a stack of simulated ABR data using a Gammatone model.
    
   Returns: 
@@ -129,7 +141,9 @@ distribution_names = {
    # 'Presto': PrestoMetric # always has 500 splits!
 }
 
-def compute_all_distributions(exp_stack: NDArray, block_sizes):
+def compute_all_distributions(exp_stack: DistributionArray, 
+                              block_sizes) -> Tuple[MetricDistributionDict,
+                                                    List[int]]:
   distributions = {}
   for distribution_name in distribution_names:
     cache_file = f'Distribution_{distribution_name}_Cache.pkl'
@@ -143,8 +157,7 @@ def compute_all_distributions(exp_stack: NDArray, block_sizes):
       (distribution, 
        block_sizes) = metric.compute_distribution_by_trial_size(exp_stack,
                                                                 block_sizes)
-      # num_levels x bootstrap_repetitions x trial_count
-      assert distribution.ndim == 3, f'Expected three dimensions in distribution, got {distribution.shape}'
+      assert distribution[0].ndim == 3, f'Expected three dimensions in distribution[0], got {distribution[0].shape}'
       distributions[distribution_name] = distribution
       save_to_cache({'distribution': distribution,
                      'block_sizes': block_sizes}, 
@@ -152,7 +165,7 @@ def compute_all_distributions(exp_stack: NDArray, block_sizes):
   return distributions, block_sizes
 
 def plot_distribution_vs_trials(
-    distribution_list: List[NDArray], 
+    distribution_list: DistributionList, 
     block_sizes: List[int] = [], 
     plot_file: str = 'Distribution_vs_number_of_trials.png'):
   """Just for the peak metric..."""
@@ -178,8 +191,10 @@ def plot_distribution_vs_trials(
   plt.savefig(plot_file)
 
 
-def plot_distribution_analysis(dist_list, block_sizes, 
-                                      plot_file: str = 'DistributionAnalysis.png'):
+def plot_distribution_analysis(dist_list: DistributionList, 
+                               block_sizes: List[int], 
+                               ylabel: str = 'Distribution of the Covariance',
+                               plot_file: str = 'DistributionAnalysis.png'):
   # distribution is List with num_block_counts 3D arrays.  Each array of size
   #       num_levels x bootstrap_repetitions x trial_count
   plt.figure(figsize=(8, 6))
@@ -196,8 +211,8 @@ def plot_distribution_analysis(dist_list, block_sizes,
   plt.gca().set_xscale('log')
   plt.legend()
   # plt.xlabel('Trial Count')
-  plt.ylabel('Distribution of the Covariance')
-  plt.title(r'Cov. Distributions - Level 9 (errorbars are $4\sigma$)');
+  plt.ylabel(ylabel)
+  plt.title(r'Distributions - Level 9 (errorbars are $4\sigma$)');
 
   plt.subplot(2, 2, 2)
   dprime = ((np.asarray(means) - np.asarray(meann)) /
@@ -213,7 +228,7 @@ def plot_distribution_analysis(dist_list, block_sizes,
   plt.plot(block_sizes, meann, label='Noise')
   plt.gca().set_xscale('log')
   plt.legend()
-  plt.title('Means of Cov. Distributions')
+  plt.title('Means of Distributions')
   # plt.xlabel('Trial Count');
 
   plt.subplot(2, 2, 4)
@@ -221,7 +236,7 @@ def plot_distribution_analysis(dist_list, block_sizes,
   plt.plot(block_sizes, stdn, label='Noise')
   plt.gca().set_xscale('log')
   plt.legend()
-  plt.title(r'$\sigma$ of Cov. Distribution')
+  plt.title(r'$\sigma$ of Distribution')
   plt.xlabel('Trial Count');
 
   plt.subplots_adjust(wspace=0.3, hspace=0.4);
@@ -231,12 +246,12 @@ def plot_distribution_analysis(dist_list, block_sizes,
 ##################   D' Analysis  #######################
 
 def calculate_all_dprime(
-    distribution_dict: Dict[str, List[NDArray]],
-    cache_file: str = 'all_dprimes.pkl') -> Dict[str, NDArray]:
+    distribution_dict: MetricDistributionDict,
+    cache_file: str = 'all_dprimes.pkl') -> DPrimeDict:
   """
   Returns
     Dictionary of d' arrays, each array of size 
-      num_block_sizes x num_signal_levels
+      num_trial_sizes x num_levels x num_trials
   """
   if cache_exists(cache_file):
     data = restore_from_cache(cache_file)
@@ -257,14 +272,21 @@ def calculate_all_dprime(
         dprimes = np.zeros((len(distribution_list), num_levels, num_bootstraps))
       for j in range(1, num_levels):
         for k in range(num_bootstraps):
+          debug=distribution_name=='Peak'
+          if debug:
+            print('Calculate_all_dprime:', i, j, k)
+            if i == 0 and j == 1 and k == 0:
+              print('H1:', distribution[j, k, :])
+              print('H0:', distribution[0, k, :])
           dprimes[i, j, k] = calculate_dprime(distribution[j, k, :], 
-                                              distribution[0, k, :])
+                                              distribution[0, k, :],
+                                              debug=debug)
     dprime_dict[distribution_name] = dprimes
     # print(f'Block size {i}: ', dprimes)
     # print(distribution_name, dprimes)
     dprimes = None
 
-  print('block sizes are', block_sizes)
+  print('Inferred block sizes are', block_sizes)
   save_to_cache({'dprime_dict': dprime_dict,
                  'block_sizes': block_sizes}, cache_file)
   return dprime_dict
@@ -291,8 +313,8 @@ def plot_dprimes_vs_sound_level(
   rms_dprimes = dprime_dict['RMS']
   plt.clf()
   # XXX_dprimes are sized: num_trial_sizes x num_levels x num_trials
-  print('cov_dprimes are', cov_dprimes[0, :, :])
-  print('cov_dprimes mean', np.nanmean(cov_dprimes[0, :, :], axis=-1))
+  # print('cov_dprimes are', cov_dprimes[0, :, :])
+  # print('cov_dprimes mean', np.nanmean(cov_dprimes[0, :, :], axis=-1))
   plt.plot(signal_levels, np.nanmean(cov_dprimes[0, :, :], axis=-1), label='Covariance')
   plt.plot(signal_levels, np.nanmean(rms_dprimes[0, :, :], axis=-1), label='RMS')
   plt.xlabel('Sound Level (linear a.u.)')
@@ -317,6 +339,33 @@ def plot_dprimes_vs_trials(
   plt.ylabel('d\'')
   plt.title(f'd\' Separation vs. Number of Trials (level {level_num})')
   plt.legend()
+  plt.savefig(plot_file)
+
+##################   Thresholds  #######################
+
+def compute_thresholds(data: List[NDArray], 
+                       signal_levels: List[float], 
+                       trial_counts: List[int],
+                       thresholds: List[float] = [1.0, 2.0, 3.0,],
+                       plot_file: str = 'ThresholdVsTrials.png'):
+  # Expect num_trial_sizes x num_levels x num_trials
+  assert data.ndim == 3, f'Expected three dimensions in data, got {data.shape}'
+  data = np.mean(data, axis=2)  # Average over trials, now size x levels
+
+  # pp = PositivePolynomial(semilogx=True)
+  pp = BilinearInterpolation()
+  plt.clf()
+  for desired_threshold in thresholds:
+    threshold = np.zeros(data.shape[0]) # Number of Trials
+    for i in range(data.shape[0]):
+      pp.fit(signal_levels, data[i, :])
+      threshold[i] = pp.threshold(desired_threshold)
+      print('compute_thresholds:', i, data[i, :], threshold[i])
+    plt.semilogx(trial_counts, threshold, label=f'threshold={desired_threshold}')
+  plt.legend()
+  plt.xlabel('Number of trials');
+  plt.ylabel('Amplitude of signal for desired peak/RMS (a.u.)')
+  plt.title('Sound Level Threshold vs. Desired d\'');
   plt.savefig(plot_file)
 
 ##################   Main Program  #######################
@@ -351,17 +400,37 @@ def main(*argv):
     distribution_dict['Peak'], block_sizes, 
     plot_file='peak_distribution_vs_number_of_trials.png')
 
-  plot_distribution_analysis(distribution_dict['Covariance'], block_sizes)
+  plot_distribution_analysis(distribution_dict['Covariance'], block_sizes,
+                             ylabel='Covariance',
+                             plot_file='DistributionAnalysis-Covariance.png')
+  plot_distribution_analysis(distribution_dict['RMS'], block_sizes,
+                             ylabel='RMS',
+                             plot_file='DistributionAnalysis-RMS.png')
+  plot_distribution_analysis(distribution_dict['Peak'], block_sizes,
+                             ylabel='Peak',
+                             plot_file='DistributionAnalysis-Peak.png')
 
   dprime_dict = calculate_all_dprime(distribution_dict)
+  # Returns a dictionary of d' arrays, each array of size 
+  #   num_trial_sizes x num_levels x num_trials
   plot_dprime_result(dprime_dict['Covariance'], 'Covariance d\'', block_sizes,
                      plot_file='Dprime_Covariance.png')
   plot_dprime_result(dprime_dict['RMS'], 'RMS d\'', block_sizes,
                      plot_file='Dprime_RMS.png')
+  plot_dprime_result(dprime_dict['Peak'], 'Peak d\'', block_sizes,
+                     plot_file='Dprime_Peak.png')
 
   plot_dprimes_vs_sound_level(dprime_dict, stack_signal_levels)
 
   plot_dprimes_vs_trials(dprime_dict, block_sizes=block_sizes)
+
+  compute_thresholds(dprime_dict['RMS'], stack_signal_levels, block_sizes,
+                     plot_file='ThresholdVsTrials-RMS.png')
+  compute_thresholds(dprime_dict['Covariance'], stack_signal_levels, block_sizes,
+                     plot_file='ThresholdVsTrials-Covariance.png')
+  compute_thresholds(dprime_dict['Peak'], stack_signal_levels, block_sizes,
+                     plot_file='ThresholdVsTrials-Peak.png')
+
 
 if __name__ == "__main__":
   app.run(main)
