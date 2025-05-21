@@ -86,7 +86,7 @@ def calculate_dprime(
     else:
         # Normalize by arithmetic mean of variances (not std)
         norm = np.sqrt((np.std(h1) ** 2 + np.std(h2) ** 2) / 2.0)
-        return (np.mean(h1) - np.mean(h2)) / norm
+        return (np.mean(h1) - np.mean(h2)) / (1e-10 + norm)
     
 
 class Metric(object):
@@ -103,7 +103,7 @@ class Metric(object):
     window_start: int = 0,
     window_end: int = 0,
   ) -> float:
-    assert stack.ndim == 2  # num_times x num_trials
+    assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
 
     if window_start and window_end:
         stack = stack[:, window_start:window_end]
@@ -113,7 +113,7 @@ class Metric(object):
     # Number of levels x num of time samples x number of trials
     """Look at the entire set of data, all trials.
     """
-    assert exp_stack.ndim == 3
+    assert exp_stack.ndim == 3, f'Wanted three dimensions, got {exp_stack.shape}'
 
     dist = np.zeros((exp_stack.shape[0], exp_stack.shape[2]))
     for l in range(exp_stack.shape[0]):
@@ -131,22 +131,26 @@ class Metric(object):
     Use bootstrapping.
     
     Returns:
-      Array of size num_levels x num_trials x num_bootstraps
+      List with num_block_counts 3D arrays.  Each array of size
+        num_levels x bootstrap_repetitions x trial_count
     """
-    trial_count = exp_stack.shape[-1]
+    assert exp_stack.ndim == 3, f'Wanted three dimensions, got {exp_stack.shape}'
+    num_levels, _, trial_count = exp_stack.shape
     bookstrap_repetitions = 20
+    print('block sizes are:', block_sizes)
+    block_sizes = np.asarray(block_sizes)
 
     block_sizes = block_sizes[(block_sizes >= min_count) & 
                               (block_sizes <= max_count)]
-    dist = np.zeros((exp_stack.shape[0], 
-                     len(block_sizes), 
-                     bookstrap_repetitions))
+    dist = []
 
     for i, trial_count in enumerate(block_sizes):
+      block_results = np.zeros((num_levels, bookstrap_repetitions, trial_count))
       for j in range(bootstrap_repetitions):
-        sample = bootstrap_sample(exp_stack[0, ...], trial_count)
-        for l in range(exp_stack.shape[0]):
-          dist[l, i, j] = self.compute(sample[l, ...])
+        sample = bootstrap_sample(exp_stack, trial_count)
+        for l in range(exp_stack.shape[0]): # For each level...
+          block_results[l, j, :] = self.compute(sample[l, ...])
+      dist.append(block_results)
     return dist, block_sizes
  
 
@@ -164,7 +168,7 @@ class PeakMetric(Metric):
     self.window_end = window_end
 
   def compute(self, stack: NDArray) -> NDArray:
-    assert stack.ndim == 2
+    assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
     noise_ave = np.mean(shuffle_2d_array(stack), axis=1)
     snr = np.max(np.abs(signal_ave))/np.std(noise_ave)
@@ -178,6 +182,9 @@ class TotalRMSMetric(Metric):
 
     Args:
       stack: 2D tensor of waveform recordings: num_times x num_trials
+    
+    Returns:
+      A 1d distribution array of size num_trials
     """
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     return np.sqrt(np.mean(stack**2, axis=0))
@@ -196,6 +203,9 @@ class CovarianceMetric(Metric):
     Args:
       stack: 2D tensor of waveform recordings: num_times x num_trials
       model: Optional exact form of expected signal for testing.
+    
+    Returns:
+      A 1d distribution array of size num_trials
     """
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     

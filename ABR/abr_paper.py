@@ -3,7 +3,7 @@ import os
 
 from absl import app, flags
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 
 import matplotlib.pyplot as plt
 
@@ -40,7 +40,7 @@ def save_to_cache(data: Dict[str, NDArray], cache_file: str):
   pickle_file = os.path.join(Synthetic_ABR_Cache_Dir, cache_file)
   with open(pickle_file, "w") as f:
     f.write(jsonpickle.encode(data))
-    print(f'  Cached data for {data.keys()} data '
+    print(f'  Cached data for {list(data.keys())} data '
           f'into {pickle_file}.')
 
 def restore_from_cache(pickle_filename: str) -> Dict[str, NDArray]:
@@ -57,7 +57,7 @@ def restore_from_cache(pickle_filename: str) -> Dict[str, NDArray]:
 def create_exp_stack(signal_levels: List[float] = [],
                      num_trials: int = 4096, 
                      num_times: int = 1952,
-                     cache_file: str = 'exp_stack') -> NDArray:
+                     cache_file: str = 'exp_stack.pkl') -> NDArray:
   """Compute a stack of simulated ABR data using a Gammatone model.
    
   Returns: 
@@ -99,18 +99,21 @@ def plot_distribution_histogram_comparison(top_dist: NDArray,
                                            bin_count: int = 20,
                                            plot_file: Optional[str] = 'histogram_comparison.png',
                                            ) -> None:
-  assert top_dist.ndim == 2
-  assert bottom_dist.ndim == 2
+  # Original shaped: num_levels x bootstrap_repetitions x trial_count
+  assert top_dist.ndim == 3, f'Wanted three dimensions on top, got {top_dist.shape}'
+  assert bottom_dist.ndim == 3, f'Wanted three dimensions on bottom, got {bottom_dist.shape}'
+  top_dist = np.reshape(top_dist, (top_dist.shape[0], -1))
+  bottom_dist = np.reshape(bottom_dist, (bottom_dist.shape[0], -1))
 
   plt.clf()
   plt.subplot(2, 1, 1)
-  plt.hist(top_dist[0, :], bin_count, label=f'Noise ({top_label})')
-  plt.hist(top_dist[-1, :], bin_count, label=f'Signal ({top_label})')
+  plt.hist(top_dist[0, ...], bin_count, label=f'Noise ({top_label})')
+  plt.hist(top_dist[-1, ...], bin_count, label=f'Signal ({top_label})')
   plt.legend();
 
   plt.subplot(2, 1, 2)
-  plt.hist(bottom_dist[0, :], bin_count, label=f'Noise ({bottom_label})')
-  plt.hist(bottom_dist[-1, :], bin_count, label=f'Signal ({bottom_label})')
+  plt.hist(bottom_dist[0, ...], bin_count, label=f'Noise ({bottom_label})')
+  plt.hist(bottom_dist[-1, ...], bin_count, label=f'Signal ({bottom_label})')
 
   plt.legend();
 
@@ -123,40 +126,71 @@ distribution_names = {
    'RMS': TotalRMSMetric,
    'Covariance': CovarianceMetric,
    'Peak': PeakMetric,
-   'Presto': PrestoMetric
+   # 'Presto': PrestoMetric # always has 500 splits!
 }
 
 def compute_all_distributions(exp_stack: NDArray, block_sizes):
   distributions = {}
   for distribution_name in distribution_names:
     cache_file = f'Distribution_{distribution_name}_Cache.pkl'
-    if not Synthetic_ABR_Cache_Force and cache_exists(cache_file):
+    if cache_exists(cache_file):
       data = restore_from_cache(cache_file)
-      distributions = data['distribution']
+      distribution = data['distribution']
       block_sizes = data['block_sizes']
+      distributions[distribution_name] = distribution
     else:
       metric:Metric = distribution_names[distribution_name]()
-      (block_sizes, 
-       distribution) = metric.compute_distribution_by_trial_size(exp_stack,
-                                                                 block_sizes)
+      (distribution, 
+       block_sizes) = metric.compute_distribution_by_trial_size(exp_stack,
+                                                                block_sizes)
+      # num_levels x bootstrap_repetitions x trial_count
+      assert distribution.ndim == 3, f'Expected three dimensions in distribution, got {distribution.shape}'
       distributions[distribution_name] = distribution
-      save_to_cache({'data': distribution,
+      save_to_cache({'distribution': distribution,
                      'block_sizes': block_sizes}, 
                     cache_file)
   return distributions, block_sizes
 
+def plot_distribution_vs_trials(
+    distribution_list: List[NDArray], 
+    block_sizes: List[int] = [], 
+    plot_file: str = 'Distribution_vs_number_of_trials.png'):
+  """Just for the peak metric..."""
+  # num_levels x bootstrap_repetitions x trial_count
+  assert isinstance(distribution_list, list), f'Expected a list of arrays, got {type(distribution_list)}'
+  assert distribution_list[0].ndim == 3, f'Expected three dimensions in distribution, got {distribution_list.shape}'
 
-def distribution_comparison(distribution, block_sizes):
-  # dist have size num_levels x num_trials x num_bootstraps
+  means = [np.expand_dims(np.mean(d, axis=(1,2)), 1) for d in distribution_list]
+  stds = [np.expand_dims(np.std(d, axis=(1,2)), 1)  for d in distribution_list]
+  means = np.concatenate(means, axis=1)
+  stds = np.concatenate(stds, axis=1)
+  plt.clf()
+  print('Sizes', means.shape, stds.shape, len(block_sizes))
+  for i in range(means.shape[0]):
+    plt.errorbar(block_sizes, means[i, :], yerr=stds[i, :], label=i)
+  plt.xlabel('Number of Trials')
+  plt.ylabel('???')
+  plt.gca().set_yscale('log')
+  plt.gca().set_xscale('log')
+  plt.axhline(3, ls=':')
+  plt.title(f'Distribution vs. Number of Trials ')
+  plt.legend()
+  plt.savefig(plot_file)
+
+
+def plot_distribution_analysis(dist_list, block_sizes, 
+                                      plot_file: str = 'DistributionAnalysis.png'):
+  # distribution is List with num_block_counts 3D arrays.  Each array of size
+  #       num_levels x bootstrap_repetitions x trial_count
   plt.figure(figsize=(8, 6))
 
   plt.subplot(2, 2, 1)
-  means = [np.mean(distribution[-1, b]) for b in range(len(block_sizes))]
-  stds = [np.std(distribution[-1, b]) for b in range(len(block_sizes))]
+  means = [np.mean(dist_list[b][-1, ...]) for b in range(len(block_sizes))]
+  stds = [np.std(dist_list[b][-1, ...]) for b in range(len(block_sizes))]
   plt.errorbar(block_sizes, means, yerr=4*np.asarray(stds),
           label='Signal')
-  meann = [np.mean(distribution[0, b]) for b in range(len(block_sizes))]
-  stdn = [np.std(distribution[0, b]) for b in range(len(block_sizes))]
+  meann = [np.mean(dist_list[b][0, ...]) for b in range(len(block_sizes))]
+  stdn = [np.std(dist_list[b][0, ...]) for b in range(len(block_sizes))]
   plt.errorbar(block_sizes, meann, yerr=4*np.asarray(stdn),
           label='Noise')
   plt.gca().set_xscale('log')
@@ -192,6 +226,99 @@ def distribution_comparison(distribution, block_sizes):
 
   plt.subplots_adjust(wspace=0.3, hspace=0.4);
 
+  plt.savefig(plot_file)
+
+##################   D' Analysis  #######################
+
+def calculate_all_dprime(
+    distribution_dict: Dict[str, List[NDArray]],
+    cache_file: str = 'all_dprimes.pkl') -> Dict[str, NDArray]:
+  """
+  Returns
+    Dictionary of d' arrays, each array of size 
+      num_block_sizes x num_signal_levels
+  """
+  if cache_exists(cache_file):
+    data = restore_from_cache(cache_file)
+    return data['dprime_dict']
+
+  dprime_dict = {}
+  for distribution_name in distribution_dict:
+    distribution_list = distribution_dict[distribution_name]
+    dprimes = None
+    block_sizes = []  # Recompute from the data
+    for i in range(len(distribution_list)):  # Over block sizes
+      distribution = distribution_list[i]
+      block_sizes.append(distribution.shape[-1])
+      assert distribution.ndim == 3, f'Expected three dimensions in distribution, got {distribution.shape}'
+      num_levels, num_bootstraps, num_trials = distribution.shape
+      if dprimes is None:
+        # Want num_trial_sizes x num_levels x num_trials
+        dprimes = np.zeros((len(distribution_list), num_levels, num_bootstraps))
+      for j in range(1, num_levels):
+        for k in range(num_bootstraps):
+          dprimes[i, j, k] = calculate_dprime(distribution[j, k, :], 
+                                              distribution[0, k, :])
+    dprime_dict[distribution_name] = dprimes
+    # print(f'Block size {i}: ', dprimes)
+    # print(distribution_name, dprimes)
+    dprimes = None
+
+  print('block sizes are', block_sizes)
+  save_to_cache({'dprime_dict': dprime_dict,
+                 'block_sizes': block_sizes}, cache_file)
+  return dprime_dict
+
+def plot_dprime_result(dprimes, name='', block_sizes: List[int] = [],
+                       plot_file: str = 'dprime.png'):
+  # Expect num_trial_sizes x num_levels x num_trials
+  plt.clf()
+  dprimes = np.mean(dprimes, axis=2)  # Now num_trial_sizes x num_levels
+  if len(block_sizes):
+    plt.semilogx(block_sizes, dprimes)
+  else:
+    plt.plot(dprimes)
+  plt.xlabel('Number of Trials')
+  plt.legend([f'Level={l}' for l in range(dprimes.shape[1])])
+  plt.title(name)
+  plt.savefig(plot_file)
+
+def plot_dprimes_vs_sound_level(
+    dprime_dict: Dict[str, NDArray], 
+    signal_levels: ArrayLike,
+    plot_file: str = 'Covariance_RMS_Distribution_Separation.png') -> None:
+  cov_dprimes = dprime_dict['Covariance']
+  rms_dprimes = dprime_dict['RMS']
+  plt.clf()
+  # XXX_dprimes are sized: num_trial_sizes x num_levels x num_trials
+  print('cov_dprimes are', cov_dprimes[0, :, :])
+  print('cov_dprimes mean', np.nanmean(cov_dprimes[0, :, :], axis=-1))
+  plt.plot(signal_levels, np.nanmean(cov_dprimes[0, :, :], axis=-1), label='Covariance')
+  plt.plot(signal_levels, np.nanmean(rms_dprimes[0, :, :], axis=-1), label='RMS')
+  plt.xlabel('Sound Level (linear a.u.)')
+  plt.ylabel('d\'')
+  plt.title('Distribution Separation vs. Sound Level')
+  plt.legend();
+  plt.savefig(plot_file)
+
+def plot_dprimes_vs_trials(
+    dprime_dict: Dict[str, NDArray], 
+    level_num: int = -1, block_sizes: List[int] = [], 
+    plot_file: str = 'dprimes_vs_number_of_trials.png'):
+  # Expect num_trial_sizes x num_levels x num_trials
+  cov_dprimes = dprime_dict['Covariance']
+  assert cov_dprimes.ndim == 3, f'Expected three dimensions in cov_dprimes, got {cov_dprimes.shape}'
+  rms_dprimes = dprime_dict['RMS']
+  assert rms_dprimes.ndim == 3, f'Expected three dimensions in rms_dprimes, got {rms_dprimes.shape}'
+  plt.clf()
+  plt.semilogx(block_sizes, np.mean(cov_dprimes[:, level_num, :], axis=-1), label='Coveriance')
+  plt.semilogx(block_sizes, np.mean(rms_dprimes[:, level_num, :], axis=-1), label='RMS')
+  plt.xlabel('Number of Trials')
+  plt.ylabel('d\'')
+  plt.title(f'd\' Separation vs. Number of Trials (level {level_num})')
+  plt.legend()
+  plt.savefig(plot_file)
+
 ##################   Main Program  #######################
 
 def main(*argv):
@@ -205,15 +332,36 @@ def main(*argv):
   metric_cov = CovarianceMetric()
   dist_cov = metric_cov.compute_distribution(exp_stack)
 
+  metric_peak = PeakMetric()
+  dist_peak = metric_peak.compute_distribution(exp_stack)
+
 
   num_divisions = 14
   block_sizes = (num_trials / (2 ** np.arange(0, 
                                               num_divisions, 
                                               1.0))).astype(int)
 
-  distributions, block_sizes = compute_all_distributions(exp_stack, block_sizes)
-  plot_distribution_histogram_comparison(distributions['Covariance'],
-                                         block_sizes)
+  distribution_dict, block_sizes = compute_all_distributions(exp_stack, block_sizes)
+  plot_distribution_histogram_comparison(
+    distribution_dict['Covariance'][-1], distribution_dict['Covariance'][0], 
+    top_label=f'trial count={block_sizes[-1]}', 
+    bottom_label=f'trial count={block_sizes[0]}')
+
+  plot_distribution_vs_trials(
+    distribution_dict['Peak'], block_sizes, 
+    plot_file='peak_distribution_vs_number_of_trials.png')
+
+  plot_distribution_analysis(distribution_dict['Covariance'], block_sizes)
+
+  dprime_dict = calculate_all_dprime(distribution_dict)
+  plot_dprime_result(dprime_dict['Covariance'], 'Covariance d\'', block_sizes,
+                     plot_file='Dprime_Covariance.png')
+  plot_dprime_result(dprime_dict['RMS'], 'RMS d\'', block_sizes,
+                     plot_file='Dprime_RMS.png')
+
+  plot_dprimes_vs_sound_level(dprime_dict, stack_signal_levels)
+
+  plot_dprimes_vs_trials(dprime_dict, block_sizes=block_sizes)
 
 if __name__ == "__main__":
   app.run(main)
