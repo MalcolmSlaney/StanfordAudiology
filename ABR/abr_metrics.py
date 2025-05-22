@@ -176,6 +176,10 @@ class PeakMetric(Metric):
     self.window_end = window_end
 
   def compute(self, stack: NDArray) -> NDArray:
+    # Stack is num_times x num_trials
+    # Note, unlike the other metrics, which give a different answer for each 
+    # trial point, this operates across the entire trial... So the output is
+    # constant across trials (in one block).
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
     noise_ave = np.mean(shuffle_2d_array(stack), axis=1)

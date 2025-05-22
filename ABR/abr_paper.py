@@ -92,7 +92,7 @@ def create_exp_stack(signal_levels: List[float] = [],
 
 
 def plot_exp_stack_waveform(exp_stack: NDArray, level_index: int = -1,
-                            plot_file: Optional[str] ='waveform_display.png'):
+                            plot_file: Optional[str] ='WaveformDisplay.png'):
   plt.clf()
   plt.plot(exp_stack[level_index, :, 0], label='One trial')
   plt.plot(np.mean(exp_stack[-1, ...], axis=level_index), label='Average')
@@ -104,12 +104,11 @@ def plot_exp_stack_waveform(exp_stack: NDArray, level_index: int = -1,
 ##################  Compute a distribution and plot it  #######################
 
 
-def plot_distribution_histogram_comparison(top_dist: NDArray, 
-                                           bottom_dist: NDArray, 
-                                           top_label: str = 'Top',
-                                           bottom_label: str = 'Bottom',
-                                           bin_count: int = 20,
-                                           plot_file: Optional[str] = 'histogram_comparison.png',
+def plot_distribution_histogram_comparison(
+    top_dist: NDArray, bottom_dist: NDArray, 
+    top_label: str = 'Top', bottom_label: str = 'Bottom', 
+    bin_count: int = 20, 
+    plot_file: Optional[str] = 'HistogramComparison_top_bottom.png',
                                            ) -> None:
   # Original shaped: num_levels x bootstrap_repetitions x trial_count
   assert top_dist.ndim == 3, f'Wanted three dimensions on top, got {top_dist.shape}'
@@ -130,7 +129,9 @@ def plot_distribution_histogram_comparison(top_dist: NDArray,
   plt.legend();
 
   if plot_file:
-     plt.savefig(plot_file)
+    plot_file = plot_file.replace('top', top_label)
+    plot_file = plot_file.replace('bottom', bottom_label)
+    plt.savefig(plot_file)
 
 ##################  Compute a distribution and plot it  #######################
 
@@ -178,7 +179,6 @@ def plot_distribution_vs_trials(
   means = np.concatenate(means, axis=1)
   stds = np.concatenate(stds, axis=1)
   plt.clf()
-  print('Sizes', means.shape, stds.shape, len(block_sizes))
   for i in range(means.shape[0]):
     plt.errorbar(block_sizes, means[i, :], yerr=stds[i, :], label=i)
   plt.xlabel('Number of Trials')
@@ -272,18 +272,11 @@ def calculate_all_dprime(
         dprimes = np.zeros((len(distribution_list), num_levels, num_bootstraps))
       for j in range(1, num_levels):
         for k in range(num_bootstraps):
-          debug=distribution_name=='Peak'
-          if debug:
-            print('Calculate_all_dprime:', i, j, k)
-            if i == 0 and j == 1 and k == 0:
-              print('H1:', distribution[j, k, :])
-              print('H0:', distribution[0, k, :])
+          debug = False
           dprimes[i, j, k] = calculate_dprime(distribution[j, k, :], 
                                               distribution[0, k, :],
                                               debug=debug)
     dprime_dict[distribution_name] = dprimes
-    # print(f'Block size {i}: ', dprimes)
-    # print(distribution_name, dprimes)
     dprimes = None
 
   print('Inferred block sizes are', block_sizes)
@@ -301,6 +294,7 @@ def plot_dprime_result(dprimes, name='', block_sizes: List[int] = [],
   else:
     plt.plot(dprimes)
   plt.xlabel('Number of Trials')
+  plt.ylabel('d\'')
   plt.legend([f'Level={l}' for l in range(dprimes.shape[1])])
   plt.title(name)
   plt.savefig(plot_file)
@@ -308,37 +302,45 @@ def plot_dprime_result(dprimes, name='', block_sizes: List[int] = [],
 def plot_dprimes_vs_sound_level(
     dprime_dict: Dict[str, NDArray], 
     signal_levels: ArrayLike,
-    plot_file: str = 'Covariance_RMS_Distribution_Separation.png') -> None:
-  cov_dprimes = dprime_dict['Covariance']
-  rms_dprimes = dprime_dict['RMS']
+    first_metric: str = 'Covariance',
+    second_metric: str = 'RMS',
+    plot_file: str = 'DistributionByLevel_first_second.png') -> None:
+  first_dprimes = dprime_dict[first_metric]
+  second_dprimes = dprime_dict[second_metric]
   plt.clf()
   # XXX_dprimes are sized: num_trial_sizes x num_levels x num_trials
-  # print('cov_dprimes are', cov_dprimes[0, :, :])
-  # print('cov_dprimes mean', np.nanmean(cov_dprimes[0, :, :], axis=-1))
-  plt.plot(signal_levels, np.nanmean(cov_dprimes[0, :, :], axis=-1), label='Covariance')
-  plt.plot(signal_levels, np.nanmean(rms_dprimes[0, :, :], axis=-1), label='RMS')
+  plt.plot(signal_levels, np.nanmean(first_dprimes[0, :, :], axis=-1), 
+           label=first_metric)
+  plt.plot(signal_levels, np.nanmean(second_dprimes[0, :, :], axis=-1), 
+           label=second_metric)
   plt.xlabel('Sound Level (linear a.u.)')
   plt.ylabel('d\'')
   plt.title('Distribution Separation vs. Sound Level')
   plt.legend();
+  plot_file = plot_file.replace('first', first_metric)
+  plot_file = plot_file.replace('second', second_metric)
   plt.savefig(plot_file)
 
 def plot_dprimes_vs_trials(
     dprime_dict: Dict[str, NDArray], 
+    first_metric: str = 'Covariance',
+    second_metric: str = 'RMS',
     level_num: int = -1, block_sizes: List[int] = [], 
-    plot_file: str = 'dprimes_vs_number_of_trials.png'):
+    plot_file: str = 'DistributionByTrials_first_second.png'):
   # Expect num_trial_sizes x num_levels x num_trials
-  cov_dprimes = dprime_dict['Covariance']
-  assert cov_dprimes.ndim == 3, f'Expected three dimensions in cov_dprimes, got {cov_dprimes.shape}'
-  rms_dprimes = dprime_dict['RMS']
-  assert rms_dprimes.ndim == 3, f'Expected three dimensions in rms_dprimes, got {rms_dprimes.shape}'
+  first_dprimes = dprime_dict[first_metric]
+  assert first_dprimes.ndim == 3, f'Expected three dimensions in dprimes, got {first_dprimes.shape}'
+  second_dprimes = dprime_dict[second_metric]
+  assert second_dprimes.ndim == 3, f'Expected three dimensions in dprimes, got {second_dprimes.shape}'
   plt.clf()
-  plt.semilogx(block_sizes, np.mean(cov_dprimes[:, level_num, :], axis=-1), label='Coveriance')
-  plt.semilogx(block_sizes, np.mean(rms_dprimes[:, level_num, :], axis=-1), label='RMS')
+  plt.semilogx(block_sizes, np.mean(first_dprimes[:, level_num, :], axis=-1), label=first_metric)
+  plt.semilogx(block_sizes, np.mean(second_dprimes[:, level_num, :], axis=-1), label=second_metric)
   plt.xlabel('Number of Trials')
   plt.ylabel('d\'')
   plt.title(f'd\' Separation vs. Number of Trials (level {level_num})')
   plt.legend()
+  plot_file = plot_file.replace('first', first_metric)
+  plot_file = plot_file.replace('second', second_metric)
   plt.savefig(plot_file)
 
 ##################   Thresholds  #######################
@@ -346,8 +348,9 @@ def plot_dprimes_vs_trials(
 def compute_thresholds(data: List[NDArray], 
                        signal_levels: List[float], 
                        trial_counts: List[int],
+                       metric_name: str,
                        thresholds: List[float] = [1.0, 2.0, 3.0,],
-                       plot_file: str = 'ThresholdVsTrials.png'):
+                       plot_file: str = 'ThresholdVsTrials_metric.png'):
   # Expect num_trial_sizes x num_levels x num_trials
   assert data.ndim == 3, f'Expected three dimensions in data, got {data.shape}'
   data = np.mean(data, axis=2)  # Average over trials, now size x levels
@@ -360,12 +363,13 @@ def compute_thresholds(data: List[NDArray],
     for i in range(data.shape[0]):
       pp.fit(signal_levels, data[i, :])
       threshold[i] = pp.threshold(desired_threshold)
-      print('compute_thresholds:', i, data[i, :], threshold[i])
-    plt.semilogx(trial_counts, threshold, label=f'threshold={desired_threshold}')
+    plt.semilogx(trial_counts, threshold, 
+                 label=f'Decision Criteria = {desired_threshold}')
   plt.legend()
   plt.xlabel('Number of trials');
-  plt.ylabel('Amplitude of signal for desired peak/RMS (a.u.)')
-  plt.title('Sound Level Threshold vs. Desired d\'');
+  plt.ylabel('Amplitude of Signal for Decision (a.u.)')
+  plt.title(f'{metric_name}: Sound Level Threshold vs. Decision Criteria');
+  plot_file = plot_file.replace('metric', metric_name)
   plt.savefig(plot_file)
 
 ##################   Main Program  #######################
@@ -393,12 +397,12 @@ def main(*argv):
   distribution_dict, block_sizes = compute_all_distributions(exp_stack, block_sizes)
   plot_distribution_histogram_comparison(
     distribution_dict['Covariance'][-1], distribution_dict['Covariance'][0], 
-    top_label=f'trial count={block_sizes[-1]}', 
-    bottom_label=f'trial count={block_sizes[0]}')
+    top_label=f'Covariance: trial count={block_sizes[-1]}', 
+    bottom_label=f'Covariance: trial count={block_sizes[0]}')
 
   plot_distribution_vs_trials(
     distribution_dict['Peak'], block_sizes, 
-    plot_file='peak_distribution_vs_number_of_trials.png')
+    plot_file='DistributionVsNumberTrials_Peak.png')
 
   plot_distribution_analysis(distribution_dict['Covariance'], block_sizes,
                              ylabel='Covariance',
@@ -413,23 +417,26 @@ def main(*argv):
   dprime_dict = calculate_all_dprime(distribution_dict)
   # Returns a dictionary of d' arrays, each array of size 
   #   num_trial_sizes x num_levels x num_trials
-  plot_dprime_result(dprime_dict['Covariance'], 'Covariance d\'', block_sizes,
+  plot_dprime_result(dprime_dict['Covariance'], 'Covariance vs. Trial Count', block_sizes,
                      plot_file='Dprime_Covariance.png')
-  plot_dprime_result(dprime_dict['RMS'], 'RMS d\'', block_sizes,
+  plot_dprime_result(dprime_dict['RMS'], 'RMS vs. Trial Count', block_sizes,
                      plot_file='Dprime_RMS.png')
-  plot_dprime_result(dprime_dict['Peak'], 'Peak d\'', block_sizes,
-                     plot_file='Dprime_Peak.png')
+  # Plotting d' versus trial count doesn't make sense since the Peak metric does
+  # NOT give a per trial answer, only per block.
+  # plot_dprime_result(dprime_dict['Peak'], 'Peak vs. Trial Count', block_sizes,
+  #                    plot_file='Dprime_Peak.png')
 
   plot_dprimes_vs_sound_level(dprime_dict, stack_signal_levels)
 
   plot_dprimes_vs_trials(dprime_dict, block_sizes=block_sizes)
 
-  compute_thresholds(dprime_dict['RMS'], stack_signal_levels, block_sizes,
-                     plot_file='ThresholdVsTrials-RMS.png')
+  compute_thresholds(dprime_dict['RMS'], stack_signal_levels, block_sizes, 
+                     'RMS')
   compute_thresholds(dprime_dict['Covariance'], stack_signal_levels, block_sizes,
-                     plot_file='ThresholdVsTrials-Covariance.png')
-  compute_thresholds(dprime_dict['Peak'], stack_signal_levels, block_sizes,
-                     plot_file='ThresholdVsTrials-Peak.png')
+                     'Covariance')
+  
+  # compute_thresholds(dprime_dict['Peak'], stack_signal_levels, block_sizes,
+  #                    'Peak', plot_file='ThresholdVsTrials-Peak.png')
 
 
 if __name__ == "__main__":
