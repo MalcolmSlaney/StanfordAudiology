@@ -180,11 +180,14 @@ class PeakMetric(Metric):
     # Note, unlike the other metrics, which give a different answer for each 
     # trial point, this operates across the entire trial... So the output is
     # constant across trials (in one block).
+    # Note: this metric only returns one value for the entire block (unlike the
+    # others which return one value for each trial).
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
     noise_ave = np.mean(shuffle_2d_array(stack), axis=1)
     snr = np.max(np.abs(signal_ave))/np.std(noise_ave)
-    return np.reshape(snr, (1,))  # Need 1d array to match other metrics
+    # return np.reshape(snr, (1,))  # Need 1d array to match other metrics
+    return snr  # Need 1d array to match other metrics
   
 
 class TotalRMSMetric(Metric):
