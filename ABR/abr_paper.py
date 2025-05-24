@@ -168,6 +168,7 @@ def compute_all_distributions(exp_stack: DistributionArray,
 def plot_distribution_vs_trials(
     distribution_list: DistributionList, 
     block_sizes: List[int] = [], 
+    signal_levels: List[float] = [],
     plot_file: str = 'Distribution_vs_number_of_trials.png'):
   """Just for the peak metric..."""
   # num_levels x bootstrap_repetitions x trial_count
@@ -179,9 +180,12 @@ def plot_distribution_vs_trials(
   stds = [np.expand_dims(np.std(d, axis=(1,2)), 1)  for d in distribution_list]
   means = np.concatenate(means, axis=1)
   stds = np.concatenate(stds, axis=1)
+  if len(signal_levels) != means.shape[0]:
+    signal_levels = range(means.shape[0])
   plt.clf()
   for i in range(means.shape[0]):
-    plt.errorbar(block_sizes, means[i, :], yerr=stds[i, :], label=i)
+    plt.errorbar(block_sizes, means[i, :], yerr=stds[i, :], 
+                 label=signal_levels[i])
   plt.xlabel('Number of Trials')
   plt.ylabel('???')
   plt.gca().set_yscale('log')
