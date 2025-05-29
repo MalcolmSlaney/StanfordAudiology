@@ -69,6 +69,7 @@ def restore_from_cache(pickle_filename: str) -> Dict[str, NDArray]:
 def create_exp_stack(signal_levels: List[float] = [],
                      num_trials: int = 4096, 
                      num_times: int = 1952,
+                     noise_level: float = 1.0,
                      cache_file: str = 'exp_stack.pkl') -> DistributionArray:
   """Compute a stack of simulated ABR data using a Gammatone model.
    
@@ -80,19 +81,24 @@ def create_exp_stack(signal_levels: List[float] = [],
     return data['signal_levels'], data['waveforms']
 
   if not len(signal_levels):
-    signal_levels = np.linspace(0, .9, 10)
-  exp_stack = create_synthetic_stack(noise_level=1,
+    signal_levels = np.asarray([0, .01, .02, .03, .04, .05, .06, .07, .08, .09,
+                                .1, .2, .3, .4, .5, .6, .7, .8, .9, 1.0])
+  exp_stack = create_synthetic_stack(noise_level=noise_level,
                                      signal_levels=signal_levels,
                                      num_times=num_times,
                                      num_trials=num_trials)
   # exp_stack.shape is Number of levels, # of time samples, # of trials
   save_to_cache({'signal_levels': signal_levels,
+                 'noise_level': noise_level,
                  'waveforms': exp_stack}, cache_file)
   return signal_levels, exp_stack
 
 
-def plot_exp_stack_waveform(exp_stack: NDArray, level_index: int = -1,
-                            plot_file: Optional[str] ='WaveformDisplay.png'):
+def plot_exp_stack_waveform(
+    exp_stack: NDArray,  # Shape: num_levels x num_times x num_trials
+    level_index: int = -1, 
+    plot_file: Optional[str] ='WaveformStackDisplay.png'): 
+  assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   plt.clf()
   plt.plot(exp_stack[level_index, :, 0], label='One trial')
   plt.plot(np.mean(exp_stack[-1, ...], axis=level_index), label='Average')
@@ -100,6 +106,43 @@ def plot_exp_stack_waveform(exp_stack: NDArray, level_index: int = -1,
   plt.legend()
   if plot_file:
     plt.savefig(plot_file)
+
+def plot_peak_illustration(exp_stack: NDArray, # Shape: num_levels x num_times x num_trials
+                           level_index: int = -1,
+                           plot_file: Optional[str] ='WaveformPeakIllustration.png'):
+  assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
+  mean_response = np.mean(exp_stack[-1, ...], axis=1)
+  peak_index = np.argmax(mean_response)
+
+  plt.clf()
+  plt.subplot(2,1,1);
+  plt.plot(np.mean(exp_stack[-1, ...], axis=1))
+  plt.plot(peak_index, mean_response[peak_index], 'ro')
+  plt.subplot(2,1,2);
+  plt.plot(np.mean(exp_stack[-1, ...], axis=1))
+  plt.plot(peak_index, mean_response[peak_index], 'ro')
+  plt.xlim(400, 500)
+  if plot_file:
+    plt.savefig(plot_file)
+
+
+def plot_peak_metric (exp_stack: NDArray, level_index: int = -1,
+                         plot_file: Optional[str] ='WaveformPeakMetric.png'):
+  assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
+  mean_response = np.mean(exp_stack[-1, ...], axis=1)
+  peak_index = np.argmax(mean_response)
+  noise = exp_stack[0, :, 0]
+  plt.clf()
+  plt.plot(noise, label='Noise Response')
+  plt.plot(mean_response, label='Mean Signal')
+  plt.axhline(np.std(noise), color='r', linestyle=':', label='Noise RMS')
+  plt.axhline(np.max(mean_response), color='g', linestyle=':', label='Signal Peak')
+  plt.legend()
+  peak_measure = PeakMetric().compute(exp_stack[-1, ...])
+  plt.title(f'Peak Amplitude to RMS Noise is {peak_measure}')
+  if plot_file:
+    plt.savefig(plot_file)
+
 
 ##################  Compute a distribution and plot it  #######################
 
@@ -187,7 +230,7 @@ def plot_distribution_vs_trials(
     plt.errorbar(block_sizes, means[i, :], yerr=stds[i, :], 
                  label=signal_levels[i])
   plt.xlabel('Number of Trials')
-  plt.ylabel('???')
+  plt.ylabel('Peak to Noise RMS Value')
   plt.gca().set_yscale('log')
   plt.gca().set_xscale('log')
   plt.axhline(3, ls=':')
@@ -224,7 +267,9 @@ def plot_distribution_analysis(dist_list: DistributionList,
             (np.sqrt((np.asarray(stds)**2 + np.asarray(stdn)**2)/2)))
   plt.plot(block_sizes, dprime)
   plt.gca().set_xscale('log')
-  plt.xlabel('Trial Count')
+  if np.max(dprime) > 100:
+    plt.gca().set_yscale('log')
+    print('dprimes are', dprime, 'for', plot_file)
   plt.ylabel('d\'');
   # Conclusion: d' grows because noise covariance distributions gets closer to 0.
 
@@ -232,6 +277,8 @@ def plot_distribution_analysis(dist_list: DistributionList,
   plt.plot(block_sizes, means, label='Signal')
   plt.plot(block_sizes, meann, label='Noise')
   plt.gca().set_xscale('log')
+  plt.xlabel('Trial Count')
+  plt.ylabel(ylabel)
   plt.legend()
   plt.title('Means of Distributions')
   # plt.xlabel('Trial Count');
@@ -243,6 +290,7 @@ def plot_distribution_analysis(dist_list: DistributionList,
   plt.legend()
   plt.title(r'$\sigma$ of Distribution')
   plt.xlabel('Trial Count');
+  plt.xlabel('$\sigma$');
 
   plt.subplots_adjust(wspace=0.3, hspace=0.4);
 
@@ -278,17 +326,12 @@ def calculate_all_dprime(
         dprimes = np.zeros((len(distribution_list), num_levels, num_bootstraps))
       for j in range(1, num_levels):
         for k in range(num_bootstraps):
-          debug = True
-          print('calculate_all_dprime:', distribution_name, i, j, k, distribution.shape)
-          if distribution_name != 'Peak': # distribution.shape[2] > 1:
-            dprimes[i, j, k] = calculate_dprime(distribution[j, k, :], 
-                                                distribution[0, k, :],
-                                                debug=debug)
+          if distribution_name == 'Peak':
+            # With peak metric there is no distribution, just return the mean
+            dprimes[i, j, k] = np.mean(distribution[j, k, :])
           else:
-            debug = True
-            dprimes[i, j, k] = calculate_dprime(distribution[j, :, 0], 
-                                                distribution[0, :, 0],
-                                                debug=debug)
+            dprimes[i, j, k] = calculate_dprime(distribution[j, k, :], 
+                                                distribution[0, k, :])
     dprime_dict[distribution_name] = dprimes
     dprimes = None
 
@@ -299,19 +342,23 @@ def calculate_all_dprime(
 
 def plot_dprime_result(dprimes, name='', block_sizes: List[int] = [],
                        sound_levels:List[float] = [],
+                       sound_levels_to_plot: List[int] = [],
+                       ylabel='d\'',
                        plot_file: str = 'dprime.png'):
   # Expect num_trial_sizes x num_levels x num_trials
   plt.clf()
   dprimes = np.mean(dprimes, axis=2)  # Now num_trial_sizes x num_levels
-  if len(block_sizes):
-    plt.semilogx(block_sizes, dprimes)
-  else:
-    plt.plot(dprimes)
-  plt.xlabel('Number of Trials')
-  plt.ylabel('d\'')
   if len(sound_levels) == 0:
     sound_levels = range(dprimes.shape[1])
-  plt.legend([f'Level={l}' for l in sound_levels])
+  if len(sound_levels_to_plot) == 0:
+    sound_levels_to_plot = range(dprimes.shape[1])
+  if len(block_sizes):
+    plt.semilogx(block_sizes, dprimes[:, sound_levels_to_plot])
+  else:
+    plt.plot(dprimes[:, sound_levels_to_plot])
+  plt.xlabel('Number of Trials')
+  plt.ylabel(ylabel)
+  plt.legend([f'Level={l}' for l in sound_levels[sound_levels_to_plot]])
   plt.title(name)
   plt.savefig(plot_file)
 
@@ -371,7 +418,7 @@ def plot_dprimes_vs_trials(
 
 ##################   Thresholds  #######################
 
-def compute_thresholds(data: List[NDArray], 
+def compute_thresholds(data: List[NDArray],  # Usually d' data
                        signal_levels: List[float], 
                        trial_counts: List[int],
                        metric_name: str,
@@ -396,14 +443,25 @@ def compute_thresholds(data: List[NDArray],
   plt.ylabel('Amplitude of Signal for Decision (a.u.)')
   plt.title(f'{metric_name}: Sound Level Threshold vs. Decision Criteria');
   plot_file = plot_file.replace('metric', metric_name)
-  plt.savefig(plot_file)
+  if plot_file:
+    plt.savefig(plot_file)
 
 ##################   Main Program  #######################
 
+FLAGS = flags.FLAGS
+flags.DEFINE_integer('max_trials', 4096, 'Maximum number of trials to precompute', lower_bound=100)
+flags.DEFINE_integer('num_times', 1952, 'Number of time samples to compute', lower_bound=100)
+flags.DEFINE_integer('num_bootstraps', 30, 'How many bootstraps to use when computing statistics', lower_bound=10)
+flags.DEFINE_float('noise_level', 1.0, 'What noise level to use throughout these experiments')
+
 def main(*argv):
-  stack_signal_levels, exp_stack = create_exp_stack()
+  stack_signal_levels, exp_stack = create_exp_stack(noise_level=FLAGS.noise_level,
+                                                    num_times=FLAGS.num_times,
+                                                    num_trials=FLAGS.max_trials)
   num_levels, num_times, num_trials = exp_stack.shape
   plot_exp_stack_waveform(exp_stack)
+  plot_peak_illustration(exp_stack)
+  plot_peak_metric(exp_stack)
    
   metric_rms = TotalRMSMetric()
   dist_rms = metric_rms.compute_distribution(exp_stack)
@@ -427,8 +485,9 @@ def main(*argv):
     top_label=f'Covariance: trial count={block_sizes[-1]}', 
     bottom_label=f'Covariance: trial count={block_sizes[0]}')
 
+  # Just for the Peak distribution
   plot_distribution_vs_trials(
-    distribution_dict['Peak'], block_sizes, 
+    distribution_dict['Peak'], block_sizes, signal_levels=stack_signal_levels,
     plot_file='DistributionVsNumberTrials_Peak.png')
 
   plot_distribution_analysis(distribution_dict['Covariance'], block_sizes,
@@ -445,16 +504,22 @@ def main(*argv):
   # Returns a dictionary of d' arrays, each array of size 
   #   num_trial_sizes x num_levels x num_trials
 
+  sound_levels_to_plot = [0] + np.nonzero(stack_signal_levels >= 0.1)[0].tolist()
+  sound_levels_to_plot.sort(reverse=True)  # plot biggest first for legend's order
   plot_dprime_result(dprime_dict['Covariance'], 'Covariance vs. Trial Count', 
                      sound_levels=stack_signal_levels,
+                     sound_levels_to_plot=sound_levels_to_plot,
                      block_sizes=block_sizes, plot_file='Dprime_Covariance.png')
   plot_dprime_result(dprime_dict['RMS'], 'RMS vs. Trial Count', block_sizes,
                      sound_levels=stack_signal_levels,
+                     sound_levels_to_plot=sound_levels_to_plot,
                      plot_file='Dprime_RMS.png')
   # Plotting d' versus trial count doesn't make sense since the Peak metric does
   # NOT give a per trial answer, only per block.
   plot_dprime_result(dprime_dict['Peak'], 'Peak vs. Trial Count', block_sizes,
                      sound_levels=stack_signal_levels,
+                     sound_levels_to_plot=sound_levels_to_plot,
+                     ylabel='Peak/RMS Noise Ratio',
                      plot_file='Dprime_Peak.png')
 
   plot_dprimes_vs_sound_level(dprime_dict, stack_signal_levels)

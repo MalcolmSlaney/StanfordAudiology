@@ -77,7 +77,7 @@ def calculate_dprime(
     h1: Union[list, NDArray],
     h2: Union[list, NDArray],
     geometric_mean: bool = False,
-    debug: bool = True
+    debug: bool = False
 ) -> float:
     """Calculate the d' given two sets of (one-dimensiona) data.  The h1
     data should be the bigger of the two data. The normalization factor either
@@ -167,13 +167,24 @@ class PeakMetric(Metric):
   vs. the RMS energy of the noise.  We want to be some number of standard
   deviations above the noise.
   https://bmcneurosci.biomedcentral.com/articles/10.1186/1471-2202-10-104
+
+  The automated method is based on the ratio between the observed peak amplitude
+  of the evoked ABR signal and the standard deviation (SD) of the baseline
+  noise. The peak was taken as the maximum absolute amplitude of the averaged
+  evoked ABR signal in a time window encompassing the ABR signal (Figure 1).
+  This peak amplitude represents the true peak amplitude plus a contribution
+  from the background noise. The SD of the noise was calculated in a time
+  window clearly following termination of the ABR signal.  
   """
   def __init__(self, 
-               window_start=int(1.75e-3*mouse_sample_rate), 
-               window_end=int(2.75e-3*mouse_sample_rate)):
+               window_start: int = int(1.75e-3*mouse_sample_rate), 
+               window_end: int = int(2.75e-3*mouse_sample_rate),
+               signal_end:int = 50):
     super().__init__()
+    assert signal_end >= 0
     self.window_start = window_start
     self.window_end = window_end
+    self.signal_end = signal_end # How many samples at end to look for noise.
 
   def compute(self, stack: NDArray) -> NDArray:
     # Stack is num_times x num_trials
@@ -184,10 +195,10 @@ class PeakMetric(Metric):
     # others which return one value for each trial).
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
-    noise_ave = np.mean(shuffle_2d_array(stack), axis=1)
-    snr = np.max(np.abs(signal_ave))/np.std(noise_ave)
-    # return np.reshape(snr, (1,))  # Need 1d array to match other metrics
-    return snr  # Need 1d array to match other metrics
+    # noise_rms = np.mean(shuffle_2d_array(stack), axis=1)
+    noise = stack[self.signal_end:, :]
+    snr = np.max(np.abs(signal_ave))/np.std(noise)
+    return snr  # This is a scalar, not a vector (by trial) as in other metrics
   
 
 class TotalRMSMetric(Metric):
@@ -302,7 +313,7 @@ def calculate_dprimes(exp_stack: NDArray,
                                      window_start=window_start,
                                      window_end=window_end)
 
-  for i in range(exp_stack.shape[0]):
+  for i in range(exp_stack.shape[0]):  # For each signal level
     signal_dist = metric.compute_window(exp_stack[i, ...], 
                                         window_start=window_start,
                                         window_end=window_end)
