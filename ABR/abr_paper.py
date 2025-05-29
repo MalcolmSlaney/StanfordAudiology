@@ -269,7 +269,6 @@ def plot_distribution_analysis(dist_list: DistributionList,
   plt.gca().set_xscale('log')
   if np.max(dprime) > 100:
     plt.gca().set_yscale('log')
-    print('dprimes are', dprime, 'for', plot_file)
   plt.ylabel('d\'');
   # Conclusion: d' grows because noise covariance distributions gets closer to 0.
 
@@ -340,11 +339,11 @@ def calculate_all_dprime(
                  'block_sizes': block_sizes}, cache_file)
   return dprime_dict
 
-def plot_dprime_result(dprimes, name='', block_sizes: List[int] = [],
-                       sound_levels:List[float] = [],
-                       sound_levels_to_plot: List[int] = [],
-                       ylabel='d\'',
-                       plot_file: str = 'dprime.png'):
+def plot_dprime_vs_trials(dprimes, name='', block_sizes: List[int] = [],
+                          sound_levels:List[float] = [],
+                          sound_levels_to_plot: List[int] = [],
+                          ylabel='d\'',
+                          plot_file: str = 'dprime.png'):
   # Expect num_trial_sizes x num_levels x num_trials
   plt.clf()
   dprimes = np.mean(dprimes, axis=2)  # Now num_trial_sizes x num_levels
@@ -360,7 +359,26 @@ def plot_dprime_result(dprimes, name='', block_sizes: List[int] = [],
   plt.ylabel(ylabel)
   plt.legend([f'Level={l}' for l in sound_levels[sound_levels_to_plot]])
   plt.title(name)
-  plt.savefig(plot_file)
+  if plot_file:
+    plt.savefig(plot_file)
+
+def plot_dprimes_vs_sound_level_distribution(
+      dprimes: NDArray, trial_counts: List[int], signal_levels: ArrayLike, 
+      ylabel: str = 'd\'',
+      plot_file: str = 'DPrimeVsLevel.png'):
+  # Dprimes is Expect num_trial_sizes x num_levels x num_trials
+  dp_mean = np.mean(dprimes, axis=2)
+  dp_std = np.std(dprimes, axis=2)
+  plt.clf()
+  for i in reversed(range(0, len(trial_counts), 2)):
+    plt.errorbar(signal_levels, dp_mean[i, :], capsize=5,
+                yerr=dp_std[i, :], label=f'Trial Count={trial_counts[i]}');
+  plt.legend();
+  plt.xlabel('Sound Level');
+  plt.ylabel(ylabel)
+  plt.title('Metric vs. Amplitude and Number of Trials');
+  if plot_file:
+    plt.savefig(plot_file)
 
 def plot_dprimes_vs_sound_level(
     dprime_dict: Dict[str, NDArray], 
@@ -373,7 +391,6 @@ def plot_dprimes_vs_sound_level(
   second_dprimes = dprime_dict[second_metric]
   third_dprimes = dprime_dict[third_metric]
   plt.clf()
-  # XXX_dprimes are sized: num_trial_sizes x num_levels x num_trials
   plt.plot(signal_levels, np.nanmean(first_dprimes[0, :, :], axis=-1), 
            label=first_metric)
   plt.plot(signal_levels, np.nanmean(second_dprimes[0, :, :], axis=-1), 
@@ -506,21 +523,30 @@ def main(*argv):
 
   sound_levels_to_plot = [0] + np.nonzero(stack_signal_levels >= 0.1)[0].tolist()
   sound_levels_to_plot.sort(reverse=True)  # plot biggest first for legend's order
-  plot_dprime_result(dprime_dict['Covariance'], 'Covariance vs. Trial Count', 
-                     sound_levels=stack_signal_levels,
-                     sound_levels_to_plot=sound_levels_to_plot,
-                     block_sizes=block_sizes, plot_file='Dprime_Covariance.png')
-  plot_dprime_result(dprime_dict['RMS'], 'RMS vs. Trial Count', block_sizes,
-                     sound_levels=stack_signal_levels,
-                     sound_levels_to_plot=sound_levels_to_plot,
-                     plot_file='Dprime_RMS.png')
-  # Plotting d' versus trial count doesn't make sense since the Peak metric does
-  # NOT give a per trial answer, only per block.
-  plot_dprime_result(dprime_dict['Peak'], 'Peak vs. Trial Count', block_sizes,
-                     sound_levels=stack_signal_levels,
-                     sound_levels_to_plot=sound_levels_to_plot,
-                     ylabel='Peak/RMS Noise Ratio',
-                     plot_file='Dprime_Peak.png')
+  plot_dprime_vs_trials(dprime_dict['Covariance'], 'Covariance vs. Trial Count', 
+                        sound_levels=stack_signal_levels,
+                        sound_levels_to_plot=sound_levels_to_plot,
+                        block_sizes=block_sizes, plot_file='DprimeVsTrialCount_Covariance.png')
+  plot_dprime_vs_trials(dprime_dict['RMS'], 'RMS vs. Trial Count', block_sizes,
+                        sound_levels=stack_signal_levels,
+                        sound_levels_to_plot=sound_levels_to_plot,
+                        plot_file='DprimeVsTrialCount_RMS.png')
+  plot_dprime_vs_trials(dprime_dict['Peak'], 'Peak vs. Trial Count', block_sizes,
+                        sound_levels=stack_signal_levels,
+                        sound_levels_to_plot=sound_levels_to_plot,
+                        ylabel='Peak/RMS Noise Ratio',
+                        plot_file='DprimeVsTrialCount_Peak.png')
+
+  plot_dprimes_vs_sound_level_distribution(
+    dprime_dict['Covariance'], block_sizes, stack_signal_levels, 
+    plot_file='DPrimeVsLevel_Covariance.png')
+  plot_dprimes_vs_sound_level_distribution(
+    dprime_dict['Peak'], block_sizes, stack_signal_levels, 
+    ylabel='Peak/RMS Noise Ratio',
+    plot_file='DPrimeVsLevel_Peak.png')
+  plot_dprimes_vs_sound_level_distribution(
+    dprime_dict['RMS'], block_sizes, stack_signal_levels, 
+    plot_file='DPrimeVsLevel_RMS.png')
 
   plot_dprimes_vs_sound_level(dprime_dict, stack_signal_levels)
 
