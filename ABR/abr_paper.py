@@ -472,7 +472,7 @@ flags.DEFINE_integer('max_trials', 4096, 'Maximum number of trials to precompute
 flags.DEFINE_integer('num_times', 1952, 'Number of time samples to compute', lower_bound=100)
 flags.DEFINE_integer('num_bootstraps', 30, 'How many bootstraps to use when computing statistics', lower_bound=10)
 flags.DEFINE_float('noise_level', 1.0, 'What noise level to use throughout these experiments')
-flags.DEFINE_string('cache_dir', '/tmp', 'Where to cache the precomputed data')
+# flags.DEFINE_string('cache_dir', '/tmp', 'Where to cache the precomputed data')
 
 def main(*argv):
   global Synthetic_ABR_Cache_Dir
