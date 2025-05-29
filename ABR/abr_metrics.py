@@ -145,7 +145,6 @@ class Metric(object):
     assert exp_stack.ndim == 3, f'Wanted three dimensions, got {exp_stack.shape}'
     num_levels, _, trial_count = exp_stack.shape
     bookstrap_repetitions = 20
-    print('block sizes are:', block_sizes)
     block_sizes = np.asarray(block_sizes)
 
     block_sizes = block_sizes[(block_sizes >= min_count) & 
@@ -198,7 +197,7 @@ class PeakMetric(Metric):
     # noise_rms = np.mean(shuffle_2d_array(stack), axis=1)
     noise = stack[self.signal_end:, :]
     snr = np.max(np.abs(signal_ave))/np.std(noise)
-    return snr  # This is a scalar, not a vector (by trial) as in other metrics
+    return np.array([snr])
   
 
 class TotalRMSMetric(Metric):
@@ -397,6 +396,7 @@ def measure_full_stack(stack) -> Dict[str, NDArray]:
     for f in range(num_freqs):
       for l in range(num_levels):
         for c in range(num_channels):
+          # Peak Metric result is an array so cast to array.
           r = metric.compute(stack[f, l, c, :, :])
           if metric_result is None:
             metric_result = np.zeros((num_freqs, num_levels, num_channels, 

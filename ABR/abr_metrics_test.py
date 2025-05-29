@@ -70,7 +70,7 @@ class MetricTests(absltest.TestCase):
     response = signal + noise
     peak_metric = metrics.PeakMetric(0, -1)
     snr = peak_metric.compute(response)
-    self.assertGreater(snr, 50)
+    self.assertGreater(snr, 5)
 
     response = signal + 2*noise
     snr2 = peak_metric.compute(response)

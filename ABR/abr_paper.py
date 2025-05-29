@@ -334,7 +334,6 @@ def calculate_all_dprime(
     dprime_dict[distribution_name] = dprimes
     dprimes = None
 
-  # print('Inferred block sizes are', block_sizes)
   save_to_cache({'dprime_dict': dprime_dict,
                  'block_sizes': block_sizes}, cache_file)
   return dprime_dict
