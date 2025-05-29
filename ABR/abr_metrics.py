@@ -144,7 +144,6 @@ class Metric(object):
     """
     assert exp_stack.ndim == 3, f'Wanted three dimensions, got {exp_stack.shape}'
     num_levels, _, trial_count = exp_stack.shape
-    bookstrap_repetitions = 20
     block_sizes = np.asarray(block_sizes)
 
     block_sizes = block_sizes[(block_sizes >= min_count) & 
@@ -152,7 +151,7 @@ class Metric(object):
     dist = []
 
     for i, trial_count in enumerate(block_sizes):
-      block_results = np.zeros((num_levels, bookstrap_repetitions, trial_count))
+      block_results = np.zeros((num_levels, bootstrap_repetitions, trial_count))
       for j in range(bootstrap_repetitions):
         sample = bootstrap_sample(exp_stack, trial_count)
         for l in range(exp_stack.shape[0]): # For each level...

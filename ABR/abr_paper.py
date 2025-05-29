@@ -186,7 +186,9 @@ distribution_names = {
 }
 
 def compute_all_distributions(exp_stack: DistributionArray, 
-                              block_sizes) -> Tuple[MetricDistributionDict,
+                              block_sizes: List[int],
+                              bootstrap_repetitions: int = 30
+                              ) -> Tuple[MetricDistributionDict,
                                                     List[int]]:
   distributions = {}
   for distribution_name in distribution_names:
@@ -199,11 +201,12 @@ def compute_all_distributions(exp_stack: DistributionArray,
     else:
       metric:Metric = distribution_names[distribution_name]()
       (distribution, 
-       block_sizes) = metric.compute_distribution_by_trial_size(exp_stack,
-                                                                block_sizes)
+       block_sizes) = metric.compute_distribution_by_trial_size(
+         exp_stack, block_sizes, bootstrap_repetitions=bootstrap_repetitions)
       assert distribution[0].ndim == 3, f'Expected three dimensions in distribution[0], got {distribution[0].shape}'
       distributions[distribution_name] = distribution
       save_to_cache({'distribution': distribution,
+                     'bootstrap_repetitions': bootstrap_repetitions,
                      'block_sizes': block_sizes}, 
                     cache_file)
   return distributions, block_sizes
@@ -469,8 +472,12 @@ flags.DEFINE_integer('max_trials', 4096, 'Maximum number of trials to precompute
 flags.DEFINE_integer('num_times', 1952, 'Number of time samples to compute', lower_bound=100)
 flags.DEFINE_integer('num_bootstraps', 30, 'How many bootstraps to use when computing statistics', lower_bound=10)
 flags.DEFINE_float('noise_level', 1.0, 'What noise level to use throughout these experiments')
+flags.DEFINE_string('cache_dir', '/tmp', 'Where to cache the precomputed data')
 
 def main(*argv):
+  global Synthetic_ABR_Cache_Dir
+  Synthetic_ABR_Cache_Dir = FLAGS.cache_dir
+
   stack_signal_levels, exp_stack = create_exp_stack(noise_level=FLAGS.noise_level,
                                                     num_times=FLAGS.num_times,
                                                     num_trials=FLAGS.max_trials)
@@ -494,8 +501,8 @@ def main(*argv):
                                               num_divisions, 
                                               1.0))).astype(int)
 
-  distribution_dict, block_sizes = compute_all_distributions(exp_stack, 
-                                                             block_sizes)
+  distribution_dict, block_sizes = compute_all_distributions(
+    exp_stack, block_sizes, bootstrap_repetitions=FLAGS.num_bootstraps)
   plot_distribution_histogram_comparison(
     distribution_dict['Covariance'][-1], distribution_dict['Covariance'][0], 
     top_label=f'Covariance: trial count={block_sizes[-1]}', 
