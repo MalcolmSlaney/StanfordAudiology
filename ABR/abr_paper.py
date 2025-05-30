@@ -292,7 +292,7 @@ def plot_distribution_analysis(dist_list: DistributionList,
   plt.legend()
   plt.title(r'$\sigma$ of Distribution')
   plt.xlabel('Trial Count');
-  plt.xlabel('$\sigma$');
+  plt.xlabel('$\\sigma$');
 
   plt.subplots_adjust(wspace=0.3, hspace=0.4);
 
