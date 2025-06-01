@@ -202,7 +202,11 @@ class PeakMetric(Metric):
 class TotalRMSMetric(Metric):
   def compute(self, stack: NDArray) -> NDArray:
     """
-    Compute the RMS of the waveform recordings, one per trial.
+    Compute the RMS of the waveform recordings, one per trial. This version
+    of the metric computes the average RMS over all the trials. So there is
+    no variance within the trial.  (The original computed the RMS energy in
+    each trial, separately, so we could form a distribution within a bootstrap
+    of the RMS energy.)
 
     Args:
       stack: 2D tensor of waveform recordings: num_times x num_trials
