@@ -126,11 +126,21 @@ class MetricTests(absltest.TestCase):
 
     for k in metrics.all_metrics:
       if k == 'presto':
-        self.assertEqual(all_results[k].shape, (1, 10, 1, 500))
+        self.assertEqual(
+          all_results[k].shape, (1, 10, 1, 500),
+          f'Size failed for presto metric. Got {all_results[k].shape}')
       elif k == 'peak':
-        self.assertEqual(all_results[k].shape, (1, 10, 1, 1))
-      else:
-        self.assertEqual(all_results[k].shape, (1, 10, 1, 1026))
+        self.assertEqual(
+          all_results[k].shape, (1, 10, 1, 1),
+          f'Size failed for peak metric. Got {all_results[k].shape}')
+      elif k == 'total_rms':
+        self.assertEqual(
+          all_results[k].shape, (1, 10, 1, 1),
+          f'Size failed for RMS metric. Got {all_results[k].shape}')
+      else: 
+        self.assertEqual(
+           all_results[k].shape, (1, 10, 1, 1026),
+           f'Size failed for {k} metric. Got {all_results[k].shape}')
 
 
 
