@@ -211,7 +211,8 @@ class TotalRMSMetric(Metric):
       A 1d distribution array of size num_trials
     """
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
-    return np.sqrt(np.mean(stack**2, axis=0))
+    # return np.sqrt(np.mean(stack**2, axis=0))
+    return np.sqrt(np.mean(np.mean(stack, axis=1)**2))
 
 
 class CovarianceMetric(Metric):

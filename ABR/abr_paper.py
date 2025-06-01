@@ -268,10 +268,15 @@ def plot_distribution_analysis(dist_list: DistributionList,
   plt.subplot(2, 2, 2)
   dprime = ((np.asarray(means) - np.asarray(meann)) /
             (np.sqrt((np.asarray(stds)**2 + np.asarray(stdn)**2)/2)))
-  plt.plot(block_sizes, dprime)
+  if 'Peak' in ylabel or 'RMS' in ylabel:
+    # Last point has zero variance because there is no change across bootstraps
+    # because each sample returns *all* the same points.
+    plt.plot(block_sizes[1:], dprime[1:])
+  else:
+    plt.plot(block_sizes, dprime)
   plt.gca().set_xscale('log')
-  if np.max(dprime) > 100:
-    plt.gca().set_yscale('log')
+  # if np.max(dprime) > 100:
+  #   plt.gca().set_yscale('log')
   plt.ylabel('d\'');
   # Conclusion: d' grows because noise covariance distributions gets closer to 0.
 
@@ -296,7 +301,8 @@ def plot_distribution_analysis(dist_list: DistributionList,
 
   plt.subplots_adjust(wspace=0.3, hspace=0.4);
 
-  plt.savefig(plot_file)
+  if plot_file:
+    plt.savefig(plot_file)
 
 ##################   D' Analysis  #######################
 
