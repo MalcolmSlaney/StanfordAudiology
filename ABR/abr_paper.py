@@ -179,7 +179,8 @@ def plot_distribution_histogram_comparison(
 ##################  Compute a distribution and plot it  #######################
 
 distribution_names = {
-   'RMS': TotalRMSMetric,
+   'TotalRMS': TotalRMSMetric,
+   'TrialRMS': TrialRMSMetric,
    'Covariance': CovarianceMetric,
    'Peak': PeakMetric,
    # 'Presto': PrestoMetric # always has 500 splits!
@@ -250,9 +251,13 @@ def plot_distribution_analysis(dist_list: DistributionList,
   #       num_levels x bootstrap_repetitions x trial_count
   plt.figure(figsize=(8, 6))
 
+  if dist_list[0].shape[-1] > 1:
+    means = [np.mean(dist_list[b][-1, ...]) for b in range(len(block_sizes))]
+    stds = [np.std(dist_list[b][-1, ...]) for b in range(len(block_sizes))]
+  else:
+    means = [np.mean(dist_list[b][-1, ...]) for b in range(len(block_sizes))]
+    stds =[np.ones(means[b].shape) for b in range(len(block_sizes))]
   plt.subplot(2, 2, 1)
-  means = [np.mean(dist_list[b][-1, ...]) for b in range(len(block_sizes))]
-  stds = [np.std(dist_list[b][-1, ...]) for b in range(len(block_sizes))]
   plt.errorbar(block_sizes, means, yerr=4*np.asarray(stds),
           label='Signal')
   meann = [np.mean(dist_list[b][0, ...]) for b in range(len(block_sizes))]
@@ -268,7 +273,7 @@ def plot_distribution_analysis(dist_list: DistributionList,
   plt.subplot(2, 2, 2)
   dprime = ((np.asarray(means) - np.asarray(meann)) /
             (np.sqrt((np.asarray(stds)**2 + np.asarray(stdn)**2)/2)))
-  if 'Peak' in ylabel or 'RMS' in ylabel:
+  if 'Peak' in ylabel or 'Total RMS' in ylabel:
     # Last point has zero variance because there is no change across bootstraps
     # because each sample returns *all* the same points.
     plt.plot(block_sizes[1:], dprime[1:])
@@ -392,7 +397,7 @@ def plot_dprimes_vs_sound_level(
     dprime_dict: Dict[str, NDArray], 
     signal_levels: ArrayLike,
     first_metric: str = 'Covariance',
-    second_metric: str = 'RMS',
+    second_metric: str = 'TotalRMS',
     third_metric: str = 'Peak',
     plot_file: str = 'DistributionByLevel_first_second_third.png') -> None:
   first_dprimes = dprime_dict[first_metric]
@@ -417,7 +422,7 @@ def plot_dprimes_vs_sound_level(
 def plot_dprimes_vs_trials(
     dprime_dict: Dict[str, NDArray], 
     first_metric: str = 'Covariance',
-    second_metric: str = 'RMS',
+    second_metric: str = 'TotalRMS',
     third_metric: str = 'Peak',
     level_num: int = -1, block_sizes: List[int] = [], 
     plot_file: str = 'DistributionByTrials_first_second_third.png'):
@@ -492,8 +497,8 @@ def main(*argv):
   plot_peak_illustration(exp_stack)
   plot_peak_metric(exp_stack)
    
-  metric_rms = TotalRMSMetric()
-  dist_rms = metric_rms.compute_distribution(exp_stack)
+  metric_total_rms = TotalRMSMetric()
+  dist_total_rms = metric_total_rms.compute_distribution(exp_stack)
 
   metric_cov = CovarianceMetric()
   dist_cov = metric_cov.compute_distribution(exp_stack)
@@ -522,9 +527,12 @@ def main(*argv):
   plot_distribution_analysis(distribution_dict['Covariance'], block_sizes,
                              ylabel='Covariance',
                              plot_file='DistributionAnalysis-Covariance.png')
-  plot_distribution_analysis(distribution_dict['RMS'], block_sizes,
-                             ylabel='RMS',
-                             plot_file='DistributionAnalysis-RMS.png')
+  plot_distribution_analysis(distribution_dict['TotalRMS'], block_sizes,
+                             ylabel='Total RMS',
+                             plot_file='DistributionAnalysis-TotalRMS.png')
+  plot_distribution_analysis(distribution_dict['TrialRMS'], block_sizes,
+                             ylabel='Trial RMS',
+                             plot_file='DistributionAnalysis-TrialRMS.png')
   plot_distribution_analysis(distribution_dict['Peak'], block_sizes,
                              ylabel='Peak',
                              plot_file='DistributionAnalysis-Peak.png')
@@ -539,10 +547,14 @@ def main(*argv):
                         sound_levels=stack_signal_levels,
                         sound_levels_to_plot=sound_levels_to_plot,
                         block_sizes=block_sizes, plot_file='DprimeVsTrialCount_Covariance.png')
-  plot_dprime_vs_trials(dprime_dict['RMS'], 'RMS vs. Trial Count', block_sizes,
+  plot_dprime_vs_trials(dprime_dict['TotalRMS'], 'Total RMS vs. Trial Count', block_sizes,
                         sound_levels=stack_signal_levels,
                         sound_levels_to_plot=sound_levels_to_plot,
-                        plot_file='DprimeVsTrialCount_RMS.png')
+                        plot_file='DprimeVsTrialCount_TotalRMS.png')
+  plot_dprime_vs_trials(dprime_dict['TrialRMS'], 'Trial RMS vs. Trial Count', block_sizes,
+                        sound_levels=stack_signal_levels,
+                        sound_levels_to_plot=sound_levels_to_plot,
+                        plot_file='DprimeVsTrialCount_TrialRMS.png')
   plot_dprime_vs_trials(dprime_dict['Peak'], 'Peak vs. Trial Count', block_sizes,
                         sound_levels=stack_signal_levels,
                         sound_levels_to_plot=sound_levels_to_plot,
@@ -557,18 +569,22 @@ def main(*argv):
     ylabel='Peak/RMS Noise Ratio',
     plot_file='DPrimeVsLevel_Peak.png')
   plot_dprimes_vs_sound_level_distribution(
-    dprime_dict['RMS'], block_sizes, stack_signal_levels, 
-    plot_file='DPrimeVsLevel_RMS.png')
+    dprime_dict['TotalRMS'], block_sizes, stack_signal_levels, 
+    plot_file='DPrimeVsLevel_TotalRMS.png')
+  plot_dprimes_vs_sound_level_distribution(
+    dprime_dict['TrialRMS'], block_sizes, stack_signal_levels, 
+    plot_file='DPrimeVsLevel_TrialRMS.png')
 
   plot_dprimes_vs_sound_level(dprime_dict, stack_signal_levels)
 
   plot_dprimes_vs_trials(dprime_dict, block_sizes=block_sizes)
 
-  compute_thresholds(dprime_dict['RMS'], stack_signal_levels, 
-                     block_sizes, 'RMS')
+  compute_thresholds(dprime_dict['TotalRMS'], stack_signal_levels, 
+                     block_sizes, 'TotalRMS')
+  compute_thresholds(dprime_dict['TrialRMS'], stack_signal_levels, 
+                     block_sizes, 'TrialRMS')
   compute_thresholds(dprime_dict['Covariance'], stack_signal_levels, 
                      block_sizes, 'Covariance')
-  
   compute_thresholds(dprime_dict['Peak'], stack_signal_levels, 
                      block_sizes, 'Peak')
 

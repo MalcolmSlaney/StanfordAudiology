@@ -151,12 +151,19 @@ class Metric(object):
     dist = []
 
     for i, trial_count in enumerate(block_sizes):
-      block_results = np.zeros((num_levels, bootstrap_repetitions, trial_count))
+      # block_results = np.zeros((num_levels, bootstrap_repetitions, trial_count))
+      block_results = None
       for j in range(bootstrap_repetitions):
         sample = bootstrap_sample(exp_stack, trial_count)
         for l in range(exp_stack.shape[0]): # For each level...
-          block_results[l, j, :] = self.compute(sample[l, ...])
+          m = self.compute(sample[l, ...])
+          if block_results is None:
+            block_results = np.zeros((num_levels, bootstrap_repetitions, 
+                                      len(m)))  # Could be num_trials or 1
+          block_results[l, j, :] = m
       dist.append(block_results)
+    print(f'Compute_distribution_by_trial_size for {type(self)} returns:', 
+          [d.shape for d in dist])
     return dist, block_sizes
  
 
@@ -173,6 +180,9 @@ class PeakMetric(Metric):
   This peak amplitude represents the true peak amplitude plus a contribution
   from the background noise. The SD of the noise was calculated in a time
   window clearly following termination of the ABR signal.  
+
+  Returns:
+    a one-element long array for the entire trial.
   """
   def __init__(self, 
                window_start: int = int(1.75e-3*mouse_sample_rate), 
@@ -199,10 +209,25 @@ class PeakMetric(Metric):
     return np.array([snr])
   
 
+class TrialRMSMetric(Metric):
+  def compute(self, stack: NDArray) -> NDArray:
+    """
+    Compute the RMS of the waveform recordings, one per trial. 
+
+    Args:
+      stack: 2D tensor of waveform recordings: num_times x num_trials
+    
+    Returns:
+      A 1d distribution array of size num_trials
+    """
+    assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
+    return np.sqrt(np.mean(stack**2, axis=0))
+
+
 class TotalRMSMetric(Metric):
   def compute(self, stack: NDArray) -> NDArray:
     """
-    Compute the RMS of the waveform recordings, one per trial. This version
+    Compute the RMS energy of the average response over all trials. This version
     of the metric computes the average RMS over all the trials. So there is
     no variance within the trial.  (The original computed the RMS energy in
     each trial, separately, so we could form a distribution within a bootstrap
@@ -212,7 +237,7 @@ class TotalRMSMetric(Metric):
       stack: 2D tensor of waveform recordings: num_times x num_trials
     
     Returns:
-      A 1d distribution array of size num_trials
+      A scalar of the average energy in all the trials.
     """
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     # return np.sqrt(np.mean(stack**2, axis=0))
@@ -287,6 +312,7 @@ class PrestoMetric(Metric):
 
 all_metrics = {
    'peak': PeakMetric,
+   'trial_rms': TrialRMSMetric,
    'total_rms': TotalRMSMetric,
    'covariance': CovarianceMetric,
    'covariance_self_similar': CovarianceSelfSimilarMetric,
