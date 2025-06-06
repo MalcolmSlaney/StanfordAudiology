@@ -207,7 +207,7 @@ class PeakMetric(Metric):
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
     
-    noise_signal = shuffle_2d_array(stack[-self.signal_end, :])
+    noise_signal = shuffle_2d_array(stack[-self.signal_end:, :])
     noise_ave = np.mean(noise_signal, axis=-1)
     snr = np.max(np.abs(signal_ave))/np.std(noise_ave)
     return np.array([snr])

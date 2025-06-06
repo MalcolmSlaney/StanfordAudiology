@@ -293,7 +293,7 @@ def plot_distribution_vs_trials(
   if len(signal_levels) != means.shape[0]:
     signal_levels = range(means.shape[0])
   plt.clf()
-  if not len(levels_to_display):
+  if levels_to_display:
     levels_to_display = range(means.shape[0])
   for i in levels_to_display:
     plt.errorbar(block_sizes, means[i, :], yerr=stds[i, :], 
