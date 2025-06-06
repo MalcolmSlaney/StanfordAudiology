@@ -182,7 +182,10 @@ class PeakMetric(Metric):
   window clearly following termination of the ABR signal.  
 
   Returns:
-    a one-element long array for the entire trial.
+    a one-element long array for the entire trial the trials
+  
+  Note: a better version of this routine would preserve trials without a signal 
+  and use that as the noise model.
   """
   def __init__(self, 
                window_start: int = int(1.75e-3*mouse_sample_rate), 
@@ -203,9 +206,10 @@ class PeakMetric(Metric):
     # others which return one value for each trial).
     assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
     signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
-    # noise_rms = np.mean(shuffle_2d_array(stack), axis=1)
-    noise = np.mean(stack[-self.signal_end:, :], axis=-1)
-    snr = np.max(np.abs(signal_ave))/np.std(noise)
+    
+    noise_signal = shuffle_2d_array(stack[-self.signal_end, :])
+    noise_ave = np.mean(noise_signal, axis=-1)
+    snr = np.max(np.abs(signal_ave))/np.std(noise_ave)
     return np.array([snr])
   
 

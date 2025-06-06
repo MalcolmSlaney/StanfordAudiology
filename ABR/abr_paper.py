@@ -111,16 +111,16 @@ def plot_peak_illustration(exp_stack: NDArray, # Shape: num_levels x num_times x
                            level_index: int = -1,
                            plot_file: Optional[str] ='WaveformPeakIllustration.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
-  mean_response = np.mean(exp_stack[-1, ...], axis=1)
-  peak_index = np.argmax(mean_response)
+  mean_signal_response = np.mean(exp_stack[-1, ...], axis=1)
+  peak_index = np.argmax(mean_signal_response)
 
   plt.clf()
   plt.subplot(2,1,1);
   plt.plot(np.mean(exp_stack[-1, ...], axis=1))
-  plt.plot(peak_index, mean_response[peak_index], 'ro')
+  plt.plot(peak_index, mean_signal_response[peak_index], 'ro')
   plt.subplot(2,1,2);
   plt.plot(np.mean(exp_stack[-1, ...], axis=1))
-  plt.plot(peak_index, mean_response[peak_index], 'ro')
+  plt.plot(peak_index, mean_signal_response[peak_index], 'ro')
   plt.xlim(400, 500)
   if plot_file:
     plt.savefig(plot_file)
@@ -144,7 +144,69 @@ def plot_peak_metric (exp_stack: NDArray, level_index: int = -1,
     plt.savefig(plot_file)
 
 
-##################  Compute a distribution and plot it  #######################
+def plot_baselines(exp_stack: NDArray,
+                   stack_signal_levels: ArrayLike, 
+                   plot_file: Optional[str] = 'BaselineXXX.png') -> None:
+  assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
+  num_levels, num_times, num_trials = exp_stack.shape
+
+  # Peak Baseline Plot
+  plt.clf()
+  signal_level = 8
+  mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
+  window_start: int = int(1.75e-3*mouse_sample_rate),
+  window_end: int = int(3e-3*mouse_sample_rate)
+  signal_average = np.mean(exp_stack[signal_level, :, :], axis=1)
+  peak_index = np.argmax(np.abs(signal_average))
+  noise_average = np.mean(exp_stack[0, :, :], axis=1)
+  plt.clf()
+  plt.plot(noise_average, label='Average Noise Response')
+  plt.plot(signal_average, label='Average Signal Response')
+
+  plt.axhline(np.std(noise_average), color='k', linestyle=':', label='Noise RMS')
+  plt.axvline(window_start, color='g', linestyle='--')
+  plt.axvline(window_end, color='g', linestyle='--')
+
+  plt.plot(peak_index, signal_average[peak_index], 'ro', label='Signal Abs Peak')
+  plt.legend()
+  plt.xlabel('Sample #')
+  peak_measure = PeakMetric().compute(exp_stack[signal_level, ...])
+  plt.title(f'Peak Amplitude to RMS Noise is {peak_measure[0]:.2f}');##################  Compute a distribution and plot it  #######################
+  if plot_file:
+    plt.savefig(plot_file.replace('XXX', 'Peak'))
+
+  # Per Trial RMS
+  plt.clf()
+  signal_levels = [np.std(np.mean(exp_stack[i, :, :], axis=1)) for i in range(num_levels)]
+  signal_noise_levels = [np.std(exp_stack[i, :, :]) for i in range(num_levels)]
+  noise_level = np.std(exp_stack[0, :, :])
+
+  plt.plot(stack_signal_levels, signal_noise_levels, label='Signal + Noise RMS')
+  plt.plot(stack_signal_levels, noise_level*np.ones(stack_signal_levels.shape), label='Noise RMS')
+  plt.plot(stack_signal_levels, signal_levels, label='Signal RMS')
+  plt.legend();
+  plt.xlabel('Signal Level')
+  plt.ylabel('RMS')
+  plt.title('Per Trial RMS Energy of Signal and Noise');
+  if plot_file:
+    plt.savefig(plot_file.replace('XXX', 'PerTrialRMS'))
+
+  # Total RMS Baseline Plot
+  trial_counts = [100, 200, 400, 800, 1600, 3200, 4096]
+  signal_levels = [np.std(np.mean(exp_stack[signal_level, :, :tc], axis=1)) for tc in trial_counts]
+  noise_levels = [np.std(np.mean(exp_stack[0, :, :tc], axis=1)) for tc in trial_counts]
+  # noise_level = np.std(np.mean(exp_stack[0, :, :], axis=1))
+
+  plt.clf()
+  plt.semilogx(trial_counts, noise_levels, label='Noise RMS')
+  # plt.plot(stack_signal_levels, noise_level*np.ones(stack_signal_levels.shape), label='Noise RMS')
+  plt.semilogx(trial_counts, signal_levels, label='Signal RMS')
+  plt.legend();
+  plt.xlabel('Number of Trials')
+  plt.ylabel('RMS')
+  plt.title('Total RMS Energy of Signal and Noise');
+  if plot_file:
+    plt.savefig(plot_file.replace('XXX', 'TotalRMS'))
 
 
 def plot_distribution_histogram_comparison(
@@ -216,6 +278,7 @@ def plot_distribution_vs_trials(
     distribution_list: DistributionList, 
     block_sizes: List[int] = [], 
     signal_levels: List[float] = [],
+    levels_to_display: List[int] = [],
     plot_file: str = 'Distribution_vs_number_of_trials.png'):
   """Just for the peak metric..."""
   # num_levels x bootstrap_repetitions x trial_count
@@ -230,7 +293,9 @@ def plot_distribution_vs_trials(
   if len(signal_levels) != means.shape[0]:
     signal_levels = range(means.shape[0])
   plt.clf()
-  for i in range(means.shape[0]):
+  if not len(levels_to_display):
+    levels_to_display = range(means.shape[0])
+  for i in levels_to_display:
     plt.errorbar(block_sizes, means[i, :], yerr=stds[i, :], 
                  label=signal_levels[i])
   plt.xlabel('Number of Trials')
@@ -496,7 +561,9 @@ def main(*argv):
   plot_exp_stack_waveform(exp_stack)
   plot_peak_illustration(exp_stack)
   plot_peak_metric(exp_stack)
-   
+  plot_baselines(exp_stack, stack_signal_levels)
+
+  # Now pre calculate all the metrics.
   metric_total_rms = TotalRMSMetric()
   dist_total_rms = metric_total_rms.compute_distribution(exp_stack)
 
@@ -522,6 +589,8 @@ def main(*argv):
   # Just for the Peak distribution
   plot_distribution_vs_trials(
     distribution_dict['Peak'], block_sizes, signal_levels=stack_signal_levels,
+    levels_to_display=np.concatenate(([0,], 
+                                      np.nonzero(stack_signal_levels >= 0.1)[0])),
     plot_file='DistributionVsNumberTrials_Peak.png')
 
   plot_distribution_analysis(distribution_dict['Covariance'], block_sizes,
