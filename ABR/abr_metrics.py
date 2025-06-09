@@ -182,7 +182,7 @@ class PeakMetric(Metric):
   window clearly following termination of the ABR signal.  
 
   Returns:
-    a one-element long array for the entire trial the trials
+    a one-element long array (scalar) for the entire set of trial.
   
   Note: a better version of this routine would preserve trials without a signal 
   and use that as the noise model.
