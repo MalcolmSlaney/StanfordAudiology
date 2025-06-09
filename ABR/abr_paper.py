@@ -489,7 +489,7 @@ def plot_dprimes_vs_trials(
                  label=k)
   plt.xlabel('Number of Trials')
   plt.ylabel('d\'')
-  plt.title(f'Distribnution Separation vs. Number of Trials (level {level_num})')
+  plt.title(f'Distribution Separation vs. Number of Trials (level {level_num})')
   plt.legend()
   plt.savefig(plot_file)
 
