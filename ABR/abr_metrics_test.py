@@ -58,7 +58,7 @@ class BootstrapTests(absltest.TestCase):
 
 
 class MetricTests(absltest.TestCase):
-  def test_peak(self):
+  def XXtest_peak(self):
     num_points = 2000
     num_trials = 200
 
@@ -76,7 +76,7 @@ class MetricTests(absltest.TestCase):
     snr2 = peak_metric.compute(response)
     self.assertGreater(snr, snr2)
 
-  def test_rms(self):
+  def XXtest_rms(self):
     signal_levels = np.linspace(0, 1, 11)
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
                                                signal_levels=signal_levels)
@@ -86,7 +86,7 @@ class MetricTests(absltest.TestCase):
     rms_dist_n = rms_metric.compute(exp_stack[0, ...])
     self.assertLess(np.mean(rms_dist_n), np.mean(rms_dist_s))
 
-  def test_cov(self):
+  def XXtest_cov(self):
     signal_levels = np.linspace(0, 1, 11)
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
                                                signal_levels=signal_levels)
@@ -103,7 +103,7 @@ class MetricTests(absltest.TestCase):
     # Without self-similar is less than with self-similar
     self.assertLess(np.mean(cov_dist_s), np.mean(cov_dist_ss))
 
-  def test_presto(self):
+  def XXtest_presto(self):
     signal_levels = np.linspace(0, 1, 11)
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
                                                signal_levels=signal_levels)
@@ -113,7 +113,7 @@ class MetricTests(absltest.TestCase):
     presto_dist_n = presto_metric.compute(exp_stack[0, :, :400])
     self.assertLess(np.mean(presto_dist_n), np.mean(presto_dist_s))
 
-  def test_all(self):
+  def XXtest_all_sizes(self):
     """Test computing all metrics on a full 5d (George@Stanford) stack."""
     signal_levels = np.linspace(0, .9, 10)
     exp_stack = metrics.create_synthetic_stack(noise_level=1, 
@@ -142,7 +142,85 @@ class MetricTests(absltest.TestCase):
            all_results[k].shape, (1, 10, 1, 1026),
            f'Size failed for {k} metric. Got {all_results[k].shape}')
 
+  def test_metric_peak(self):
+    print('\nTesting Metric Peak...')
+    t = np.arange(8000)/8000
+    s = np.expand_dims(np.sin(2*np.pi*100*t), 1)
+    # shape is num_samples x num_trials(1)
+    m = metrics.PeakMetric(window_start=0, window_end=len(s))
+    r = m.compute_difference(s, s)
+    self.assertAlmostEqual(r, 1/(np.sqrt(2)/2))
+    r = m.compute_difference(2*s, 2*s)
+    self.assertAlmostEqual(r, 1/(np.sqrt(2)/2))  # Doesn't change with level
+    r = m.compute_difference(2*s, s)
+    self.assertAlmostEqual(r, 2/(np.sqrt(2)/2))  # Doubles if signal doubles
 
+    exp_data = np.concatenate((np.expand_dims(s, 0),
+                               np.expand_dims(2*s, 0)),
+                              axis=0)
+    # Shape is num_levels(2) x num_samples x num_trials(1)
+    r, block_sizes = m.compute_distance_by_trial_size(exp_data, [2], 3, min_count=1)
+    print('peak_metric compute_distance returned:', r)
+
+  def test_trial_rms(self):
+    t = np.arange(100)/100
+    s = np.expand_dims(np.sin(2*np.pi*10*t), 1)
+    noise_data = np.concatenate((0*s, 0*s, 0*s, 0*s, 0*s, 0*s, 0*s, 0*s), axis=1)
+    noise_data = noise_data + np.random.randn(*noise_data.shape)
+    signal_data = np.concatenate((4*s, 4*s, 4*s, 4*s, 4*s, 4*s, 4*s, 4*s), axis=1)
+    signal_data = signal_data + np.random.randn(*signal_data.shape)
+    m = metrics.TrialRMSMetric()
+    r = m.compute_difference(signal_data, noise_data)
+    print('TrialRMS.compute_difference:', r)
+    self.assertGreater(r, 15) # Empirically determined
+    r = m.compute_difference(2*signal_data, noise_data)
+    print('TrialRMS.compute_difference x 2:', r)
+    self.assertGreater(r, 25) # Empirically determined
+
+    exp_data = np.concatenate((np.expand_dims(noise_data, 0),
+                               2*np.expand_dims(signal_data, 0)),
+                              axis=0)
+    r = m.compute_distance_by_trial_size(exp_data, [2, ], 3, min_count=1)
+    print('trial_rms compute_distance returned:', r)
+
+  def test_covariance(self):
+    t = np.arange(8000)/8000
+    s = np.expand_dims(np.sin(2*np.pi*10*t), 1)
+    noise_data = np.concatenate((0*s, 0*s, 0*s, 0*s, 0*s, 0*s, 0*s, 0*s), axis=1)
+    noise_data = noise_data + 10*np.random.randn(*noise_data.shape)
+    signal_data = np.concatenate((4*s, 4*s, 4*s, 4*s, 4*s, 4*s, 4*s, 4*s), axis=1)
+    signal_data = signal_data + 10*np.random.randn(*signal_data.shape)
+    m = metrics.CovarianceMetric()
+    r1 = m.compute_difference(signal_data, noise_data)
+    print('Covariance.compute_difference:', r1)
+    self.assertGreater(r1, 10) # Empirically determined
+    r2 = m.compute_difference(2*signal_data, noise_data)
+    print('Covariance.compute_difference x 2:', r2)
+    self.assertGreater(r2, 20) # Empirically determined
+
+    exp_data = np.concatenate((np.expand_dims(noise_data, 0),
+                               2*np.expand_dims(signal_data, 0)),
+                              axis=0)
+    r = m.compute_distance_by_trial_size(exp_data, [2], 3, min_count=1)
+    print('trial_rms compute_distance returned:', r)
+
+
+  def test_total_rms(self):
+    t = np.arange(8000)/8000
+    s = np.expand_dims(np.sin(2*np.pi*100*t), 1)
+    noise_data = np.concatenate((1*s, 1*s, 1*s), axis=1)
+    signal_data = np.concatenate((2*s, 2*s, 2*s), axis=1)
+    m = metrics.TotalRMSMetric()
+    r = m.compute_difference(signal_data, noise_data)
+    self.assertAlmostEqual(r, 2.0)
+    r = m.compute_difference(2*signal_data, noise_data)
+    self.assertAlmostEqual(r, 4.0)
+
+    exp_data = np.concatenate((np.expand_dims(noise_data, 0),
+                               2*np.expand_dims(signal_data, 0)),
+                              axis=0)
+    r = m.compute_distance_by_trial_size(exp_data, [2], 3, min_count=1)
+    print('total_rms compute_distance returned:', r)
 
 class PlotTests(absltest.TestCase):
   def test_plot(self):

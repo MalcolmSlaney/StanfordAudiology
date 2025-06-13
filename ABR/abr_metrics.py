@@ -128,19 +128,22 @@ class Metric(object):
       dist[l, :] = self.compute(exp_stack[l, ...])
     return dist # Shape: num_levels x num_trials
 
-  def compute_distribution_by_trial_size(self,
-                                         exp_stack: NDArray,
-                                         block_sizes: List[int],
-                                         bootstrap_repetitions: int = 20,
-                                         min_count = 10,
-                                         max_count = 20000,
-                                         ):
-    """Compute the distribution for a stack of data as a function of trial count.
-    Use bootstrapping.
+  def compute_distance_by_trial_size(self,
+                                     exp_stack: NDArray,
+                                     block_sizes: List[int],
+                                     bootstrap_repetitions: int = 25,
+                                     min_count = 10,
+                                     max_count = 20000,
+                                     ):
+    """Compute the distance for a stack of data as a function of trial count.
+    Use bootstrapping.  Distance depends on metric type, and can be either
+    d' or a ratio of signal amplitude (by some measure) over noise RMS.
     
+    Args
+      exp_stack: Waveform data of size num_levels x num_times x num_trials
+
     Returns:
-      List with num_block_counts 3D arrays.  Each array of size
-        num_levels x bootstrap_repetitions x trial_count
+      Array of size num_block_sizes x num_levels x num_bootstrap_repetitions
     """
     assert exp_stack.ndim == 3, f'Wanted three dimensions, got {exp_stack.shape}'
     num_levels, _, trial_count = exp_stack.shape
@@ -148,24 +151,20 @@ class Metric(object):
 
     block_sizes = block_sizes[(block_sizes >= min_count) & 
                               (block_sizes <= max_count)]
-    dist = []
-
+    distances = np.zeros((len(block_sizes), num_levels, bootstrap_repetitions))
     for i, trial_count in enumerate(block_sizes):
       # block_results = np.zeros((num_levels, bootstrap_repetitions, trial_count))
-      block_results = None
       for j in range(bootstrap_repetitions):
         sample = bootstrap_sample(exp_stack, trial_count)
         for l in range(exp_stack.shape[0]): # For each level...
-          m = self.compute(sample[l, ...])
-          if block_results is None:
-            block_results = np.zeros((num_levels, bootstrap_repetitions, 
-                                      len(m)))  # Could be num_trials or 1
-          block_results[l, j, :] = m
-      dist.append(block_results)
-    print(f'Compute_distribution_by_trial_size for {type(self)} returns:', 
-          [d.shape for d in dist])
-    return dist, block_sizes
- 
+          distances[i, l, j] = self.compute_difference(sample[l, ...], 
+                                                       sample[0, ...])
+    return distances, block_sizes
+  
+  def compute_difference(self, 
+                         signal_dist: NDArray, 
+                         noise_dist: NDArray) -> float:
+     raise ValueError('Need to define this method in a subclass')
 
 class PeakMetric(Metric):
   """Look at peak amplitude of the average, which should be all signal,
@@ -182,7 +181,7 @@ class PeakMetric(Metric):
   window clearly following termination of the ABR signal.  
 
   Returns:
-    a one-element long array (scalar) for the entire set of trial.
+    a scalar for the entire set of trials.
   
   Note: a better version of this routine would preserve trials without a signal 
   and use that as the noise model.
@@ -197,56 +196,72 @@ class PeakMetric(Metric):
     self.window_end = window_end
     self.signal_end = signal_end # How many samples at end to look for noise.
 
-  def compute(self, stack: NDArray) -> NDArray:
-    # Stack is num_times x num_trials
-    # Note, unlike the other metrics, which give a different answer for each 
-    # trial point, this operates across the entire trial... So the output is
-    # constant across trials (in one block).
-    # Note: this metric only returns one value for the entire block (unlike the
-    # others which return one value for each trial).
-    assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
-    signal_ave = np.mean(stack[self.window_start:self.window_end, :], axis=1)
+  def compute_difference(self, 
+                         signal_dist: NDArray, 
+                         noise_dist: NDArray) -> NDArray:
+    """Compute the peak metric over a block of trials.
     
-    noise_signal = shuffle_2d_array(stack[-self.signal_end:, :])
-    noise_ave = np.mean(noise_signal, axis=-1)
-    snr = np.max(np.abs(signal_ave))/np.std(noise_ave)
-    return np.array([snr])
-  
+    Args:
+      signal_dist: ERP waveforms that contain a signal
+      noise_dist: ERP waveforms without any signal, the baseline
+    Both these arrays are shaped: num_times x num_num_trials
+
+    Returns:
+      A scalar giving peak(average signal)/rms(average noise) result.
+    """
+    assert signal_dist.ndim == 2, f'Wanted two dimensions, got {signal_dist.shape}'
+    assert noise_dist.ndim == 2, f'Wanted two dimensions, got {noise_dist.shape}'
+    signal_ave = np.mean(signal_dist[self.window_start:self.window_end, :], axis=1)
+    noise_ave = np.mean(noise_dist[self.window_start:self.window_end, :], axis=1)
+    return np.max(np.abs(signal_ave)) / np.sqrt(np.mean(noise_ave**2))
+    
+
 
 class TrialRMSMetric(Metric):
-  def compute(self, stack: NDArray) -> NDArray:
-    """
-    Compute the RMS of the waveform recordings, one per trial. 
-
-    Args:
-      stack: 2D tensor of waveform recordings: num_times x num_trials
+  def compute_difference(self, 
+                         signal_dist: NDArray, 
+                         noise_dist: NDArray) -> NDArray:
+    """Compute the RMS metric for each block of trials.
     
+    Args:
+      signal_dist: ERP waveforms that contain a signal
+      noise_dist: ERP waveforms without any signal, the baseline
+    Both these arrays are shaped: num_times x num_num_trials
+
     Returns:
-      A 1d distribution array of size num_trials
+      The d' measure for the rms(signal) and rms(noise) for each trial
     """
-    assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
-    return np.sqrt(np.mean(stack**2, axis=0))
+    assert signal_dist.ndim == 2, f'Wanted two dimensions, got {signal_dist.shape}'
+    assert noise_dist.ndim == 2, f'Wanted two dimensions, got {noise_dist.shape}'
+    signal_rms = np.sqrt(np.mean(signal_dist**2, axis=0))   # Average over time
+    noise_rms = np.sqrt(np.mean(noise_dist**2, axis=0))     # Average over time
+    return calculate_dprime(signal_rms, noise_rms)
+    
 
 
 class TotalRMSMetric(Metric):
-  def compute(self, stack: NDArray) -> NDArray:
-    """
-    Compute the RMS energy of the average response over all trials. This version
-    of the metric computes the average RMS over all the trials. So there is
-    no variance within the trial.  (The original computed the RMS energy in
-    each trial, separately, so we could form a distribution within a bootstrap
-    of the RMS energy.)
-
-    Args:
-      stack: 2D tensor of waveform recordings: num_times x num_trials
+  def compute_difference(self, 
+                         signal_dist: NDArray, 
+                         noise_dist: NDArray) -> NDArray:
+    """Compute the RMS metric over the average of this block of trials
     
-    Returns:
-      A scalar of the average energy in all the trials.
-    """
-    assert stack.ndim == 2, f'Wanted two dimensions, got {stack.shape}'
-    # return np.sqrt(np.mean(stack**2, axis=0))
-    return np.asarray([np.sqrt(np.mean(np.mean(stack, axis=1)**2))])
+    Args:
+      signal_dist: ERP waveforms that contain a signal
+      noise_dist: ERP waveforms without any signal, the baseline
+    Both these arrays are shaped: num_times x num_num_trials
 
+    Returns:
+      A 1 element NP array with the ratio of the RMS(average signal) divided by
+      RMS(noise_signal)
+    """
+    assert signal_dist.ndim == 2, f'Wanted two dimensions, got {signal_dist.shape}'
+    assert noise_dist.ndim == 2, f'Wanted two dimensions, got {noise_dist.shape}'
+    signal_ave = np.mean(signal_dist, axis=1)  # Average over trials.
+    noise_ave = np.mean(noise_dist, axis=1)    # Average over trials.
+    signal_rms = np.sqrt(np.mean(signal_ave**2, axis=0))   # Average over time
+    noise_rms = np.sqrt(np.mean(noise_ave**2, axis=0))     # Average over time
+    return signal_rms/noise_rms
+    
 
 class CovarianceMetric(Metric):
   def __init__(self, with_self_similar=False): 
@@ -284,6 +299,26 @@ class CovarianceMetric(Metric):
     # return np.sqrt(np.maximum(0, response))
     return response
 
+  def compute_difference(self, 
+                         signal_dist: NDArray, 
+                         noise_dist: NDArray) -> NDArray:
+    """Compute the Covariance metric over the average of this block of trials
+    
+    Args:
+      signal_dist: ERP waveforms that contain a signal
+      noise_dist: ERP waveforms without any signal, the baseline
+    Both these arrays are shaped: num_times x num_num_trials
+
+    Returns:
+      An NP array with the d' of the two covariance matrices.
+    """
+    assert signal_dist.ndim == 2, f'Wanted two dimensions, got {signal_dist.shape}'
+    assert noise_dist.ndim == 2, f'Wanted two dimensions, got {noise_dist.shape}'
+    signal_cov = self.compute(signal_dist)
+    noise_cov = self.compute(noise_dist)
+    return calculate_dprime(signal_cov, noise_cov)
+    
+
 
 class CovarianceSelfSimilarMetric(CovarianceMetric):
   def __init__(self):
@@ -320,7 +355,7 @@ all_metrics = {
    'total_rms': TotalRMSMetric,
    'covariance': CovarianceMetric,
    'covariance_self_similar': CovarianceSelfSimilarMetric,
-   'presto': PrestoMetric
+   # 'presto': PrestoMetric
 }
 
 def shuffle_2d_array(array_2d):
