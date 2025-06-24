@@ -134,7 +134,7 @@ class Metric(object):
                                      bootstrap_repetitions: int = 25,
                                      min_count = 10,
                                      max_count = 20000,
-                                     ):
+                                     ) -> Tuple[NDArray, List[int]]:
     """Compute the distance for a stack of data as a function of trial count.
     Use bootstrapping.  Distance depends on metric type, and can be either
     d' or a ratio of signal amplitude (by some measure) over noise RMS.
@@ -143,7 +143,8 @@ class Metric(object):
       exp_stack: Waveform data of size num_levels x num_times x num_trials
 
     Returns:
-      Array of size num_block_sizes x num_levels x num_bootstrap_repetitions
+      1) Array of size num_block_sizes x num_levels x num_bootstrap_repetitions
+      2) List of block sizes actually used (which might be different from input)
     """
     assert exp_stack.ndim == 3, f'Wanted three dimensions, got {exp_stack.shape}'
     num_levels, _, trial_count = exp_stack.shape
