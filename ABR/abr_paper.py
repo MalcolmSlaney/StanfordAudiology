@@ -1,5 +1,6 @@
 import datetime
 import os
+import sys
 
 from absl import app, flags
 import numpy as np
@@ -97,7 +98,7 @@ def create_exp_stack(signal_levels: List[float] = [],
 def plot_exp_stack_waveform(
     exp_stack: NDArray,  # Shape: num_levels x num_times x num_trials
     level_index: int = -1, 
-    plot_file: Optional[str] ='WaveformStackDisplay.png'): 
+    plot_file: Optional[str] ='ExampleWaveformStackDisplay.png'): 
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   plt.clf()
   plt.plot(exp_stack[level_index, :, 0], label='One trial')
@@ -109,7 +110,7 @@ def plot_exp_stack_waveform(
 
 def plot_peak_illustration(exp_stack: NDArray, # Shape: num_levels x num_times x num_trials
                            level_index: int = -1,
-                           plot_file: Optional[str] ='WaveformPeakIllustration.png'):
+                           plot_file: Optional[str] ='ExamplePeakPick.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   mean_signal_response = np.mean(exp_stack[-1, ...], axis=1)
   peak_index = np.argmax(mean_signal_response)
@@ -126,20 +127,77 @@ def plot_peak_illustration(exp_stack: NDArray, # Shape: num_levels x num_times x
     plt.savefig(plot_file)
 
 
-def plot_peak_metric (exp_stack: NDArray, level_index: int = -1,
-                         plot_file: Optional[str] ='WaveformPeakMetric.png'):
+def plot_peak_metric(exp_stack: NDArray, level_index: int = -1,
+                     plot_file: Optional[str] ='ExamplePeakMetric.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
-  mean_response = np.mean(exp_stack[-1, ...], axis=1)
-  peak_index = np.argmax(mean_response)
-  noise = exp_stack[0, :, 0]
+  mean_response = np.mean(exp_stack[level_index, ...], axis=1)
+  peak_level = np.max(mean_response)
+  noise_response = np.mean(exp_stack[0, :, :64], axis=-1)
+  noise_level = np.std(noise_response)
   plt.clf()
-  plt.plot(noise, label='Noise Response')
-  plt.plot(mean_response, label='Mean Signal')
-  plt.axhline(np.std(noise), color='r', linestyle=':', label='Noise RMS')
-  plt.axhline(np.max(mean_response), color='g', linestyle=':', label='Signal Peak')
+  plt.axhline(peak_level, color='g', linestyle=':', label='Signal Peak')
+  plt.plot(mean_response, label='Average Signal')
+  plt.plot(noise_response, label='Average Noise')
+  plt.axhline(noise_level, color='k', linestyle=':', label='Noise RMS')
   plt.legend()
-  peak_measure = PeakMetric().compute(exp_stack[-1, ...])
-  plt.title(f'Peak Amplitude to RMS Noise is {peak_measure}')
+  arrow_x = int(exp_stack.shape[1]*.70)
+  plt.annotate('', 
+               (arrow_x, np.std(noise_response)),
+               (arrow_x, np.max(mean_response)),
+               arrowprops=dict(arrowstyle='->'))
+  plt.text(arrow_x, (peak_level+noise_level)/2, 'Peak to RMS Ratio')
+  plt.title(f'Peak Example')
+  if plot_file:
+    plt.savefig(plot_file)
+
+
+def plot_total_rms_metric(exp_stack: NDArray, level_index: int = -1,
+                          plot_file: Optional[str] ='ExampleTotalRMSMetric.png'):
+  assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
+  mean_response = np.mean(exp_stack[level_index, ...], axis=1)
+  signal_level = np.std(mean_response)
+  noise_response = np.mean(exp_stack[0, :, :64], axis=-1)
+  noise_level = np.std(noise_response)
+  plt.clf()
+  plt.plot(mean_response, label='Average Signal')
+  plt.axhline(signal_level, color='g', linestyle=':', label='Signal RMS')
+  plt.plot(noise_response, label='Average Noise')
+  plt.axhline(noise_level, color='k', linestyle=':', label='Noise RMS')
+  plt.legend()
+  arrow_x = int(exp_stack.shape[1]*.55)
+  plt.annotate('', 
+               (arrow_x, noise_level),
+               (arrow_x, signal_level),
+               arrowprops=dict(arrowstyle='->'))
+  plt.text(arrow_x, (signal_level+noise_level)/2, 'Total RMS to Noise RMS Ratio')
+  plt.title(f'Total RMS Example')
+  if plot_file:
+    plt.savefig(plot_file)
+
+def plot_trial_rms_metric(exp_stack: NDArray, level_index: int = -1,
+                          plot_file: Optional[str] ='ExampleTrialMSMetric.png'):
+  assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
+  signal_rms = np.sqrt(np.mean(exp_stack[-1, :, :]**2, axis=0))
+  noise_rms = np.sqrt(np.mean(exp_stack[0, :, :]**2, axis=0))
+  signal_counts, signal_bins = np.histogram(signal_rms, density=True)
+  noise_counts, noise_bins = np.histogram(noise_rms, density=True)
+  plt.clf()
+  plt.plot((signal_bins[:-1]+signal_bins[1:])/2, signal_counts, label='Signal Distribution')
+  plt.plot((noise_bins[:-1]+noise_bins[1:])/2, noise_counts, label='Noise Distribution')
+  mean_signal_rms = np.mean(signal_rms)
+  mean_noise_rms = np.mean(noise_rms)
+  plt.axvline(mean_signal_rms, label='Mean of Signal RMS', color='b', linestyle=':')
+  plt.axvline(mean_noise_rms, label='Mean of Noise RMS', color='orange', linestyle=':')
+  mean_y_pos = 0.75*np.max(signal_counts)
+  plt.annotate('', 
+               (mean_noise_rms, mean_y_pos),
+               (mean_signal_rms, mean_y_pos),
+               arrowprops=dict(arrowstyle='<->'))
+  plt.text(0.5*mean_noise_rms + 0.5*mean_signal_rms, mean_y_pos*1.05, '~ d\'')
+  
+  plt.legend()
+  plt.title(f'Trial RMS Example - Per Trial RMS Histogram')
+  plt.xlabel('Per Trial RMS')
   if plot_file:
     plt.savefig(plot_file)
 
@@ -498,7 +556,7 @@ def compute_all_distances(exp_stack: NDArray,
                           ) -> Tuple[DPrimeDict, List[int]]:
   if cache_exists(cache_file):
     data = restore_from_cache(cache_file)
-    return data['dprime_dict'], data['block_sizes]']
+    return data['dprime_dict'], data['block_sizes']
 
   # Now pre calculate all the metrics.
   dprime_dict = {}
@@ -524,7 +582,10 @@ def main(*argv):
   plot_exp_stack_waveform(exp_stack)
   plot_peak_illustration(exp_stack)
   plot_peak_metric(exp_stack)
+  plot_total_rms_metric(exp_stack)
+  plot_trial_rms_metric(exp_stack)
   plot_baselines(exp_stack, stack_signal_levels)
+  sys.exit(0)
    
   num_divisions = 14
   block_sizes = (num_trials / (2 ** np.arange(0, 

@@ -696,17 +696,18 @@ class BilinearInterpolation(object):
     def threshold(self, y):
         if len(self._xdata) < 2:
             return self._xdata[0]
+        # First make sure the data is monotonic
         ydata = np.maximum.accumulate(self._ydata)
         if y <= ydata[0]:
-            i = 0
-        elif y >= ydata[-2]:
-            i = len(ydata) - 2
+            ans = self._xdata[0]
+        elif y >= ydata[-1]:
+            ans = self._xdata[-1]
         else:
             i = np.nonzero(y > ydata)[0][-1]
-        assert i >= 0
-        assert i <= len(ydata) - 2, f"i too big: y={y}, ydata={ydata}, i={i}"
-        delta = (y - ydata[i]) / (ydata[i + 1] - ydata[i])
-        ans = self._xdata[i] * (1 - delta) + self._xdata[i + 1] * delta
+            assert i >= 0
+            assert i <= len(ydata) - 2, f"i too big: y={y}, ydata={ydata}, i={i}"
+            delta = (y - ydata[i]) / (ydata[i + 1] - ydata[i])
+            ans = self._xdata[i] * (1 - delta) + self._xdata[i + 1] * delta
         if self._semilogx:
             ans = 10**ans
         return ans
