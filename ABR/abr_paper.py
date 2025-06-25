@@ -585,7 +585,6 @@ def main(*argv):
   plot_total_rms_metric(exp_stack)
   plot_trial_rms_metric(exp_stack)
   plot_baselines(exp_stack, stack_signal_levels)
-  sys.exit(0)
    
   num_divisions = 14
   block_sizes = (num_trials / (2 ** np.arange(0, 
