@@ -131,9 +131,9 @@ def plot_peak_illustration(exp_stack: NDArray, # Shape: num_levels x num_times x
     plt.savefig(plot_file)
 
 
-def plot_peak_metric(exp_stack: NDArray, level_index: int = -1,
-                     clear_plot: bool = True,
-                     plot_file: Optional[str] ='ExamplePeakMetric.png'):
+def plot_peak_metric_example(exp_stack: NDArray, level_index: int = -1,
+                             clear_plot: bool = True,
+                             plot_file: Optional[str] ='ExamplePeakMetric.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   mean_response = np.mean(exp_stack[level_index, ...], axis=1)
   peak_level = np.max(mean_response)
@@ -157,9 +157,9 @@ def plot_peak_metric(exp_stack: NDArray, level_index: int = -1,
     plt.savefig(plot_file)
 
 
-def plot_total_rms_metric(exp_stack: NDArray, level_index: int = -1,
-                          clear_plot: bool = True,
-                          plot_file: Optional[str] ='ExampleTotalRMSMetric.png'):
+def plot_total_rms_metric_example(exp_stack: NDArray, level_index: int = -1,
+                                  clear_plot: bool = True,
+                                  plot_file: Optional[str] ='ExampleTotalRMSMetric.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   mean_response = np.mean(exp_stack[level_index, ...], axis=1)
   signal_level = np.std(mean_response)
@@ -182,9 +182,9 @@ def plot_total_rms_metric(exp_stack: NDArray, level_index: int = -1,
   if plot_file:
     plt.savefig(plot_file)
 
-def plot_trial_rms_metric(exp_stack: NDArray, level_index: int = -1,
-                          clear_plot: bool = True,
-                          plot_file: Optional[str] ='ExampleTrialMSMetric.png'):
+def plot_trial_rms_metric_example(exp_stack: NDArray, level_index: int = -1,
+                                  clear_plot: bool = True,
+                                  plot_file: Optional[str] ='ExampleTrialMSMetric.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   signal_rms = np.sqrt(np.mean(exp_stack[-1, :, :]**2, axis=0))
   noise_rms = np.sqrt(np.mean(exp_stack[0, :, :]**2, axis=0))
@@ -616,9 +616,9 @@ def main(*argv):
   num_levels, num_times, num_trials = exp_stack.shape
   plot_exp_stack_waveform(exp_stack)
   plot_peak_illustration(exp_stack)
-  plot_peak_metric(exp_stack)
-  plot_total_rms_metric(exp_stack)
-  plot_trial_rms_metric(exp_stack)
+  plot_peak_metric_example(exp_stack)
+  plot_total_rms_metric_example(exp_stack)
+  plot_trial_rms_metric_example(exp_stack)
   plot_baselines(exp_stack, stack_signal_levels)
    
   num_divisions = 14
@@ -629,9 +629,9 @@ def main(*argv):
   dprime_dict, block_sizes = compute_all_distances(
     exp_stack, block_sizes=block_sizes, 
     signal_levels=stack_signal_levels, noise_level=FLAGS.noise_level)
-  print('d\' dictionary shapes')
-  for k, v in dprime_dict.items():
-    print('    ', k, v.shape)
+  # print('d\' dictionary shapes')
+  # for k, v in dprime_dict.items():
+  #   print('    ', k, v.shape)
 
   sound_levels_to_plot = [0] + np.nonzero(stack_signal_levels >= 0.1)[0].tolist()
   sound_levels_to_plot.sort(reverse=True)  # plot biggest first for legend's order
@@ -689,6 +689,96 @@ def main(*argv):
                      block_sizes, 'Peak',
                      thresholds=[6, 5, 4])
 
+  ## Peak Summary
+  plt.figure(figsize=(12, 10))
+  plt.subplot(2, 2, 1)
+  plot_peak_metric_example(exp_stack, clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 2)
+  plot_dprimes_vs_sound_level_distribution(
+    dprime_dict['peak'], block_sizes, stack_signal_levels, 
+    ylabel='Peak/RMS Noise Ratio',
+    sound_levels_to_plot=sound_levels_to_plot,
+    clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 3)
+  plot_dprime_vs_trials(dprime_dict['peak'], 'Peak vs. Trial Count', block_sizes,
+                        sound_levels=stack_signal_levels,
+                        sound_levels_to_plot=sound_levels_to_plot,
+                        ylabel='Peak/RMS Noise Ratio',
+                        clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 4)
+  compute_thresholds(dprime_dict['peak'], stack_signal_levels, 
+                     block_sizes, 'Peak',
+                     thresholds=[6, 5, 4],
+                     clear_plot=False, plot_file='MetricSummaryPeak.png')
+
+  ## Total (Average) RMS Summary
+  plt.figure(figsize=(12, 10))
+  plt.subplot(2, 2, 1)
+  plot_total_rms_metric_example(exp_stack, clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 2)
+  plot_dprimes_vs_sound_level_distribution(
+    dprime_dict['total_rms'], block_sizes, stack_signal_levels, 
+    ylabel='Ratio of Average Signal RMS / Noise RMS',
+    sound_levels_to_plot=sound_levels_to_plot,
+    clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 3)
+  plot_dprime_vs_trials(dprime_dict['total_rms'], 'Average RMS vs. Trial Count', block_sizes,
+                        sound_levels=stack_signal_levels,
+                        sound_levels_to_plot=sound_levels_to_plot,
+                        ylabel='Ratio of Average Signal RMS/Noise RMS',
+                        clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 4)
+  compute_thresholds(dprime_dict['total_rms'], stack_signal_levels, 
+                     block_sizes, 'Average RMS',
+                     clear_plot=False, plot_file='MetricSummaryAverageRMS.png')
+
+  ## Trial RMS Summary
+  plt.figure(figsize=(12, 10))
+  plt.subplot(2, 2, 1)
+  plot_trial_rms_metric_example(exp_stack, clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 2)
+  plot_dprimes_vs_sound_level_distribution(
+    dprime_dict['trial_rms'], block_sizes, stack_signal_levels, 
+    ylabel='Trial RMS d\' (signal vs. noise)',
+    sound_levels_to_plot=sound_levels_to_plot,
+    clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 3)
+  plot_dprime_vs_trials(dprime_dict['trial_rms'], 'Trial RMS vs. Trial Count', block_sizes,
+                        sound_levels=stack_signal_levels,
+                        sound_levels_to_plot=sound_levels_to_plot,
+                        ylabel='Trial RMS d\' (signal vs. noise)',
+                        clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 4)
+  compute_thresholds(dprime_dict['trial_rms'], stack_signal_levels, 
+                     block_sizes, 'Trial RMS',
+                     clear_plot=False, plot_file='MetricSummaryTrialRMS.png')
+
+  ## Covariance Summary
+  plt.figure(figsize=(12, 10))
+  plt.subplot(2, 2, 1)
+  a = np.zeros((6, 6)) + 0.5
+  for i in range(6):
+    a[i, i] = 1
+  plt.imshow(a, vmin=0, vmax=1, cmap='grey_r')
+  plt.annotate('$\Sigma s_i * s_j$', (0.5, 4), fontsize=24)
+  plt.annotate('$\Sigma s_i * s_i$', (2.5, 2), xytext=(3.5, 1.25), 
+               arrowprops=dict(arrowstyle='->'),  fontsize=24);
+  plt.subplot(2, 2, 2)
+  plot_dprimes_vs_sound_level_distribution(
+    dprime_dict['covariance'], block_sizes, stack_signal_levels, 
+    ylabel='Covariance d\' (signal vs. noise)',
+    sound_levels_to_plot=sound_levels_to_plot,
+    clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 3)
+  plot_dprime_vs_trials(dprime_dict['covariance'], 'Covariance', block_sizes,
+                        sound_levels=stack_signal_levels,
+                        sound_levels_to_plot=sound_levels_to_plot,
+                        ylabel='Covariance d\' (signal vs. noise)',
+                        clear_plot=False, plot_file='')
+  plt.subplot(2, 2, 4)
+  compute_thresholds(dprime_dict['covariance'], stack_signal_levels, 
+                     block_sizes, 'Covariance',
+                     clear_plot=False, plot_file='MetricSummaryCovariance.png')
 
 if __name__ == "__main__":
   app.run(main)
