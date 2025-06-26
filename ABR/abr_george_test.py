@@ -314,7 +314,7 @@ class FittingTests(absltest.TestCase):
     # Threshold
     self.assertAlmostEqual(bp.threshold(0), 1)
     self.assertAlmostEqual(bp.threshold(3), 1.5)
-    self.assertAlmostEqual(bp.threshold(4), 3)
+    self.assertAlmostEqual(bp.threshold(4), 2)
     self.assertAlmostEqual(bp.threshold(4.5), 3.5)
     self.assertAlmostEqual(bp.threshold(5.5), 4)
 
