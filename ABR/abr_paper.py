@@ -98,9 +98,11 @@ def create_exp_stack(signal_levels: List[float] = [],
 def plot_exp_stack_waveform(
     exp_stack: NDArray,  # Shape: num_levels x num_times x num_trials
     level_index: int = -1, 
+    clear_plot: bool = True,
     plot_file: Optional[str] ='ExampleWaveformStackDisplay.png'): 
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   plt.plot(exp_stack[level_index, :, 0], label='One trial')
   plt.plot(np.mean(exp_stack[-1, ...], axis=level_index), label='Average')
   plt.title('ABR Response at Highest Sound Level')
@@ -110,12 +112,14 @@ def plot_exp_stack_waveform(
 
 def plot_peak_illustration(exp_stack: NDArray, # Shape: num_levels x num_times x num_trials
                            level_index: int = -1,
+                           clear_plot: bool = True,
                            plot_file: Optional[str] ='ExamplePeakPick.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   mean_signal_response = np.mean(exp_stack[-1, ...], axis=1)
   peak_index = np.argmax(mean_signal_response)
 
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   plt.subplot(2,1,1);
   plt.plot(np.mean(exp_stack[-1, ...], axis=1))
   plt.plot(peak_index, mean_signal_response[peak_index], 'ro')
@@ -128,13 +132,15 @@ def plot_peak_illustration(exp_stack: NDArray, # Shape: num_levels x num_times x
 
 
 def plot_peak_metric(exp_stack: NDArray, level_index: int = -1,
+                     clear_plot: bool = True,
                      plot_file: Optional[str] ='ExamplePeakMetric.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   mean_response = np.mean(exp_stack[level_index, ...], axis=1)
   peak_level = np.max(mean_response)
   noise_response = np.mean(exp_stack[0, :, :64], axis=-1)
   noise_level = np.std(noise_response)
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   plt.axhline(peak_level, color='g', linestyle=':', label='Signal Peak')
   plt.plot(mean_response, label='Average Signal')
   plt.plot(noise_response, label='Average Noise')
@@ -152,13 +158,15 @@ def plot_peak_metric(exp_stack: NDArray, level_index: int = -1,
 
 
 def plot_total_rms_metric(exp_stack: NDArray, level_index: int = -1,
+                          clear_plot: bool = True,
                           plot_file: Optional[str] ='ExampleTotalRMSMetric.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   mean_response = np.mean(exp_stack[level_index, ...], axis=1)
   signal_level = np.std(mean_response)
   noise_response = np.mean(exp_stack[0, :, :64], axis=-1)
   noise_level = np.std(noise_response)
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   plt.plot(mean_response, label='Average Signal')
   plt.axhline(signal_level, color='g', linestyle=':', label='Signal RMS')
   plt.plot(noise_response, label='Average Noise')
@@ -175,13 +183,15 @@ def plot_total_rms_metric(exp_stack: NDArray, level_index: int = -1,
     plt.savefig(plot_file)
 
 def plot_trial_rms_metric(exp_stack: NDArray, level_index: int = -1,
+                          clear_plot: bool = True,
                           plot_file: Optional[str] ='ExampleTrialMSMetric.png'):
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   signal_rms = np.sqrt(np.mean(exp_stack[-1, :, :]**2, axis=0))
   noise_rms = np.sqrt(np.mean(exp_stack[0, :, :]**2, axis=0))
   signal_counts, signal_bins = np.histogram(signal_rms, density=True)
   noise_counts, noise_bins = np.histogram(noise_rms, density=True)
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   plt.plot((signal_bins[:-1]+signal_bins[1:])/2, signal_counts, label='Signal Distribution')
   plt.plot((noise_bins[:-1]+noise_bins[1:])/2, noise_counts, label='Noise Distribution')
   mean_signal_rms = np.mean(signal_rms)
@@ -204,12 +214,12 @@ def plot_trial_rms_metric(exp_stack: NDArray, level_index: int = -1,
 
 def plot_baselines(exp_stack: NDArray,
                    stack_signal_levels: ArrayLike, 
+                   clear_plot: bool = True,
                    plot_file: Optional[str] = 'BaselineXXX.png') -> None:
   assert exp_stack.ndim == 3, f'Expected three dimensions in exp_stack, got {exp_stack.shape}'
   num_levels, num_times, num_trials = exp_stack.shape
 
   # Peak Baseline Plot
-  plt.clf()
   signal_level = 8
   mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
   window_start: int = int(1.75e-3*mouse_sample_rate),
@@ -217,7 +227,8 @@ def plot_baselines(exp_stack: NDArray,
   signal_average = np.mean(exp_stack[signal_level, :, :], axis=1)
   peak_index = np.argmax(np.abs(signal_average))
   noise_average = np.mean(exp_stack[0, :, :], axis=1)
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   plt.plot(noise_average, label='Average Noise Response')
   plt.plot(signal_average, label='Average Signal Response')
 
@@ -234,7 +245,8 @@ def plot_baselines(exp_stack: NDArray,
     plt.savefig(plot_file.replace('XXX', 'Peak'))
 
   # Per Trial RMS
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   signal_levels = [np.std(np.mean(exp_stack[i, :, :], axis=1)) for i in range(num_levels)]
   signal_noise_levels = [np.std(exp_stack[i, :, :]) for i in range(num_levels)]
   noise_level = np.std(exp_stack[0, :, :])
@@ -255,7 +267,8 @@ def plot_baselines(exp_stack: NDArray,
   noise_levels = [np.std(np.mean(exp_stack[0, :, :tc], axis=1)) for tc in trial_counts]
   # noise_level = np.std(np.mean(exp_stack[0, :, :], axis=1))
 
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   plt.semilogx(trial_counts, noise_levels, label='Noise RMS')
   # plt.plot(stack_signal_levels, noise_level*np.ones(stack_signal_levels.shape), label='Noise RMS')
   plt.semilogx(trial_counts, signal_levels, label='Signal RMS')
@@ -271,6 +284,7 @@ def plot_distribution_histogram_comparison(
     top_dist: NDArray, bottom_dist: NDArray, 
     top_label: str = 'Top', bottom_label: str = 'Bottom', 
     bin_count: int = 20, 
+    clear_plot: bool = True,
     plot_file: Optional[str] = 'HistogramComparison_top_bottom.png',
                                            ) -> None:
   # Original shaped: num_levels x bootstrap_repetitions x trial_count
@@ -279,7 +293,8 @@ def plot_distribution_histogram_comparison(
   top_dist = np.reshape(top_dist, (top_dist.shape[0], -1))
   bottom_dist = np.reshape(bottom_dist, (bottom_dist.shape[0], -1))
 
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   plt.subplot(2, 1, 1)
   plt.hist(top_dist[0, ...], bin_count, label=f'Noise ({top_label})')
   plt.hist(top_dist[-1, ...], bin_count, label=f'Signal ({top_label})')
@@ -337,6 +352,7 @@ def plot_distribution_vs_trials(
     block_sizes: List[int] = [], 
     signal_levels: List[float] = [],
     sound_levels_to_plot: List[int] = [],
+    clear_plot: bool = True,
     plot_file: str = 'Distribution_vs_number_of_trials.png'):
   """Just for the peak metric..."""
   # num_levels x bootstrap_repetitions x trial_count
@@ -350,7 +366,8 @@ def plot_distribution_vs_trials(
   stds = np.concatenate(stds, axis=1)
   if len(signal_levels) != means.shape[0]:
     signal_levels = range(means.shape[0])
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   if len(sound_levels_to_plot) == 0:
     sound_levels_to_plot = range(means.shape[0])
   for i in sound_levels_to_plot:
@@ -437,11 +454,13 @@ def plot_distribution_analysis(dist_list: DistributionList,
 def plot_dprime_vs_trials(dprimes, name='', block_sizes: List[int] = [],
                           sound_levels:List[float] = [],
                           sound_levels_to_plot: List[int] = [],
-                          ylabel='d\'',
+                          ylabel: str = 'd\'',
+                          clear_plot: bool = True,
                           plot_file: str = 'dprime.png'):
   # Expect num_trialRMSial_sizes x num_levels x num_trials
   assert dprimes.ndim == 3, f'Expected three dimensions in dprimes, got {dprimes.shape}'
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   dprimes = np.mean(dprimes, axis=2)  # Now num_trial_sizes x num_levels
   if len(sound_levels) == 0:
     sound_levels = range(dprimes.shape[1])
@@ -464,6 +483,7 @@ def plot_dprimes_vs_sound_level_distribution(
       signal_levels: ArrayLike, 
       ylabel: str = 'd\'',
       sound_levels_to_plot: List[int] = [],
+      clear_plot: bool = True,
       plot_file: str = 'DPrimeVsLevel.png'):
   # Dprimes is Expect num_trial_sizes x num_levels x num_trials
   if len(sound_levels_to_plot) > 0:
@@ -471,7 +491,8 @@ def plot_dprimes_vs_sound_level_distribution(
     dprimes = dprimes[:, sound_levels_to_plot, :]
   dp_mean = np.mean(dprimes, axis=2)
   dp_std = np.std(dprimes, axis=2)
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   for i in reversed(range(0, len(trial_counts), 2)):
     plt.errorbar(signal_levels, dp_mean[i, :], capsize=5,
                 yerr=dp_std[i, :], label=f'Trial Count={trial_counts[i]}');
@@ -485,8 +506,10 @@ def plot_dprimes_vs_sound_level_distribution(
 def plot_dprimes_vs_sound_level(
     dprime_dict: Dict[str, NDArray], 
     signal_levels: ArrayLike,
+    clear_plot: bool = True,
     plot_file: str = 'SummaryDistributionsByLevel.png') -> None:
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   for k, dprimes in dprime_dict.items():
     plt.plot(signal_levels, np.nanmean(dprimes[0, :, :], axis=-1), 
             label=k)
@@ -499,9 +522,11 @@ def plot_dprimes_vs_sound_level(
 def plot_dprimes_vs_trials(
     dprime_dict: Dict[str, NDArray], 
     level_num: int = -1, block_sizes: List[int] = [], 
+    clear_plot: bool = True,
     plot_file: str = 'SummaryDistributionsByTrials.png'):
   # Expect num_trial_sizes x num_levels x num_trials
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   for k, dprimes in dprime_dict.items():
     plt.semilogx(block_sizes, np.mean(dprimes[:, level_num, :], axis=-1), 
                  label=k)
@@ -518,6 +543,7 @@ def compute_thresholds(data: List[NDArray],  # Usually d' data
                        trial_counts: List[int],
                        metric_name: str,
                        thresholds: List[float] = [1.0, 2.0, 3.0,],
+                       clear_plot: bool = True,
                        plot_file: str = 'ThresholdVsTrials_metric.png'):
   # Expect num_trial_sizes x num_levels x num_trials
   assert data.ndim == 3, f'Expected three dimensions in data, got {data.shape}'
@@ -525,7 +551,8 @@ def compute_thresholds(data: List[NDArray],  # Usually d' data
 
   # pp = PositivePolynomial(semilogx=True)
   pp = BilinearInterpolation()
-  plt.clf()
+  if clear_plot:
+    plt.clf()
   for desired_threshold in thresholds:
     threshold = np.zeros(data.shape[0]) # Number of Trials
     for i in range(data.shape[0]):
@@ -536,7 +563,7 @@ def compute_thresholds(data: List[NDArray],  # Usually d' data
   plt.legend()
   plt.xlabel('Number of trials');
   plt.ylabel('Amplitude of Signal for Decision (a.u.)')
-  plt.title(f'{metric_name}: Sound Level Threshold vs. Decision Criteria');
+  plt.title(f'{metric_name}: Sound Level vs. Decision Criteria');
   plot_file = plot_file.replace('metric', metric_name)
   if plot_file:
     plt.savefig(plot_file)
