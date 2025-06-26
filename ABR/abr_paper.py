@@ -542,7 +542,7 @@ def compute_thresholds(data: List[NDArray],  # Usually d' data
                        signal_levels: List[float], 
                        trial_counts: List[int],
                        metric_name: str,
-                       thresholds: List[float] = [1.0, 2.0, 3.0,],
+                       thresholds: List[float] = [3.0, 2.0, 1.0],
                        clear_plot: bool = True,
                        plot_file: str = 'ThresholdVsTrials_metric.png'):
   # Expect num_trial_sizes x num_levels x num_trials
@@ -686,7 +686,8 @@ def main(*argv):
   compute_thresholds(dprime_dict['covariance'], stack_signal_levels, 
                      block_sizes, 'Covariance')
   compute_thresholds(dprime_dict['peak'], stack_signal_levels, 
-                     block_sizes, 'Peak')
+                     block_sizes, 'Peak',
+                     thresholds=[6, 5, 4])
 
 
 if __name__ == "__main__":
