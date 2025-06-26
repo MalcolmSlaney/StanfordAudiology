@@ -553,6 +553,8 @@ flags.DEFINE_float('noise_level', 1.0, 'What noise level to use throughout these
 def compute_all_distances(exp_stack: NDArray, 
                           block_sizes: List[int], 
                           cache_file: str = 'all_distances.pkl',
+                          signal_levels: Optional[list[float]] = None,
+                          noise_level: Optional[float] = None,
                           ) -> Tuple[DPrimeDict, List[int]]:
   if cache_exists(cache_file):
     data = restore_from_cache(cache_file)
@@ -567,8 +569,14 @@ def compute_all_distances(exp_stack: NDArray,
     distances, block_sizes_used  = m.compute_distance_by_trial_size(exp_stack, 
                                                                     block_sizes)
     dprime_dict[metric_name] = distances
-  save_to_cache({'dprime_dict': dprime_dict,
-                 'block_sizes': block_sizes_used}, cache_file)
+  save_dict = {'dprime_dict': dprime_dict,
+               'block_sizes': block_sizes_used}
+  if signal_levels:
+    # If we get the signal levels, not mandatory, save them here too.
+    save_dict['signal_levels'] = signal_levels
+  if noise_level is not None:
+    save_dict['noise_level'] = noise_level
+  save_to_cache(save_dict, cache_file)
   return dprime_dict, block_sizes_used
 
 def main(*argv):
@@ -591,8 +599,9 @@ def main(*argv):
                                               num_divisions, 
                                               1.0))).astype(int)
 
-  dprime_dict, block_sizes = compute_all_distances(exp_stack, 
-                                                   block_sizes=block_sizes)
+  dprime_dict, block_sizes = compute_all_distances(
+    exp_stack, block_sizes=block_sizes, 
+    signal_levels=stack_signal_levels, noise_level=FLAGS.noise_level)
   print('d\' dictionary shapes')
   for k, v in dprime_dict.items():
     print('    ', k, v.shape)
