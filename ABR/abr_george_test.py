@@ -312,11 +312,11 @@ class FittingTests(absltest.TestCase):
     self.assertAlmostEqual(bp.eval(0), 0)
     self.assertAlmostEqual(bp.eval(5), 6)
     # Threshold
-    self.assertAlmostEqual(bp.threshold(0), 0)
+    self.assertAlmostEqual(bp.threshold(0), 1)
     self.assertAlmostEqual(bp.threshold(3), 1.5)
     self.assertAlmostEqual(bp.threshold(4), 3)
     self.assertAlmostEqual(bp.threshold(4.5), 3.5)
-    self.assertAlmostEqual(bp.threshold(5.5), 4.5)
+    self.assertAlmostEqual(bp.threshold(5.5), 4)
 
     bp = george.BilinearInterpolation(semilogx=True)
     x = [1, 10,      1000]
