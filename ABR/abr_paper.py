@@ -756,13 +756,16 @@ def main(*argv):
   ## Covariance Summary
   plt.figure(figsize=(12, 10))
   plt.subplot(2, 2, 1)
-  a = np.zeros((6, 6)) + 0.5
+  a = np.zeros((6, 6)) + 0.25
   for i in range(6):
     a[i, i] = 1
-  plt.imshow(a, vmin=0, vmax=1, cmap='grey_r')
-  plt.annotate('$\Sigma s_i * s_j$', (0.5, 4), fontsize=24)
-  plt.annotate('$\Sigma s_i * s_i$', (2.5, 2), xytext=(3.5, 1.25), 
-               arrowprops=dict(arrowstyle='->'),  fontsize=24);
+  plt.imshow(a, vmin=0, vmax=1, cmap='gray_r', extent=[1, 6, 6, 1])
+  plt.annotate('Elsewhere:\n$\\Sigma s_i * s_j$', (1.25, 5.5), fontsize=24, color='red')
+  plt.annotate('$\\Sigma s_i * s_i$', (3.5, 3), xytext=(4.5, 2.25), color='red',
+               arrowprops=dict(arrowstyle='->', color='red'),  fontsize=24);
+  plt.title('RMS (black) vs. Covariance (gray) Terms')
+  plt.xlabel('Waveform #')
+  plt.ylabel('Waveform #')
   plt.subplot(2, 2, 2)
   plot_dprimes_vs_sound_level_distribution(
     dprime_dict['covariance'], block_sizes, stack_signal_levels, 
