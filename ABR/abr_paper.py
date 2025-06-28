@@ -91,6 +91,8 @@ def create_exp_stack(signal_levels: List[float] = [],
   # exp_stack.shape is Number of levels, # of time samples, # of trials
   save_to_cache({'signal_levels': signal_levels,
                  'noise_level': noise_level,
+                 'num_trials': num_trials, # Also implicit in waveforms array
+                 'num_times': num_times, # Also implicit in waveforms array
                  'waveforms': exp_stack}, cache_file)
   return signal_levels, exp_stack
 
@@ -598,7 +600,7 @@ def compute_all_distances(exp_stack: NDArray,
     dprime_dict[metric_name] = distances
   save_dict = {'dprime_dict': dprime_dict,
                'block_sizes': block_sizes_used}
-  if signal_levels:
+  if signal_levels is not None:
     # If we get the signal levels, not mandatory, save them here too.
     save_dict['signal_levels'] = signal_levels
   if noise_level is not None:

@@ -3,7 +3,8 @@
 **.pyc
 **.csv
 **.txt
-**/old/*
+**.png
+**/old*/*
 .vscode/
 test*.png
 notes-malcolm.txt
