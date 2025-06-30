@@ -16,7 +16,7 @@ mouse_sample_rate = 24414 * 8  # From George's Exp Notes, 8x oversampling
 
 def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
                            bw=200, order=4, cf=1000, signal_levels=(0, 1),
-                           sample_rate=mouse_sample_rate):
+                           sample_rate=mouse_sample_rate, return_signals=False):
     """Create a synthetic stack of ABR recordings so we can investigate d'
     behaviour for really large number of trials.  This stack has two different
     (sound pressure) levels.
@@ -46,9 +46,13 @@ def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
     peak_env = gammatone_func(peak_time, cf=0)
     gammatone = gammatone_func(t)/peak_env
     # The shape of the stacks array is levels x time x trials
-    stack = noise_level * np.random.normal(size=(len(signal_levels), num_times, num_trials))
     signals = np.expand_dims(signal_levels, (1, 2)) * np.expand_dims(gammatone, (0, 2))
-    stack += signals
+    noise = noise_level * np.random.normal(size=(len(signal_levels), num_times, num_trials))
+    stack = signals + noise
+
+    if return_signals:
+       return stack, signals
+    
     return stack
 
 
