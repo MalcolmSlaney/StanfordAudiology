@@ -133,7 +133,8 @@ def create_exp_stack(
     return signal_levels, exp_stack
 
 
-def plot_experiment_trials(plot_file: Optional[str] = "ExampleWaveformTrials.png"):
+def plot_experiment_trials(
+        stack: NDArray, plot_file: Optional[str] = "ExampleWaveformTrials.png"):
     num_points = 150
     num_waveforms = stack.shape[-1]
     for i in reversed(range(num_waveforms)):
@@ -786,7 +787,7 @@ def main(*argv):
     )
     num_levels, num_times, num_trials = exp_stack.shape
     plot_exp_stack_waveform(exp_stack)
-    plot_experiment_trials()
+    plot_experiment_trials(exp_stack)
     plot_peak_illustration(exp_stack)
     plot_peak_metric_example(exp_stack)
     plot_total_rms_metric_example(exp_stack)
