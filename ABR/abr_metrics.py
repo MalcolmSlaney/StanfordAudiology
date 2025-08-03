@@ -285,6 +285,7 @@ class CovarianceMetric(Metric):
     
     if model is None:
       model = np.mean(stack, axis=-1, keepdims=True)
+    assert model.ndim == 2, f'model {type(self)} has size {model.shape}'
 
     if self.with_self_similar:  # Consider all the terms
       stack = np.reshape(model, (stack.shape[0], 1)) * stack
@@ -327,6 +328,27 @@ class CovarianceSelfSimilarMetric(CovarianceMetric):
   # All the rest as is
 
 
+class CovarianceTheoreticalModel(CovarianceMetric):
+  """Compute the Covariance measure, this time assuming we know (and are given)
+  the perfect signal model.
+  """
+  def __init__(self, with_self_similar:bool = False):
+    self._model = None
+    super().__init__(with_self_similar=with_self_similar)
+
+  def add_model(self, model: NDArray):
+    """Add the theoretical (perfect) model to the class, so we have it when
+    we compute the metric over the data.
+    """
+    print(f'Adding a model of size {model.shape} to {type(self)}')
+    self._model = model
+
+  def compuute(self, stack:NDArray, model: Optional[NDArray] = None) -> NDArray:
+    return super().compute(stack, self._model)
+
+  # All the rest as is
+
+
 class PrestoMetric(Metric):
   def __init__(self, num_splits=500):
     """500 splits is what is used in the paper."""
@@ -356,6 +378,7 @@ all_metrics = {
    'total_rms': TotalRMSMetric,
    'covariance': CovarianceMetric,
    'covariance_self_similar': CovarianceSelfSimilarMetric,
+   'covariance_theory': CovarianceTheoreticalModel,
    # 'presto': PrestoMetric
 }
 

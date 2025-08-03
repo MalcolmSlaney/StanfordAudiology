@@ -1,8 +1,7 @@
 import datetime
 import os
-import sys
 
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -436,6 +435,7 @@ distribution_names = {
     "TotalRMS": TotalRMSMetric,
     "TrialRMS": TrialRMSMetric,
     "Covariance": CovarianceMetric,
+    "CoverianceTheory": CovarianceTheoreticalModel,
     "Peak": PeakMetric,
     # 'Presto': PrestoMetric # always has 500 splits!
 }
@@ -456,6 +456,8 @@ def compute_all_distributions(
             distributions[distribution_name] = distribution
         else:
             metric: Metric = distribution_names[distribution_name]()
+            if distribution_name == 'CovarianceTheory':
+                metric.add_model()
             (distribution, block_sizes) = metric.compute_distribution_by_trial_size(
                 exp_stack, block_sizes, bootstrap_repetitions=bootstrap_repetitions
             )
@@ -742,6 +744,8 @@ flags.DEFINE_integer(
 flags.DEFINE_float(
     "noise_level", 1.0, "What noise level to use throughout these experiments"
 )
+
+# Already defined in abr_george.py
 # flags.DEFINE_string('cache_dir', '/tmp', 'Where to cache the precomputed data')
 
 
@@ -759,8 +763,13 @@ def compute_all_distances(
     # Now pre calculate all the metrics.
     dprime_dict = {}
     for metric_name in all_metrics.keys():
+        print(f'Compute_all_distances for {metric_name}')
         m = all_metrics[metric_name]()
         all_metrics[metric_name] = m
+        if metric_name == 'covariance_theory':
+            m.add_model(create_synthetic_stack(noise_level=1, 
+                                               signal_levels=[1,],
+                                               num_trials=1,))
 
         distances, block_sizes_used = m.compute_distance_by_trial_size(
             exp_stack, block_sizes
@@ -803,9 +812,9 @@ def main(*argv):
         signal_levels=stack_signal_levels,
         noise_level=FLAGS.noise_level,
     )
-    # print('d\' dictionary shapes')
-    # for k, v in dprime_dict.items():
-    #   print('    ', k, v.shape)
+    print('d\' dictionary shapes')
+    for k, v in dprime_dict.items():
+      print('    ', k, v.shape)
 
     sound_levels_to_plot = [0] + np.nonzero(stack_signal_levels >= 0.1)[0].tolist()
     sound_levels_to_plot.sort(reverse=True)  # plot biggest first for legend's order
@@ -816,6 +825,14 @@ def main(*argv):
         sound_levels_to_plot=sound_levels_to_plot,
         block_sizes=block_sizes,
         plot_file="DprimeVsTrialCount_Covariance.png",
+    )
+    plot_dprime_vs_trials(
+        dprime_dict["covariance_theory"],
+        "Covariance Theory vs. Trial Count",
+        sound_levels=stack_signal_levels,
+        sound_levels_to_plot=sound_levels_to_plot,
+        block_sizes=block_sizes,
+        plot_file="DprimeVsTrialCount_CovarianceTheory.png",
     )
     plot_dprime_vs_trials(
         dprime_dict["total_rms"],
