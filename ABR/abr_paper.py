@@ -700,7 +700,7 @@ def compute_thresholds(
     thresholds: List[float] = [3.0, 2.0, 1.0],
     clear_plot: bool = True,
     plot_file: str = "ThresholdVsTrials_metric.png",
-)
+):
     # Expect num_trial_sizes x num_levels x num_trials
     assert data.ndim == 3, f"Expected three dimensions in data, got {data.shape}"
     data = np.mean(data, axis=2)  # Average over trials, now size x levels
