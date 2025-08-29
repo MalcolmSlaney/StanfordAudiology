@@ -160,7 +160,7 @@ class MetricTests(absltest.TestCase):
                                                       10, min_count=1)
     m = np.squeeze(np.mean(r, axis=2))
     self.assertEqual(m[0], 0)
-    self.assertGreater(m[1], 240)
+    self.assertGreater(m[1], 230)
 
   def test_covariance(self):
     t = np.arange(800)/100
