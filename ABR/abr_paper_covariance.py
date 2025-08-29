@@ -133,6 +133,70 @@ def multi_inner_product_model(signal: ArrayLike = [1.0,],
   return np.mean(covariance), np.var(covariance), d  # Stats over experiemnts
 
 
+def single_trial_comparison_figure():
+  trial_counts = 10**np.linspace(1, 4, num=10)
+  ss_means = []
+  ss_vars = []
+  s=2
+  n=4
+  for num_trials in trial_counts:
+    m, v = single_inner_product_model(signal=s, noise=n, num_trials=int(num_trials))
+    print(f'{num_trials:.3f} & {m:.3f} & {v:.3f}')
+    ss_means.append(m)
+    ss_vars.append(v)
+
+  trial_counts = 10**np.linspace(1, 4, num=10)
+  noss_means = []
+  noss_vars = []
+  s=2
+  n=4
+  for num_trials in trial_counts:
+    m, v = single_inner_product_model(signal=s, noise=n, 
+                                      num_trials=int(num_trials),
+                                      self_similar=False)
+    print(f'{num_trials:.3f} & {m:.3f} & {v:.3f}')
+    noss_means.append(m)
+    noss_vars.append(v)
+
+    
+  plt.figure(figsize=(12, 4))
+  plt.subplot(1, 3, 1)
+  plt.semilogx(trial_counts, ss_means, 'x', label='Full Simulation')
+  full_single_inner_product_mean = s**2+n**2/trial_counts
+  plt.semilogx(trial_counts, full_single_inner_product_mean, label='Full Theory')
+
+  plt.semilogx(trial_counts, noss_means, 'x', label='Jackknife Simulation')
+  jk_single_inner_product_mean = s**2 + 0*trial_counts
+  plt.semilogx(trial_counts, jk_single_inner_product_mean, label='Jackknife Theory')
+  plt.title('Mean of Single Trial Model')
+  plt.legend()
+
+  plt.subplot(1,3,2)
+  plt.semilogx(trial_counts, ss_vars, 'x', label='Full Simulation')
+  full_single_inner_product_variance = (s**2)*(n**2)*(1+3/trial_counts) + (trial_counts + 1)*(n**4)/(trial_counts**2)
+  plt.semilogx(trial_counts, full_single_inner_product_variance, label='Full Theory')
+
+  plt.semilogx(trial_counts, noss_vars, 'x', label='Jackknife Simulation')
+  jk_single_inner_product_variance = (s**2)*(n**2)*(1+1/(trial_counts-1)) + n**4/(trial_counts-1)
+  plt.semilogx(trial_counts, jk_single_inner_product_variance, label='Jackknife Theory')
+  plt.title('Variance of Single Trial Model')
+  plt.legend()
+
+  plt.subplot(1,3,3)
+  full_inner_product_dprime = full_single_inner_product_mean / (2*np.sqrt(full_single_inner_product_variance))
+  plt.semilogx(trial_counts, np.asarray(ss_means)/(2*np.sqrt(np.asarray(ss_vars))), 
+              'x', label='Full Simulation');
+  plt.semilogx(trial_counts, full_inner_product_dprime, label='Full Theory')
+
+  jk_inner_product_dprime = jk_single_inner_product_mean / (2*np.sqrt(jk_single_inner_product_variance))
+  plt.semilogx(trial_counts, np.asarray(noss_means)/(2*np.sqrt(np.asarray(noss_vars))), 
+              'x', label='Jackknife Simulation');
+  plt.semilogx(trial_counts, jk_inner_product_dprime, label='Jackknife Theory')
+  plt.title('d\' of Single TrialModel');
+  plt.legend();
+
+  plt.savefig('covariance_comparison.png')
+
 def multi_inner_product_figure():
   num_trials = 2000
   wav_means = []
@@ -175,6 +239,7 @@ def multi_inner_product_figure():
 def main(_):
   single_inner_product_figure()
   single_inner_product_figure_jackknife()
+  single_trial_comparison_figure()
   multi_inner_product_figure()
 
 
