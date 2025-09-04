@@ -77,7 +77,8 @@ def calculate_dprime(
     h1: Union[list, NDArray],
     h2: Union[list, NDArray],
     geometric_mean: bool = False,
-    debug: bool = False
+    debug: bool = False,
+    eps: float = 1e-20
 ) -> float:
     """Calculate the d' given two sets of (one-dimensiona) data.  The h1
     data should be the bigger of the two data. The normalization factor either
@@ -89,7 +90,7 @@ def calculate_dprime(
     else:
         # Normalize by arithmetic mean of variances (not std)
         norm = np.sqrt((np.std(h1) ** 2 + np.std(h2) ** 2) / 2.0)
-        dprime = (np.mean(h1) - np.mean(h2)) / (1e-10 + norm)
+        dprime = (np.mean(h1) - np.mean(h2)) / (eps + norm)
         if debug:
            print('Calculate dprime: norm', norm, 'dprime:', dprime)
            print('mean h1:', np.mean(h1), 'mean h2:', np.mean(h2))
