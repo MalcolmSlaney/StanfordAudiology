@@ -56,20 +56,21 @@ def single_inner_product_figure():
   plt.semilogx(trial_counts, ss_means, 'x')
   single_inner_product_mean = s**2+n**2/trial_counts
   plt.semilogx(trial_counts, single_inner_product_mean)
-  plt.title('Mean of Single Trial Model (Full Covariance)')
+  plt.title('Mean of Correlation (Full Covariance)')
 
   plt.subplot(1,3,2)
   plt.semilogx(trial_counts, ss_vars, 'x')
-  # single_inner_product_variance = (s**2)*(n**2)*(1+2/trial_counts+1/(trial_counts**2)) + (trial_counts + 1)*(n**4)/(trial_counts**2)
+  single_inner_product_variance = (s**2)*(n**2)*(1+2/trial_counts+1/(trial_counts**2)) + (trial_counts + 1)*(n**4)/(trial_counts**2)
   single_inner_product_variance = (s**2)*(n**2)*(1+3/trial_counts) + (trial_counts + 1)*(n**4)/(trial_counts**2)
+  # single_inner_product_variance = 4*(s**2)*(n**2) + (trial_counts - 1)*n**4/trial_counts
   plt.semilogx(trial_counts, single_inner_product_variance)
-  plt.title('Variance of Single Trial Model (Full Covariance)')
+  plt.title('Variance of Correlation (Full Covariance)')
 
   plt.subplot(1,3,3)
   inner_product_dprime = single_inner_product_mean / (2*np.sqrt(single_inner_product_variance))
   plt.semilogx(trial_counts, np.asarray(ss_means)/(2*np.sqrt(np.asarray(ss_vars))), 'x');
   plt.semilogx(trial_counts, inner_product_dprime)
-  plt.title('d\' of Single TrialModel (Full Covariance)');
+  plt.title('d\' of Correlation (Full Covariance)');
 
   plt.savefig('single_trial_inner_product_comparison_full_covariance.png')
 

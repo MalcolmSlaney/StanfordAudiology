@@ -41,7 +41,7 @@ def create_synthetic_stack(noise_level=1, num_times=1952, num_trials=1026,
         else:
           return envelope
 
-    t = np.arange(num_times) / mouse_sample_rate
+    t = np.arange(num_times) / sample_rate
     peak_time = 3/(2*np.pi*bw)
     peak_env = gammatone_func(peak_time, cf=0)
     gammatone = gammatone_func(t)/peak_env
